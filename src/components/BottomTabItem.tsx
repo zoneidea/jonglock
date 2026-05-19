@@ -58,7 +58,8 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 3,
+    flexDirection: 'row',
+    gap: 7,
   },
   bottomTabActive: {
     backgroundColor: colors.teal,
