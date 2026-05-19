@@ -192,6 +192,7 @@ iOS:
 - `@react-navigation/native` and native stack for routing
 - `react-native-screens` and `react-native-safe-area-context` for native navigation performance
 - `@react-native-google-signin/google-signin` for Gmail login
+- `@react-native-firebase/app` for Firebase default app initialization
 - `@react-native-async-storage/async-storage` for temporary local session mock
 - `react-native-linear-gradient` for controlled visual polish
 - `react-native-gesture-handler` for future gesture-driven UI
@@ -200,6 +201,7 @@ iOS:
 ## MVP Risks
 
 - Google Sign-In requires native credentials before production.
+- iOS Firebase requires `GoogleService-Info.plist` before iOS production testing.
 - Payment flow must not launch without provider signature verification.
 - Booth visual map needs a stable coordinate schema shared by backend, frontend, and mobile.
 - Real mobile auth should use secure storage, not plain AsyncStorage.

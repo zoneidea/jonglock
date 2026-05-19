@@ -23,6 +23,13 @@ jest.mock('@react-native-google-signin/google-signin', () => ({
   },
 }));
 
+jest.mock('@react-native-firebase/app', () => ({
+  __esModule: true,
+  default: {
+    app: jest.fn(() => ({name: '[DEFAULT]'})),
+  },
+}));
+
 jest.mock('react-native-linear-gradient', () => {
   const React = require('react');
   const {View} = require('react-native');

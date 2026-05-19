@@ -36,6 +36,7 @@ The mobile app should eventually support:
 - Keep UI state local until API integration is requested.
 - Use React Navigation for screen routing.
 - Use AsyncStorage only for non-sensitive local UI/session state in this MVP.
+- Firebase core is available through `@react-native-firebase/app`.
 - Do not store tokens, passwords, payment data, or PII in plain AsyncStorage when real APIs are introduced.
 - Use platform-native secure storage before production authentication.
 
@@ -95,6 +96,21 @@ Before production:
 - Remove or gate the mock fallback.
 - Exchange Google identity with backend mobile auth endpoint.
 - Store backend token securely.
+
+## Firebase
+
+Android has Firebase configured with `android/app/google-services.json` and the Google Services Gradle plugin.
+
+iOS is not fully configured until `GoogleService-Info.plist` is added to `ios/JonglockApp/` and included in the Xcode target.
+
+Use Firebase only as the native platform foundation until a specific product is requested:
+
+- Authentication
+- Cloud Messaging
+- Analytics
+- Crashlytics
+
+Do not add those product modules proactively.
 
 ## API Integration Plan
 

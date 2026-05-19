@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1087957238231",
+    "project_id": "jonglock-87a24",
+    "storage_bucket": "jonglock-87a24.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1087957238231:android:d4d316ca8936ec5054cb92",
+        "android_client_info": {
+          "package_name": "com.jonglockapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyANw3wQpa4KC3ToU9ZZeuHLcPVdkAhMGPs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

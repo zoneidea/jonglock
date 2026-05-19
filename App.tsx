@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import firebase from '@react-native-firebase/app';
 import {GoogleSignin} from '@react-native-google-signin/google-signin';
 import {NavigationContainer} from '@react-navigation/native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
@@ -295,6 +296,7 @@ function LabeledInput({
 }
 
 function HomeScreen({user, onLogout}: {user: MobileUser; onLogout: () => void}) {
+  const firebaseApp = firebase.app();
   const stats = useMemo(
     () => [
       {label: 'ตลาดเปิดจอง', value: '2'},
@@ -340,6 +342,10 @@ function HomeScreen({user, onLogout}: {user: MobileUser; onLogout: () => void}) 
 
         <Text style={styles.sectionTitle}>เมนูหลัก</Text>
         <View style={styles.actionList}>
+          <ActionItem
+            title="Firebase พร้อมใช้งาน"
+            text={`Default app: ${firebaseApp.name}`}
+          />
           <ActionItem title="ค้นหาตลาด" text="ดูตลาดที่เปิดจองและวันที่พร้อมขาย" />
           <ActionItem title="การจองของฉัน" text="ติดตามสถานะ pending, paid และ expired" />
           <ActionItem title="ชำระเงิน" text="เตรียมหน้าสำหรับแนบหลักฐานหรือ payment gateway" />

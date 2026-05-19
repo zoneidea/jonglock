@@ -10,6 +10,7 @@ React Native CLI application สำหรับ mobile booking app ของ Jon
 - React Navigation native stack
 - AsyncStorage สำหรับ local session mock
 - Google Sign-In package สำหรับ Gmail login flow
+- React Native Firebase core สำหรับ native Firebase default app
 - Linear Gradient สำหรับ visual treatment
 - iOS CocoaPods installed แล้ว
 
@@ -92,10 +93,22 @@ Current UI behavior:
 Production setup still needed:
 
 - Android: add SHA-1/SHA-256 to Google Cloud or Firebase project.
-- Android: add `google-services.json` if using Firebase-based setup.
+- Android: `android/app/google-services.json` is installed for package `com.jonglockapp`.
 - iOS: add reversed client ID URL scheme and Google service plist if required by the chosen Google setup.
 - Configure `GoogleSignin.configure({ webClientId, iosClientId })`.
 - Replace local session fallback with backend mobile auth exchange.
+
+## Firebase
+
+Firebase core is installed through `@react-native-firebase/app`.
+
+Android is configured with:
+
+- `android/app/google-services.json`
+- `com.google.gms:google-services`
+- `com.google.gms.google-services` app plugin
+
+iOS still needs `GoogleService-Info.plist` before Firebase can initialize on iOS builds. Add it under `ios/JonglockApp/` and link it to the Xcode target when the iOS Firebase app is created.
 
 ## API Plan
 
