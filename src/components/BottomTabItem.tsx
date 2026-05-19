@@ -26,11 +26,11 @@ function BottomTabItem({
 
   const width = progress.interpolate({
     inputRange: [0, 1],
-    outputRange: [58, 104],
+    outputRange: [72, 104],
   });
   const scale = progress.interpolate({
     inputRange: [0, 1],
-    outputRange: [1, 1.08],
+    outputRange: [1, 1.06],
   });
 
   return (
@@ -44,7 +44,9 @@ function BottomTabItem({
         <Text style={[styles.bottomTabIcon, active && styles.bottomTabIconActive]}>
           {item.icon}
         </Text>
-        {active ? <Text style={styles.bottomTabText}>{item.label}</Text> : null}
+        <Text style={[styles.bottomTabText, active && styles.bottomTabTextActive]}>
+          {item.label}
+        </Text>
       </Animated.View>
     </Pressable>
   );
@@ -52,28 +54,31 @@ function BottomTabItem({
 
 const styles = StyleSheet.create({
   bottomTab: {
-    height: 52,
+    height: 56,
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    flexDirection: 'row',
-    gap: 7,
+    gap: 3,
   },
   bottomTabActive: {
     backgroundColor: colors.teal,
   },
   bottomTabIcon: {
     color: colors.muted,
-    fontSize: 15,
+    fontSize: 21,
     fontWeight: '900',
   },
   bottomTabIconActive: {
     color: colors.white,
   },
   bottomTabText: {
-    color: colors.white,
-    fontSize: 12,
+    color: colors.muted,
+    fontSize: 10,
     fontWeight: '900',
+  },
+  bottomTabTextActive: {
+    color: colors.white,
+    fontSize: 11,
   },
 });
 
