@@ -10,6 +10,7 @@ jest.mock('@react-native-google-signin/google-signin', () => ({
     hasPlayServices: jest.fn(() => Promise.resolve(true)),
     signIn: jest.fn(() =>
       Promise.resolve({
+        type: 'success',
         data: {
           user: {
             name: 'Jonglock Merchant',
@@ -20,6 +21,15 @@ jest.mock('@react-native-google-signin/google-signin', () => ({
       }),
     ),
     signOut: jest.fn(() => Promise.resolve()),
+  },
+  isCancelledResponse: jest.fn((response) => response.type === 'cancelled'),
+  isErrorWithCode: jest.fn((error) => Boolean(error && error.code)),
+  isSuccessResponse: jest.fn((response) => response.type === 'success'),
+  statusCodes: {
+    SIGN_IN_CANCELLED: 'SIGN_IN_CANCELLED',
+    IN_PROGRESS: 'IN_PROGRESS',
+    PLAY_SERVICES_NOT_AVAILABLE: 'PLAY_SERVICES_NOT_AVAILABLE',
+    SIGN_IN_REQUIRED: 'SIGN_IN_REQUIRED',
   },
 }));
 

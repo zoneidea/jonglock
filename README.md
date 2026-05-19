@@ -98,6 +98,12 @@ Production setup still needed:
 - Configure `GoogleSignin.configure({ webClientId, iosClientId })`.
 - Replace local session fallback with backend mobile auth exchange.
 
+Troubleshooting Android:
+
+- If account selection opens but login fails after selecting Gmail, verify that Firebase has Android OAuth credentials for package `com.jonglockapp`.
+- Add the debug and release SHA-1/SHA-256 certificates in Firebase Project Settings, then download a fresh `google-services.json`.
+- The current `google-services.json` must include an `oauth_client` entry after SHA is configured.
+
 ## Firebase
 
 Firebase core is installed through `@react-native-firebase/app`.

@@ -1,6 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import firebase from '@react-native-firebase/app';
-import {GoogleSignin, statusCodes} from '@react-native-google-signin/google-signin';
+import {
+  GoogleSignin,
+  isCancelledResponse,
+  isErrorWithCode,
+  isSuccessResponse,
+  statusCodes,
+} from '@react-native-google-signin/google-signin';
 import {NavigationContainer} from '@react-navigation/native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import React, {useEffect, useMemo, useRef, useState} from 'react';
@@ -159,7 +165,15 @@ function AuthScreen({onAuthenticated}: {onAuthenticated: (user: MobileUser) => v
         await GoogleSignin.hasPlayServices({showPlayServicesUpdateDialog: true});
       }
       const result = await GoogleSignin.signIn();
-      const user = result.data?.user;
+      if (isCancelledResponse(result)) {
+        setMessage('ยกเลิกการเข้าสู่ระบบด้วย Gmail');
+        return;
+      }
+      if (!isSuccessResponse(result)) {
+        setMessage('ยังไม่สามารถเข้าสู่ระบบด้วย Gmail ได้');
+        return;
+      }
+      const user = result.data.user;
       if (user?.email) {
         await persistUser({
           name: user.name || user.email.split('@')[0],
@@ -171,12 +185,13 @@ function AuthScreen({onAuthenticated}: {onAuthenticated: (user: MobileUser) => v
       }
       setMessage('ไม่พบข้อมูล Gmail สำหรับเข้าสู่ระบบ');
     } catch (error) {
-      const code =
-        typeof error === 'object' && error && 'code' in error
-          ? String((error as {code?: string}).code)
-          : '';
+      const code = isErrorWithCode(error) ? String(error.code) : '';
       if (code === statusCodes.SIGN_IN_CANCELLED) {
         setMessage('ยกเลิกการเข้าสู่ระบบด้วย Gmail');
+      } else if (code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+        setMessage('Google Play Services ยังไม่พร้อมใช้งาน');
+      } else if (code === '10' || code === 'DEVELOPER_ERROR') {
+        setMessage('ตั้งค่า Google Sign-In ยังไม่ครบ กรุณาตรวจสอบ SHA-1/SHA-256 ใน Firebase');
       } else {
         setMessage('ยังไม่สามารถเข้าสู่ระบบด้วย Gmail ได้');
       }
