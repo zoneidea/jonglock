@@ -20,7 +20,13 @@ React Native CLI application สำหรับ mobile booking app ของ Jon
 app/
   android/               Android native project
   ios/                   iOS native project, open JonglockApp.xcworkspace
-  App.tsx                Current UI-first mobile app
+  src/
+    components/          Reusable UI components
+    constants/           Shared app constants
+    screens/             One file per app screen
+    theme/               Colors and shared visual tokens
+    types/               Shared TypeScript types
+  App.tsx                Boot, session restore, and root navigation only
   index.js               Native app entry
   AGENT.md               Working rules for future agents
   BLUEPRINT.md           Product and technical blueprint
@@ -77,7 +83,7 @@ Implemented:
 - Animated splash screen
 - Login / Sign up screen
 - Gmail entry button
-- Immediate local session fallback for UI testing
+- Email-only local test flow for UI testing
 - Simple home screen for booking workflows
 - Android and iOS native project setup
 
@@ -88,7 +94,9 @@ The app installs and autolinks `@react-native-google-signin/google-signin`.
 Current UI behavior:
 
 - It attempts Google Sign-In.
-- If native Google credentials are not configured yet, it falls back to a local mock Gmail session so the UX can be tested immediately.
+- If the user cancels or presses back, the app stays on Login.
+- If native Google credentials are not configured correctly, the app shows a setup error and does not create a fake Gmail session.
+- The email-only form remains available as a local UI test flow.
 
 Production setup still needed:
 

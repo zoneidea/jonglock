@@ -74,13 +74,26 @@ Splash screen may use animation and visual polish. Transactional screens must st
 
 ## Current Implementation
 
-`App.tsx` contains:
+`App.tsx` must stay small. It is responsible only for:
 
-- Animated splash screen
-- Auth screen with Login / Sign up segment
-- Gmail button with immediate local fallback session
-- Email test flow for UI development
-- Home screen mock for booking actions
+- Session restore
+- Google Sign-In bootstrap config
+- Root navigation
+- Logout wiring
+
+Screen ownership:
+
+- `src/screens/SplashScreen.tsx`
+- `src/screens/AuthScreen.tsx`
+- `src/screens/AppShell.tsx`
+- `src/screens/HomeScreen.tsx`
+- `src/screens/BookingScreen.tsx`
+- `src/screens/CartScreen.tsx`
+- `src/screens/ProfileScreen.tsx`
+
+Reusable UI belongs in `src/components`. Shared colors/tokens belong in `src/theme`. Shared TypeScript contracts belong in `src/types`.
+
+Do not put new screens or large UI blocks back into `App.tsx`.
 
 ## Google Sign-In
 
@@ -88,12 +101,11 @@ Installed package:
 
 - `@react-native-google-signin/google-signin`
 
-The current code calls Google Sign-In and falls back to a mock Gmail session if native credentials are not configured. This is intentional for UI-first MVP testing.
+The current code calls Google Sign-In and keeps the user on Login if the user cancels, presses back, or Google credentials are not configured correctly. The separate email form is only a local UI test flow.
 
 Before production:
 
 - Add real Google client configuration for Android and iOS.
-- Remove or gate the mock fallback.
 - Exchange Google identity with backend mobile auth endpoint.
 - Store backend token securely.
 
