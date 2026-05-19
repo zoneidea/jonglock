@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import firebase from '@react-native-firebase/app';
-import {GoogleSignin} from '@react-native-google-signin/google-signin';
+import {GoogleSignin, statusCodes} from '@react-native-google-signin/google-signin';
 import {NavigationContainer} from '@react-navigation/native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import React, {useEffect, useMemo, useRef, useState} from 'react';
@@ -49,6 +49,21 @@ type MobileUser = {
   avatar?: string | null;
   provider: 'gmail' | 'local';
 };
+
+type TabKey = 'home' | 'booking' | 'cart' | 'profile';
+
+type TabItem = {
+  key: TabKey;
+  label: string;
+  icon: string;
+};
+
+const tabs: TabItem[] = [
+  {key: 'home', label: 'หน้าหลัก', icon: 'H'},
+  {key: 'booking', label: 'จอง', icon: 'B'},
+  {key: 'cart', label: 'ตระกร้า', icon: 'C'},
+  {key: 'profile', label: 'โปรไฟล์', icon: 'P'},
+];
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -140,35 +155,31 @@ function AuthScreen({onAuthenticated}: {onAuthenticated: (user: MobileUser) => v
     setLoading(true);
     setMessage('');
     try {
-      let profile: MobileUser | null = null;
       if (Platform.OS === 'android') {
         await GoogleSignin.hasPlayServices({showPlayServicesUpdateDialog: true});
       }
       const result = await GoogleSignin.signIn();
       const user = result.data?.user;
       if (user?.email) {
-        profile = {
+        await persistUser({
           name: user.name || user.email.split('@')[0],
           email: user.email,
           avatar: user.photo,
           provider: 'gmail',
-        };
+        });
+        return;
       }
-      await persistUser(
-        profile || {
-          name: 'Jonglock Merchant',
-          email: 'merchant@gmail.com',
-          avatar: null,
-          provider: 'gmail',
-        },
-      );
-    } catch {
-      await persistUser({
-        name: 'Jonglock Merchant',
-        email: 'merchant@gmail.com',
-        avatar: null,
-        provider: 'gmail',
-      });
+      setMessage('ไม่พบข้อมูล Gmail สำหรับเข้าสู่ระบบ');
+    } catch (error) {
+      const code =
+        typeof error === 'object' && error && 'code' in error
+          ? String((error as {code?: string}).code)
+          : '';
+      if (code === statusCodes.SIGN_IN_CANCELLED) {
+        setMessage('ยกเลิกการเข้าสู่ระบบด้วย Gmail');
+      } else {
+        setMessage('ยังไม่สามารถเข้าสู่ระบบด้วย Gmail ได้');
+      }
     } finally {
       setLoading(false);
     }
@@ -233,9 +244,7 @@ function AuthScreen({onAuthenticated}: {onAuthenticated: (user: MobileUser) => v
                 pressed && styles.pressed,
                 loading && styles.disabled,
               ]}>
-              <View style={styles.googleBadge}>
-                <Text style={styles.googleBadgeText}>G</Text>
-              </View>
+              <GoogleIcon />
               <Text style={styles.gmailButtonText}>
                 {loading ? 'กำลังเข้าสู่ระบบ...' : 'ดำเนินการต่อด้วย Gmail'}
               </Text>
@@ -278,6 +287,17 @@ function AuthScreen({onAuthenticated}: {onAuthenticated: (user: MobileUser) => v
   );
 }
 
+function GoogleIcon() {
+  return (
+    <View style={styles.googleIcon}>
+      <Text style={styles.googleIconText}>G</Text>
+      <View style={[styles.googleDot, styles.googleDotRed]} />
+      <View style={[styles.googleDot, styles.googleDotYellow]} />
+      <View style={[styles.googleDot, styles.googleDotGreen]} />
+    </View>
+  );
+}
+
 function LabeledInput({
   label,
   ...props
@@ -295,8 +315,76 @@ function LabeledInput({
   );
 }
 
-function HomeScreen({user, onLogout}: {user: MobileUser; onLogout: () => void}) {
+function AppShell({user, onLogout}: {user: MobileUser; onLogout: () => void}) {
   const firebaseApp = firebase.app();
+  const [activeTab, setActiveTab] = useState<TabKey>('home');
+  const contentOpacity = useRef(new Animated.Value(1)).current;
+
+  function changeTab(nextTab: TabKey) {
+    if (nextTab === activeTab) {
+      return;
+    }
+    Animated.sequence([
+      Animated.timing(contentOpacity, {
+        toValue: 0.28,
+        duration: 120,
+        useNativeDriver: true,
+      }),
+      Animated.timing(contentOpacity, {
+        toValue: 1,
+        duration: 180,
+        useNativeDriver: true,
+      }),
+    ]).start();
+    setActiveTab(nextTab);
+  }
+
+  function renderTabContent() {
+    if (activeTab === 'home') {
+      return <HomeContent user={user} firebaseAppName={firebaseApp.name} />;
+    }
+    if (activeTab === 'booking') {
+      return (
+        <PlaceholderContent
+          title="จองบูธ"
+          text="โครงหน้าจอสำหรับเลือกตลาด วันที่ขาย ประเภทสินค้า และแผนผังบูธ"
+        />
+      );
+    }
+    if (activeTab === 'cart') {
+      return (
+        <PlaceholderContent
+          title="ตระกร้า"
+          text="โครงหน้าจอสรุปรายการที่เลือก รอชำระเงิน และสถานะการจอง"
+        />
+      );
+    }
+    return (
+      <ProfileContent user={user} onLogout={onLogout} />
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.safe}>
+      <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
+      <Animated.View style={[styles.shellContent, {opacity: contentOpacity}]}>
+        {renderTabContent()}
+      </Animated.View>
+      <View style={styles.bottomBar}>
+        {tabs.map((tab) => (
+          <BottomTabItem
+            key={tab.key}
+            item={tab}
+            active={tab.key === activeTab}
+            onPress={() => changeTab(tab.key)}
+          />
+        ))}
+      </View>
+    </SafeAreaView>
+  );
+}
+
+function HomeContent({user, firebaseAppName}: {user: MobileUser; firebaseAppName: string}) {
   const stats = useMemo(
     () => [
       {label: 'ตลาดเปิดจอง', value: '2'},
@@ -307,52 +395,138 @@ function HomeScreen({user, onLogout}: {user: MobileUser; onLogout: () => void}) 
   );
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
-      <ScrollView contentContainerStyle={styles.homeScroll}>
-        <View style={styles.homeTopbar}>
-          <View>
-            <Text style={styles.homeHello}>สวัสดี</Text>
-            <Text style={styles.homeName}>{user.name}</Text>
+    <ScrollView contentContainerStyle={styles.homeScroll}>
+      <View style={styles.homeTopbar}>
+        <View>
+          <Text style={styles.homeHello}>สวัสดี</Text>
+          <Text style={styles.homeName}>{user.name}</Text>
+        </View>
+        <View style={styles.userChip}>
+          <Text style={styles.userChipText}>Gmail</Text>
+        </View>
+      </View>
+
+      <LinearGradient colors={['#ffffff', '#dff8f4']} style={styles.bannerCard}>
+        <View style={styles.bannerBadge}>
+          <Text style={styles.bannerBadgeText}>MARKET READY</Text>
+        </View>
+        <Text style={styles.bannerTitle}>เลือกพื้นที่ขายได้ง่ายในไม่กี่ขั้นตอน</Text>
+        <Text style={styles.bannerText}>
+          โครงสำหรับแสดงแคมเปญหลัก ข่าวประกาศ หรือโปรโมชันสำคัญของตลาด
+        </Text>
+        <View style={styles.bannerVisual}>
+          <View style={styles.bannerBoothLarge} />
+          <View style={styles.bannerBoothSmall} />
+          <View style={styles.bannerBoothSmallAlt} />
+        </View>
+      </LinearGradient>
+
+      <View style={styles.statGrid}>
+        {stats.map((item) => (
+          <View key={item.label} style={styles.statCard}>
+            <Text style={styles.statValue}>{item.value}</Text>
+            <Text style={styles.statLabel}>{item.label}</Text>
           </View>
-          <Pressable onPress={onLogout} style={styles.logoutButton}>
-            <Text style={styles.logoutText}>ออก</Text>
-          </Pressable>
-        </View>
+        ))}
+      </View>
 
-        <LinearGradient colors={['#ffffff', '#e9faf7']} style={styles.heroCard}>
-          <Text style={styles.heroEyebrow}>BOOKING READY</Text>
-          <Text style={styles.heroTitle}>จองพื้นที่ขายได้เร็วขึ้น</Text>
-          <Text style={styles.heroText}>
-            เลือกตลาด วันที่ขาย ประเภทสินค้า และบูธที่ว่างได้จากหน้าจอเดียว
-          </Text>
-          <Pressable style={styles.heroButton}>
-            <Text style={styles.heroButtonText}>เริ่มจองบูธ</Text>
-          </Pressable>
-        </LinearGradient>
+      <Text style={styles.sectionTitle}>ข่าวสารและโปรโมชั่น</Text>
+      <View style={styles.promoList}>
+        <PromoCard title="ข่าวสารตลาด" text="พื้นที่สำหรับแสดงประกาศล่าสุดจากระบบจัดการ" />
+        <PromoCard title="โปรโมชั่น" text="พื้นที่สำหรับคูปอง ส่วนลด และแคมเปญของตลาด" />
+      </View>
 
-        <View style={styles.statGrid}>
-          {stats.map((item) => (
-            <View key={item.label} style={styles.statCard}>
-              <Text style={styles.statValue}>{item.value}</Text>
-              <Text style={styles.statLabel}>{item.label}</Text>
-            </View>
-          ))}
-        </View>
+      <Text style={styles.sectionTitle}>เมนูหลัก</Text>
+      <View style={styles.actionList}>
+        <ActionItem title="Firebase พร้อมใช้งาน" text={`Default app: ${firebaseAppName}`} />
+        <ActionItem title="ค้นหาตลาด" text="ดูตลาดที่เปิดจองและวันที่พร้อมขาย" />
+      </View>
+    </ScrollView>
+  );
+}
 
-        <Text style={styles.sectionTitle}>เมนูหลัก</Text>
-        <View style={styles.actionList}>
-          <ActionItem
-            title="Firebase พร้อมใช้งาน"
-            text={`Default app: ${firebaseApp.name}`}
-          />
-          <ActionItem title="ค้นหาตลาด" text="ดูตลาดที่เปิดจองและวันที่พร้อมขาย" />
-          <ActionItem title="การจองของฉัน" text="ติดตามสถานะ pending, paid และ expired" />
-          <ActionItem title="ชำระเงิน" text="เตรียมหน้าสำหรับแนบหลักฐานหรือ payment gateway" />
-          <ActionItem title="ตรวจสอบตลาด" text="รองรับ workflow audit ในเฟสถัดไป" />
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+function PromoCard({title, text}: {title: string; text: string}) {
+  return (
+    <Pressable style={styles.promoCard}>
+      <View style={styles.promoMarker} />
+      <View style={styles.actionCopy}>
+        <Text style={styles.actionTitle}>{title}</Text>
+        <Text style={styles.actionText}>{text}</Text>
+      </View>
+    </Pressable>
+  );
+}
+
+function PlaceholderContent({title, text}: {title: string; text: string}) {
+  return (
+    <ScrollView contentContainerStyle={styles.homeScroll}>
+      <View style={styles.placeholderCard}>
+        <Text style={styles.heroEyebrow}>COMING NEXT</Text>
+        <Text style={styles.placeholderTitle}>{title}</Text>
+        <Text style={styles.placeholderText}>{text}</Text>
+      </View>
+    </ScrollView>
+  );
+}
+
+function ProfileContent({user, onLogout}: {user: MobileUser; onLogout: () => void}) {
+  return (
+    <ScrollView contentContainerStyle={styles.homeScroll}>
+      <View style={styles.placeholderCard}>
+        <Text style={styles.heroEyebrow}>PROFILE</Text>
+        <Text style={styles.placeholderTitle}>{user.name}</Text>
+        <Text style={styles.placeholderText}>{user.email}</Text>
+        <Pressable onPress={onLogout} style={styles.heroButton}>
+          <Text style={styles.heroButtonText}>ออกจากระบบ</Text>
+        </Pressable>
+      </View>
+    </ScrollView>
+  );
+}
+
+function BottomTabItem({
+  item,
+  active,
+  onPress,
+}: {
+  item: TabItem;
+  active: boolean;
+  onPress: () => void;
+}) {
+  const progress = useRef(new Animated.Value(active ? 1 : 0)).current;
+
+  useEffect(() => {
+    Animated.spring(progress, {
+      toValue: active ? 1 : 0,
+      friction: 7,
+      tension: 80,
+      useNativeDriver: false,
+    }).start();
+  }, [active, progress]);
+
+  const width = progress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [58, 104],
+  });
+  const scale = progress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 1.08],
+  });
+
+  return (
+    <Pressable onPress={onPress}>
+      <Animated.View
+        style={[
+          styles.bottomTab,
+          active && styles.bottomTabActive,
+          {width, transform: [{scale}]},
+        ]}>
+        <Text style={[styles.bottomTabIcon, active && styles.bottomTabIconActive]}>
+          {item.icon}
+        </Text>
+        {active ? <Text style={styles.bottomTabText}>{item.label}</Text> : null}
+      </Animated.View>
+    </Pressable>
   );
 }
 
@@ -403,7 +577,7 @@ function App(): React.JSX.Element {
           <Stack.Navigator screenOptions={{headerShown: false}}>
             {user ? (
               <Stack.Screen name="Home">
-                {() => <HomeScreen user={user} onLogout={logout} />}
+                {() => <AppShell user={user} onLogout={logout} />}
               </Stack.Screen>
             ) : (
               <Stack.Screen name="Auth">
@@ -552,27 +726,53 @@ const styles = StyleSheet.create({
   gmailButton: {
     height: 58,
     borderRadius: 18,
-    backgroundColor: colors.ink,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
     gap: 12,
+    ...shadow,
   },
-  googleBadge: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+  googleIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: '#e2e7ef',
   },
-  googleBadgeText: {
-    color: colors.ink,
-    fontSize: 16,
+  googleIconText: {
+    color: '#4285f4',
+    fontSize: 19,
     fontWeight: '900',
   },
+  googleDot: {
+    position: 'absolute',
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  googleDotRed: {
+    top: 6,
+    right: 7,
+    backgroundColor: '#ea4335',
+  },
+  googleDotYellow: {
+    bottom: 6,
+    right: 7,
+    backgroundColor: '#fbbc05',
+  },
+  googleDotGreen: {
+    bottom: 6,
+    left: 7,
+    backgroundColor: '#34a853',
+  },
   gmailButtonText: {
-    color: colors.white,
+    color: colors.ink,
     fontSize: 16,
     fontWeight: '900',
   },
@@ -636,9 +836,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '900',
   },
+  shellContent: {
+    flex: 1,
+  },
   homeScroll: {
     padding: 22,
-    paddingBottom: 36,
+    paddingBottom: 120,
   },
   homeTopbar: {
     flexDirection: 'row',
@@ -669,6 +872,95 @@ const styles = StyleSheet.create({
   logoutText: {
     color: colors.ink,
     fontWeight: '900',
+  },
+  userChip: {
+    height: 38,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.border,
+    justifyContent: 'center',
+  },
+  userChipText: {
+    color: colors.tealDark,
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  bannerCard: {
+    minHeight: 230,
+    borderRadius: 30,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: 'hidden',
+    ...shadow,
+  },
+  bannerBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: colors.white,
+    justifyContent: 'center',
+  },
+  bannerBadgeText: {
+    color: colors.tealDark,
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
+  bannerTitle: {
+    marginTop: 14,
+    color: colors.ink,
+    fontSize: 30,
+    lineHeight: 38,
+    fontWeight: '900',
+    maxWidth: 270,
+  },
+  bannerText: {
+    marginTop: 10,
+    color: colors.muted,
+    fontSize: 14,
+    lineHeight: 21,
+    fontWeight: '700',
+    maxWidth: 250,
+  },
+  bannerVisual: {
+    position: 'absolute',
+    right: 18,
+    bottom: 18,
+    width: 116,
+    height: 116,
+  },
+  bannerBoothLarge: {
+    position: 'absolute',
+    right: 0,
+    bottom: 0,
+    width: 78,
+    height: 78,
+    borderRadius: 24,
+    backgroundColor: colors.teal,
+    opacity: 0.18,
+  },
+  bannerBoothSmall: {
+    position: 'absolute',
+    left: 4,
+    top: 8,
+    width: 54,
+    height: 54,
+    borderRadius: 18,
+    backgroundColor: colors.navy,
+    opacity: 0.1,
+  },
+  bannerBoothSmallAlt: {
+    position: 'absolute',
+    left: 22,
+    bottom: 10,
+    width: 38,
+    height: 38,
+    borderRadius: 14,
+    backgroundColor: colors.gold,
   },
   heroCard: {
     borderRadius: 30,
@@ -746,6 +1038,28 @@ const styles = StyleSheet.create({
   actionList: {
     gap: 12,
   },
+  promoList: {
+    gap: 12,
+  },
+  promoCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    minHeight: 86,
+    padding: 16,
+    borderRadius: 22,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  promoMarker: {
+    width: 48,
+    height: 48,
+    borderRadius: 17,
+    backgroundColor: colors.soft,
+    borderWidth: 8,
+    borderColor: '#d7f2ee',
+  },
   actionItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -783,6 +1097,69 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 19,
     fontWeight: '600',
+  },
+  placeholderCard: {
+    minHeight: 360,
+    borderRadius: 30,
+    padding: 24,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.border,
+    justifyContent: 'center',
+    ...shadow,
+  },
+  placeholderTitle: {
+    marginTop: 10,
+    color: colors.ink,
+    fontSize: 32,
+    fontWeight: '900',
+  },
+  placeholderText: {
+    marginTop: 12,
+    color: colors.muted,
+    fontSize: 15,
+    lineHeight: 23,
+    fontWeight: '600',
+  },
+  bottomBar: {
+    position: 'absolute',
+    left: 18,
+    right: 18,
+    bottom: 18,
+    height: 76,
+    borderRadius: 28,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.border,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    paddingHorizontal: 10,
+    ...shadow,
+  },
+  bottomTab: {
+    height: 52,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 7,
+  },
+  bottomTabActive: {
+    backgroundColor: colors.teal,
+  },
+  bottomTabIcon: {
+    color: colors.muted,
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  bottomTabIconActive: {
+    color: colors.white,
+  },
+  bottomTabText: {
+    color: colors.white,
+    fontSize: 12,
+    fontWeight: '900',
   },
 });
 
