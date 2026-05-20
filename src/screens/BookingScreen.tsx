@@ -596,14 +596,14 @@ const styles = StyleSheet.create({
     height: 24,
     paddingHorizontal: 9,
     borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.9)',
+    backgroundColor: 'rgba(255,255,255,0.62)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   adsBadgeText: {
     color: colors.ink,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   marketCode: {
     color: '#dff8f4',
