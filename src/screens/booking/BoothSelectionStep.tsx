@@ -49,6 +49,8 @@ function BoothSelectionStep({
   const [dateAvailability, setDateAvailability] = useState<BoothDateAvailability[]>([]);
   const [checkingAvailability, setCheckingAvailability] = useState(false);
   const [selectionDialog, setSelectionDialog] = useState('');
+  const planStartDate = useMemo(() => normalizeDateString(floorPlan.startDate), [floorPlan.startDate]);
+  const planEndDate = useMemo(() => normalizeDateString(floorPlan.endDate), [floorPlan.endDate]);
 
   const loadBooths = useCallback(async () => {
     setLoading(true);
@@ -256,6 +258,8 @@ function BoothSelectionStep({
 
       <BookingDateSheet
         booth={bookingBooth}
+        minDate={planStartDate}
+        maxDate={planEndDate}
         rangeStart={rangeStart}
         rangeEnd={rangeEnd}
         dateAvailability={dateAvailability}
@@ -368,6 +372,8 @@ function FavoriteBoothSheet({
 
 function BookingDateSheet({
   booth,
+  minDate,
+  maxDate,
   rangeStart,
   rangeEnd,
   dateAvailability,
@@ -379,6 +385,8 @@ function BookingDateSheet({
   onConfirm,
 }: {
   booth: Booth | null;
+  minDate: string;
+  maxDate: string;
   rangeStart: string;
   rangeEnd: string;
   dateAvailability: BoothDateAvailability[];
@@ -391,7 +399,10 @@ function BookingDateSheet({
 }) {
   const {width} = useWindowDimensions();
   const today = useMemo(() => toIsoDate(new Date()), []);
-  const [displayedMonth, setDisplayedMonth] = useState(() => startOfMonth(rangeStart || new Date()));
+  const minSelectableDate = useMemo(() => laterIsoDate(today, minDate), [minDate, today]);
+  const [displayedMonth, setDisplayedMonth] = useState(() => (
+    startOfMonth(rangeStart || minSelectableDate || new Date())
+  ));
   const calendarWidth = useMemo(() => Math.min(width - 36, 392), [width]);
   const calendarGap = 6;
   const daySize = useMemo(
@@ -402,6 +413,14 @@ function BookingDateSheet({
   const availabilityByDate = useMemo(
     () => new Map(dateAvailability.map((item) => [item.date, item.status])),
     [dateAvailability],
+  );
+  const previousMonthDisabled = useMemo(
+    () => isMonthBefore(addMonths(displayedMonth, -1), startOfMonth(minSelectableDate || today)),
+    [displayedMonth, minSelectableDate, today],
+  );
+  const nextMonthDisabled = useMemo(
+    () => Boolean(maxDate && isMonthAfter(addMonths(displayedMonth, 1), startOfMonth(maxDate))),
+    [displayedMonth, maxDate],
   );
 
   if (!booth) {
@@ -427,15 +446,25 @@ function BookingDateSheet({
 
           <View style={[styles.monthHeader, {width: calendarWidth}]}>
             <Pressable
+              disabled={previousMonthDisabled}
               onPress={() => setDisplayedMonth((currentMonth) => addMonths(currentMonth, -1))}
-              style={styles.monthNavButton}>
-              <MaterialCommunityIcons name="chevron-left" size={22} color={colors.ink} />
+              style={[styles.monthNavButton, previousMonthDisabled && styles.monthNavButtonDisabled]}>
+              <MaterialCommunityIcons
+                name="chevron-left"
+                size={22}
+                color={previousMonthDisabled ? '#aebbc7' : colors.ink}
+              />
             </Pressable>
             <Text style={styles.monthTitle}>{formatMonthTitle(displayedMonth)}</Text>
             <Pressable
+              disabled={nextMonthDisabled}
               onPress={() => setDisplayedMonth((currentMonth) => addMonths(currentMonth, 1))}
-              style={styles.monthNavButton}>
-              <MaterialCommunityIcons name="chevron-right" size={22} color={colors.ink} />
+              style={[styles.monthNavButton, nextMonthDisabled && styles.monthNavButtonDisabled]}>
+              <MaterialCommunityIcons
+                name="chevron-right"
+                size={22}
+                color={nextMonthDisabled ? '#aebbc7' : colors.ink}
+              />
             </Pressable>
           </View>
 
@@ -450,7 +479,7 @@ function BookingDateSheet({
                 key={`${cell.date}-${index}`}
                 date={cell.date}
                 currentMonth={cell.currentMonth}
-                disabled={cell.date < today}
+                disabled={cell.date < today || isDateOutsideRange(cell.date, minDate, maxDate)}
                 size={daySize}
                 rangeStart={rangeStart}
                 rangeEnd={rangeEnd}
@@ -465,6 +494,9 @@ function BookingDateSheet({
               ? `ช่วงวันที่ ${formatShortDate(rangeStart)} - ${formatShortDate(rangeEnd)}`
               : 'แตะวันที่เริ่มต้นและวันที่สิ้นสุดเพื่อเลือกช่วงวันที่'}
           </Text>
+          {(minDate || maxDate) ? (
+            <Text style={styles.activeDateText}>{formatActiveDateRange(minDate, maxDate)}</Text>
+          ) : null}
           {checking ? <Text style={styles.dateCheckText}>กำลังตรวจสอบวันที่ว่าง...</Text> : null}
           {!checking && unavailableCount > 0 ? (
             <Text style={styles.dateWarningText}>
@@ -603,6 +635,32 @@ function toIsoDate(date: Date) {
   return `${year}-${month}-${day}`;
 }
 
+function normalizeDateString(value?: string | null) {
+  if (!value) {
+    return '';
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return String(value).slice(0, 10);
+  }
+  return toIsoDate(date);
+}
+
+function laterIsoDate(dateA: string, dateB: string) {
+  if (!dateA) {
+    return dateB;
+  }
+  if (!dateB) {
+    return dateA;
+  }
+  return dateA > dateB ? dateA : dateB;
+}
+
+function isDateOutsideRange(date: string, minDate: string, maxDate: string) {
+  return Boolean((minDate && date < minDate) || (maxDate && date > maxDate));
+}
+
 function addDays(date: Date, days: number) {
   const nextDate = new Date(date);
   nextDate.setDate(nextDate.getDate() + days);
@@ -623,6 +681,18 @@ function startOfMonth(value: string | Date) {
   return monthStart;
 }
 
+function monthKey(date: Date) {
+  return (date.getFullYear() * 12) + date.getMonth();
+}
+
+function isMonthBefore(date: Date, comparison: Date) {
+  return monthKey(date) < monthKey(comparison);
+}
+
+function isMonthAfter(date: Date, comparison: Date) {
+  return monthKey(date) > monthKey(comparison);
+}
+
 function getMonthCalendarCells(monthStart: Date) {
   const firstDay = startOfMonth(monthStart);
   const gridStart = addDays(firstDay, -firstDay.getDay());
@@ -640,6 +710,16 @@ function formatMonthTitle(monthStart: Date) {
     month: 'long',
     year: 'numeric',
   }).format(monthStart);
+}
+
+function formatActiveDateRange(minDate: string, maxDate: string) {
+  if (minDate && maxDate) {
+    return `โซนนี้เปิดใช้งาน ${formatShortDate(minDate)} - ${formatShortDate(maxDate)}`;
+  }
+  if (minDate) {
+    return `โซนนี้เปิดใช้งานตั้งแต่ ${formatShortDate(minDate)}`;
+  }
+  return `โซนนี้เปิดใช้งานถึง ${formatShortDate(maxDate)}`;
 }
 
 function getDateRange(startDate: string, endDate: string) {
@@ -919,6 +999,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  monthNavButtonDisabled: {
+    backgroundColor: '#f2f5f7',
+    borderColor: '#edf1f4',
+  },
   monthTitle: {
     flex: 1,
     color: colors.ink,
@@ -992,6 +1076,14 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 20,
     fontWeight: '900',
+    textAlign: 'center',
+  },
+  activeDateText: {
+    marginTop: 6,
+    color: colors.muted,
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: '800',
     textAlign: 'center',
   },
   dateCheckText: {
