@@ -16,14 +16,29 @@ import LinearGradient from 'react-native-linear-gradient';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import {Camera, useCameraDevice, useCameraPermission, useCodeScanner} from 'react-native-vision-camera';
 
+import {getAnnouncements, type Announcement} from '../services/announcements';
 import {getMarket, getMarkets, type Market} from '../services/markets';
 import {colors, shadow} from '../theme/colors';
 
 const MARKET_TERMS_DISMISSED_KEY = 'jonglock.marketTerms.dismissed';
+const MOCK_SYSTEM_AD: Announcement = {
+  id: 0,
+  organizationId: 0,
+  marketId: null,
+  marketName: 'Jonglock',
+  type: 'banner',
+  title: 'ระบบจัดการตลาด Jonglock',
+  description: 'บริหารตลาด จองบูธ และติดตามการใช้งานได้ในที่เดียว รองรับหลายตลาดและหลายองค์กร',
+  imageUrl: '',
+  startDate: null,
+  endDate: null,
+  createdAt: new Date().toISOString(),
+};
 
 function BookingScreen() {
   const [query, setQuery] = useState('');
   const [markets, setMarkets] = useState<Market[]>([]);
+  const [bannerAnnouncements, setBannerAnnouncements] = useState<Announcement[]>([]);
   const [selectedMarket, setSelectedMarket] = useState<Market | null>(null);
   const [previewImage, setPreviewImage] = useState('');
   const [scannerOpen, setScannerOpen] = useState(false);
@@ -63,21 +78,36 @@ function BookingScreen() {
     return filteredMarkets.filter((market) => !featuredIds.has(market.id));
   }, [featuredMarkets, filteredMarkets]);
 
-  const loadMarkets = useCallback(async () => {
+  const carouselItems = useMemo(() => {
+    const adItems = bannerAnnouncements.length
+      ? bannerAnnouncements.map((banner) => ({key: `ad-${banner.id}`, kind: 'ad' as const, banner}))
+      : [{key: 'ad-mock-system', kind: 'ad' as const, banner: MOCK_SYSTEM_AD}];
+
+    const marketItems = featuredMarkets.map((market) => ({key: `market-${market.id}`, kind: 'market' as const, market}));
+
+    return [...adItems, ...marketItems];
+  }, [bannerAnnouncements, featuredMarkets]);
+
+  const loadBookingFeed = useCallback(async () => {
     setLoading(true);
     setMessage('');
     try {
-      setMarkets(await getMarkets());
+      const [marketRows, bannerRows] = await Promise.all([
+        getMarkets(),
+        getAnnouncements({type: 'banner', limit: 6}),
+      ]);
+      setMarkets(marketRows);
+      setBannerAnnouncements(bannerRows);
     } catch {
-      setMessage('ยังไม่สามารถโหลดรายการตลาดได้');
+      setMessage('ยังไม่สามารถโหลดข้อมูลหน้าจองได้');
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    loadMarkets();
-  }, [loadMarkets]);
+    loadBookingFeed();
+  }, [loadBookingFeed]);
 
   const selectMarket = useCallback(async (market: Market) => {
     setSelectedMarket(market);
@@ -175,10 +205,12 @@ function BookingScreen() {
           pagingEnabled
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.carouselTrack}>
-          {featuredMarkets.map((market) => (
-            <MarketHeroCard key={market.id} market={market} onPress={() => selectMarket(market)} />
+          {carouselItems.map((item) => (
+            item.kind === 'ad'
+              ? <SystemAdHeroCard key={item.key} banner={item.banner} />
+              : <MarketHeroCard key={item.key} market={item.market} onPress={() => selectMarket(item.market)} />
           ))}
-          {!loading && featuredMarkets.length === 0 ? (
+          {!loading && carouselItems.length === 0 ? (
             <EmptyCard text="ไม่พบตลาดตามคำค้นหา" large />
           ) : null}
         </ScrollView>
@@ -221,6 +253,30 @@ function MarketHeroCard({market, onPress}: {market: Market; onPress: () => void}
         <Text style={styles.heroTitle}>{market.name}</Text>
       </LinearGradient>
     </Pressable>
+  );
+}
+
+function SystemAdHeroCard({banner}: {banner: Announcement}) {
+  return (
+    <View style={styles.heroCard}>
+      {banner.imageUrl ? <MarketImage imageUrl={banner.imageUrl} style={styles.heroImage} /> : null}
+      {!banner.imageUrl ? (
+        <LinearGradient colors={['#071827', '#0f3f56', '#14a997']} style={styles.systemAdBackground}>
+          <View style={styles.systemAdGlow} />
+          <View style={styles.systemAdGlowAlt} />
+        </LinearGradient>
+      ) : null}
+      <View style={styles.adsBadge}>
+        <Text style={styles.adsBadgeText}>Ads</Text>
+      </View>
+      <LinearGradient colors={['transparent', 'rgba(7, 17, 31, 0.88)']} style={styles.heroOverlay}>
+        <Text style={styles.marketCode}>{banner.marketName || 'JONGLOCK'}</Text>
+        <Text style={styles.heroTitle}>{banner.title}</Text>
+        <Text style={styles.systemAdText} numberOfLines={2}>
+          {banner.description || 'โฆษณาระบบตัวอย่างจะมาแสดงตรงนี้จนกว่าจะมี Ads จากตลาด'}
+        </Text>
+      </LinearGradient>
+    </View>
   );
 }
 
@@ -579,6 +635,27 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
+  systemAdBackground: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  systemAdGlow: {
+    position: 'absolute',
+    right: -24,
+    top: 22,
+    width: 144,
+    height: 144,
+    borderRadius: 72,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+  },
+  systemAdGlowAlt: {
+    position: 'absolute',
+    left: 26,
+    bottom: 34,
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
   heroOverlay: {
     position: 'absolute',
     left: 0,
@@ -617,6 +694,14 @@ const styles = StyleSheet.create({
     fontSize: 24,
     lineHeight: 30,
     fontWeight: '900',
+  },
+  systemAdText: {
+    marginTop: 8,
+    color: '#dce7ee',
+    fontSize: 13,
+    lineHeight: 19,
+    fontWeight: '700',
+    maxWidth: 230,
   },
   marketList: {
     gap: 14,
