@@ -390,6 +390,7 @@ function BookingDateSheet({
   onConfirm: () => void;
 }) {
   const {width} = useWindowDimensions();
+  const today = useMemo(() => toIsoDate(new Date()), []);
   const [displayedMonth, setDisplayedMonth] = useState(() => startOfMonth(rangeStart || new Date()));
   const calendarWidth = useMemo(() => Math.min(width - 36, 392), [width]);
   const calendarGap = 6;
@@ -449,6 +450,7 @@ function BookingDateSheet({
                 key={`${cell.date}-${index}`}
                 date={cell.date}
                 currentMonth={cell.currentMonth}
+                disabled={cell.date < today}
                 size={daySize}
                 rangeStart={rangeStart}
                 rangeEnd={rangeEnd}
@@ -485,6 +487,7 @@ function BookingDateSheet({
 function CalendarDayButton({
   date,
   currentMonth,
+  disabled,
   size,
   rangeStart,
   rangeEnd,
@@ -493,20 +496,22 @@ function CalendarDayButton({
 }: {
   date: string;
   currentMonth: boolean;
+  disabled: boolean;
   size: number;
   rangeStart: string;
   rangeEnd: string;
   status?: BoothAvailabilityStatus;
   onPress: () => void;
 }) {
-  const inRange = currentMonth && Boolean(rangeStart && rangeEnd && date >= rangeStart && date <= rangeEnd);
-  const isEdge = currentMonth && (date === rangeStart || date === rangeEnd);
+  const selectable = currentMonth && !disabled;
+  const inRange = selectable && Boolean(rangeStart && rangeEnd && date >= rangeStart && date <= rangeEnd);
+  const isEdge = selectable && (date === rangeStart || date === rangeEnd);
   const dateNumber = Number(date.slice(-2));
   const statusStyle = status ? boothStatusStyles[status] : null;
 
   return (
     <Pressable
-      disabled={!currentMonth}
+      disabled={!selectable}
       onPress={onPress}
       style={[
         styles.calendarDay,
@@ -514,7 +519,7 @@ function CalendarDayButton({
           width: size,
           height: size,
         },
-        !currentMonth && styles.calendarDayMuted,
+        !selectable && styles.calendarDayMuted,
         inRange && styles.calendarDayInRange,
         isEdge && styles.calendarDayEdge,
         statusStyle && {
@@ -525,7 +530,7 @@ function CalendarDayButton({
       <Text
         style={[
           styles.calendarDayText,
-          !currentMonth && styles.calendarDayTextMuted,
+          !selectable && styles.calendarDayTextMuted,
           (inRange || statusStyle) && styles.calendarDayTextActive,
           statusStyle && {color: statusStyle.text},
         ]}>
