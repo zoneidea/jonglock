@@ -21,6 +21,7 @@ import {launchImageLibrary} from 'react-native-image-picker';
 import LinearGradient from 'react-native-linear-gradient';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
+import ApiLoadingState from '../components/ApiLoadingState';
 import GoogleIcon from '../components/GoogleIcon';
 import LabeledInput from '../components/LabeledInput';
 import {
@@ -387,6 +388,9 @@ function ProfileScreen({
           value={selectedSubdistrict?.zipCode || '-'}
           icon="mailbox-outline"
         />
+        {locationLoading && provinces.length === 0 ? (
+          <ApiLoadingState label="กำลังโหลดข้อมูลที่อยู่" style={styles.addressLoadingCard} />
+        ) : null}
         {locationMessage ? <Text style={styles.locationMessage}>{locationMessage}</Text> : null}
         <PdpaRow
           title="ยอมรับเงื่อนไข PDPA และนโยบายความเป็นส่วนตัว"
@@ -565,7 +569,7 @@ function LocationDropdown<T>({
       </Pressable>
       {expanded ? (
         <View style={styles.optionList}>
-          {loading ? <Text style={styles.optionStateText}>กำลังโหลดข้อมูล...</Text> : null}
+          {loading ? <ApiLoadingState label="กำลังโหลดข้อมูล" variant="inline" /> : null}
           {!loading && options.length === 0 ? <Text style={styles.optionStateText}>ไม่พบข้อมูล</Text> : null}
           {!loading ? (
             <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled">
@@ -967,6 +971,9 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
     textAlign: 'center',
+  },
+  addressLoadingCard: {
+    marginBottom: 12,
   },
   locationMessage: {
     color: colors.danger,

@@ -16,6 +16,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import {Camera, useCameraDevice, useCameraPermission, useCodeScanner} from 'react-native-vision-camera';
 
+import ApiLoadingState from '../components/ApiLoadingState';
 import {getMarket, getMarkets, type Market} from '../services/markets';
 import {colors, shadow} from '../theme/colors';
 
@@ -25,6 +26,7 @@ function BookingScreen() {
   const [query, setQuery] = useState('');
   const [markets, setMarkets] = useState<Market[]>([]);
   const [selectedMarket, setSelectedMarket] = useState<Market | null>(null);
+  const [marketDetailLoading, setMarketDetailLoading] = useState(false);
   const [previewImage, setPreviewImage] = useState('');
   const [scannerOpen, setScannerOpen] = useState(false);
   const [scannerLocked, setScannerLocked] = useState(false);
@@ -81,6 +83,7 @@ function BookingScreen() {
 
   const selectMarket = useCallback(async (market: Market) => {
     setSelectedMarket(market);
+    setMarketDetailLoading(true);
     try {
       const latest = await getMarket(market.id);
       if (latest) {
@@ -88,6 +91,8 @@ function BookingScreen() {
       }
     } catch {
       // The list already contains enough detail for the MVP view.
+    } finally {
+      setMarketDetailLoading(false);
     }
   }, []);
 
@@ -139,6 +144,7 @@ function BookingScreen() {
     return (
       <MarketDetailScreen
         market={selectedMarket}
+        loading={marketDetailLoading}
         onBack={() => setSelectedMarket(null)}
         onPreview={setPreviewImage}
         previewImage={previewImage}
@@ -175,9 +181,13 @@ function BookingScreen() {
           pagingEnabled
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.carouselTrack}>
-          {featuredMarkets.map((market) => (
-            <MarketHeroCard key={market.id} market={market} onPress={() => selectMarket(market)} />
-          ))}
+          {loading && featuredMarkets.length === 0 ? (
+            <ApiLoadingState label="กำลังโหลดตลาดแนะนำ" style={styles.heroLoadingCard} />
+          ) : (
+            featuredMarkets.map((market) => (
+              <MarketHeroCard key={market.id} market={market} onPress={() => selectMarket(market)} />
+            ))
+          )}
           {!loading && featuredMarkets.length === 0 ? (
             <EmptyCard text="ไม่พบตลาดตามคำค้นหา" large />
           ) : null}
@@ -185,9 +195,15 @@ function BookingScreen() {
 
         <View style={styles.sectionHeaderRow}>
           <Text style={styles.sectionTitle}>ตลาดทั้งหมด</Text>
-          <Text style={styles.sectionCaption}>{loading ? 'กำลังโหลดข้อมูล...' : `${marketListItems.length} ตลาด`}</Text>
+          <Text style={styles.sectionCaption}>{`${marketListItems.length} ตลาด`}</Text>
         </View>
         <View style={styles.marketList}>
+          {loading && marketListItems.length === 0 ? (
+            <>
+              <ApiLoadingState label="กำลังโหลดรายการตลาด" />
+              <ApiLoadingState label="กำลังโหลดรายการตลาด" />
+            </>
+          ) : null}
           {marketListItems.map((market) => (
             <MarketListCard key={market.id} market={market} onPress={() => selectMarket(market)} />
           ))}
@@ -254,8 +270,10 @@ function MarketDetailScreen({
   onPreview,
   previewImage,
   onClosePreview,
+  loading,
 }: {
   market: Market;
+  loading?: boolean;
   onBack: () => void;
   onPreview: (imageUrl: string) => void;
   previewImage: string;
@@ -371,6 +389,12 @@ function MarketDetailScreen({
           <MaterialCommunityIcons name="chevron-right" size={20} color={colors.white} />
         </Pressable>
       </ScrollView>
+
+      {loading ? (
+        <View pointerEvents="none" style={styles.detailLoadingOverlay}>
+          <ApiLoadingState label="กำลังโหลดรายละเอียดตลาด" style={styles.detailLoadingCard} />
+        </View>
+      ) : null}
 
       <Modal visible={Boolean(previewImage)} transparent animationType="fade" onRequestClose={onClosePreview}>
         <View style={styles.previewBackdrop}>
@@ -571,6 +595,10 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: colors.white,
     ...shadow,
+  },
+  heroLoadingCard: {
+    width: 320,
+    height: 220,
   },
   heroImage: {
     width: '100%',
@@ -785,6 +813,17 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontSize: 16,
     fontWeight: '900',
+  },
+  detailLoadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(247,251,251,0.72)',
+    paddingHorizontal: 22,
+  },
+  detailLoadingCard: {
+    width: '100%',
+    maxWidth: 280,
   },
   sheetBackdrop: {
     flex: 1,

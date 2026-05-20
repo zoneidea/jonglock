@@ -2,6 +2,7 @@ import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {Image, ScrollView, StyleSheet, Text, View} from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 
+import ApiLoadingState from '../components/ApiLoadingState';
 import PromoCard from '../components/PromoCard';
 import {getAnnouncements, type Announcement} from '../services/announcements';
 import {colors, shadow} from '../theme/colors';
@@ -74,14 +75,24 @@ function HomeScreen({user}: {user: MobileUser | null}) {
         pagingEnabled
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.carouselTrack}>
-        {bannerItems.map((item) => (
-          <HomeAdCard key={item.id || item.title} banner={item} />
-        ))}
+        {loading && banners.length === 0 ? (
+          <ApiLoadingState label="กำลังโหลดแบนเนอร์" style={styles.bannerLoadingCard} />
+        ) : (
+          bannerItems.map((item) => (
+            <HomeAdCard key={item.id || item.title} banner={item} />
+          ))
+        )}
       </ScrollView>
 
       <Text style={styles.sectionTitle}>ข่าวสารและโปรโมชั่น</Text>
       {message ? <Text style={styles.messageText}>{message}</Text> : null}
       <View style={styles.promoList}>
+        {loading && feedItems.length === 0 ? (
+          <>
+            <ApiLoadingState label="กำลังโหลดข่าวสารและโปรโมชั่น" />
+            <ApiLoadingState label="กำลังโหลดข่าวสารและโปรโมชั่น" />
+          </>
+        ) : null}
         {feedItems.map((item) => (
           <PromoCard
             key={item.id}
@@ -202,6 +213,10 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: colors.white,
     ...shadow,
+  },
+  bannerLoadingCard: {
+    width: 320,
+    height: 220,
   },
   bannerImage: {
     width: '100%',
