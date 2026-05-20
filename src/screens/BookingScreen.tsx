@@ -1,7 +1,6 @@
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
-  Alert,
   Image,
   Modal,
   Pressable,
@@ -18,7 +17,7 @@ import {Camera, useCameraDevice, useCameraPermission, useCodeScanner} from 'reac
 
 import AppDialog from '../components/AppDialog';
 import ApiLoadingState from '../components/ApiLoadingState';
-import {getMarket, getMarkets, type Market} from '../services/markets';
+import {getMarket, getMarketFloorPlans, getMarkets, type FloorPlan, type Market} from '../services/markets';
 import {colors, shadow} from '../theme/colors';
 import type {MobileUser} from '../types/user';
 
@@ -34,6 +33,7 @@ function BookingScreen({
   const [query, setQuery] = useState('');
   const [markets, setMarkets] = useState<Market[]>([]);
   const [selectedMarket, setSelectedMarket] = useState<Market | null>(null);
+  const [floorPlanMarket, setFloorPlanMarket] = useState<Market | null>(null);
   const [marketDetailLoading, setMarketDetailLoading] = useState(false);
   const [previewImage, setPreviewImage] = useState('');
   const [scannerOpen, setScannerOpen] = useState(false);
@@ -130,6 +130,15 @@ function BookingScreen({
     },
   });
 
+  if (floorPlanMarket) {
+    return (
+      <FloorPlanSelectionScreen
+        market={floorPlanMarket}
+        onBack={() => setFloorPlanMarket(null)}
+      />
+    );
+  }
+
   if (selectedMarket) {
     return (
       <MarketDetailScreen
@@ -138,6 +147,7 @@ function BookingScreen({
         loading={marketDetailLoading}
         onRequireAuth={onRequireAuth}
         onBack={() => setSelectedMarket(null)}
+        onContinue={() => setFloorPlanMarket(selectedMarket)}
         onPreview={setPreviewImage}
         previewImage={previewImage}
         onClosePreview={() => setPreviewImage('')}
@@ -236,12 +246,14 @@ function MarketDetailScreen({
   onClosePreview,
   loading,
   onRequireAuth,
+  onContinue,
 }: {
   market: Market;
   user: MobileUser | null;
   loading?: boolean;
   onRequireAuth: () => void;
   onBack: () => void;
+  onContinue: () => void;
   onPreview: (imageUrl: string) => void;
   previewImage: string;
   onClosePreview: () => void;
@@ -286,12 +298,12 @@ function MarketDetailScreen({
     }
 
     if (skipTerms) {
-      Alert.alert('พร้อมสำหรับขั้นตอนถัดไป', 'ระบบจะข้ามหน้าเงื่อนไขนี้ให้ในครั้งถัดไป');
+      onContinue();
       return;
     }
 
     setTermsVisible(true);
-  }, [skipTerms, user]);
+  }, [onContinue, skipTerms, user]);
 
   const handleTermsAccept = useCallback(async () => {
     if (doNotShowAgain) {
@@ -310,8 +322,8 @@ function MarketDetailScreen({
 
     setTermsVisible(false);
     setDoNotShowAgain(false);
-    Alert.alert('รับทราบเงื่อนไขแล้ว', 'ขั้นตอนถัดไปจะถูกเชื่อมต่อในลำดับถัดไป');
-  }, [doNotShowAgain, market.id]);
+    onContinue();
+  }, [doNotShowAgain, market.id, onContinue]);
 
   return (
     <View style={styles.flex}>
@@ -420,6 +432,171 @@ function MarketDetailScreen({
       />
     </View>
   );
+}
+
+function FloorPlanSelectionScreen({
+  market,
+  onBack,
+}: {
+  market: Market;
+  onBack: () => void;
+}) {
+  const [floorPlans, setFloorPlans] = useState<FloorPlan[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [message, setMessage] = useState('');
+  const [selectedPlan, setSelectedPlan] = useState<FloorPlan | null>(null);
+
+  const loadFloorPlans = useCallback(async () => {
+    setLoading(true);
+    setMessage('');
+    try {
+      setFloorPlans(await getMarketFloorPlans(market.id));
+    } catch {
+      setMessage('ยังไม่สามารถโหลดแผนผังหรือโซนได้');
+    } finally {
+      setLoading(false);
+    }
+  }, [market.id]);
+
+  useEffect(() => {
+    loadFloorPlans();
+  }, [loadFloorPlans]);
+
+  return (
+    <View style={styles.flex}>
+      <ScrollView contentContainerStyle={styles.screenScroll}>
+        <View style={styles.detailHeaderRow}>
+          <Pressable onPress={onBack} style={styles.backButton}>
+            <MaterialCommunityIcons name="chevron-left" size={24} color={colors.ink} />
+            <Text style={styles.backText}>กลับ</Text>
+          </Pressable>
+        </View>
+
+        <View style={styles.planIntroCard}>
+          <View style={styles.planIntroIcon}>
+            <MaterialCommunityIcons name="map-outline" size={28} color={colors.tealDark} />
+          </View>
+          <View style={styles.planIntroCopy}>
+            <Text style={styles.planEyebrow}>{market.code}</Text>
+            <Text style={styles.planTitle}>เลือกแผนผัง/โซน</Text>
+            <Text style={styles.planSubtitle}>{market.name}</Text>
+          </View>
+        </View>
+
+        <Text style={styles.planHelpText}>
+          เลือกผังหรือโซนที่ต้องการจอง ก่อนเข้าสู่ขั้นตอนเลือกบูธ
+        </Text>
+
+        {message ? <Text style={styles.messageText}>{message}</Text> : null}
+
+        <View style={styles.planList}>
+          {loading && floorPlans.length === 0 ? (
+            <>
+              <ApiLoadingState label="กำลังโหลดแผนผัง/โซน" />
+              <ApiLoadingState label="กำลังโหลดแผนผัง/โซน" />
+            </>
+          ) : null}
+          {floorPlans.map((floorPlan) => (
+            <FloorPlanCard
+              key={floorPlan.id}
+              floorPlan={floorPlan}
+              onPress={() => setSelectedPlan(floorPlan)}
+            />
+          ))}
+          {!loading && floorPlans.length === 0 ? (
+            <EmptyCard text="ยังไม่มีแผนผังหรือโซนที่เปิดใช้งาน" />
+          ) : null}
+        </View>
+      </ScrollView>
+
+      <AppDialog
+        visible={Boolean(selectedPlan)}
+        icon="map-check-outline"
+        title="เลือกแผนผังแล้ว"
+        message={selectedPlan ? `คุณเลือก ${selectedPlan.name} ขั้นตอนถัดไปจะเป็นการเลือกบูธจากผังนี้` : ''}
+        cancelLabel="ปิด"
+        confirmLabel="ตกลง"
+        onCancel={() => setSelectedPlan(null)}
+        onConfirm={() => setSelectedPlan(null)}
+      />
+    </View>
+  );
+}
+
+function FloorPlanCard({
+  floorPlan,
+  onPress,
+}: {
+  floorPlan: FloorPlan;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable onPress={onPress} style={styles.planCard}>
+      <View style={styles.planImageWrap}>
+        {floorPlan.planImageUrl ? (
+          <Image source={{uri: floorPlan.planImageUrl}} style={styles.planImage} resizeMode="cover" />
+        ) : (
+          <LinearGradient colors={['#e8fbf7', '#ffffff']} style={styles.planFallback}>
+            <MaterialCommunityIcons name="map-marker-path" size={32} color={colors.tealDark} />
+          </LinearGradient>
+        )}
+      </View>
+      <View style={styles.planCardBody}>
+        <View style={styles.planCardHeader}>
+          <View style={styles.planCardCopy}>
+            <Text style={styles.planName}>{floorPlan.name}</Text>
+            <Text style={styles.planDate}>{formatPlanDateRange(floorPlan.startDate, floorPlan.endDate)}</Text>
+          </View>
+          <View style={styles.planStatusBadge}>
+            <Text style={styles.planStatusText}>เปิดจอง</Text>
+          </View>
+        </View>
+        <View style={styles.planStatsRow}>
+          <View style={styles.planStatPill}>
+            <MaterialCommunityIcons name="storefront-outline" size={16} color={colors.tealDark} />
+            <Text style={styles.planStatText}>{`${floorPlan.boothCount} บูธ`}</Text>
+          </View>
+          <Pressable onPress={onPress} style={styles.planSelectButton}>
+            <Text style={styles.planSelectButtonText}>เลือกผังนี้</Text>
+            <MaterialCommunityIcons name="chevron-right" size={18} color={colors.white} />
+          </Pressable>
+        </View>
+      </View>
+    </Pressable>
+  );
+}
+
+function formatPlanDateRange(startDate?: string | null, endDate?: string | null) {
+  const start = formatShortDate(startDate);
+  const end = formatShortDate(endDate);
+
+  if (start && end) {
+    return `${start} - ${end}`;
+  }
+  if (start) {
+    return `เริ่ม ${start}`;
+  }
+  if (end) {
+    return `ถึง ${end}`;
+  }
+  return 'เปิดตามช่วงเวลาของตลาด';
+}
+
+function formatShortDate(value?: string | null) {
+  if (!value) {
+    return '';
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+
+  return new Intl.DateTimeFormat('th-TH', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(date);
 }
 
 function htmlToPlainText(value: string) {
@@ -763,6 +940,153 @@ const styles = StyleSheet.create({
   nextButtonText: {
     color: colors.white,
     fontSize: 16,
+    fontWeight: '900',
+  },
+  planIntroCard: {
+    minHeight: 118,
+    borderRadius: 28,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.border,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    padding: 18,
+    ...shadow,
+  },
+  planIntroIcon: {
+    width: 58,
+    height: 58,
+    borderRadius: 21,
+    backgroundColor: colors.soft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  planIntroCopy: {
+    flex: 1,
+  },
+  planEyebrow: {
+    color: colors.tealDark,
+    fontSize: 11,
+    letterSpacing: 1,
+    fontWeight: '900',
+  },
+  planTitle: {
+    marginTop: 4,
+    color: colors.ink,
+    fontSize: 25,
+    lineHeight: 31,
+    fontWeight: '900',
+  },
+  planSubtitle: {
+    marginTop: 4,
+    color: colors.muted,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '800',
+  },
+  planHelpText: {
+    marginTop: 16,
+    color: colors.muted,
+    fontSize: 14,
+    lineHeight: 22,
+    fontWeight: '800',
+  },
+  planList: {
+    marginTop: 14,
+    gap: 14,
+  },
+  planCard: {
+    borderRadius: 26,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: 'hidden',
+    ...shadow,
+  },
+  planImageWrap: {
+    height: 156,
+    backgroundColor: colors.soft,
+  },
+  planImage: {
+    width: '100%',
+    height: '100%',
+  },
+  planFallback: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  planCardBody: {
+    padding: 16,
+  },
+  planCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  planCardCopy: {
+    flex: 1,
+  },
+  planName: {
+    color: colors.ink,
+    fontSize: 19,
+    lineHeight: 24,
+    fontWeight: '900',
+  },
+  planDate: {
+    marginTop: 5,
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  planStatusBadge: {
+    borderRadius: 999,
+    backgroundColor: '#e6fbf6',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  planStatusText: {
+    color: colors.tealDark,
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  planStatsRow: {
+    marginTop: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  planStatPill: {
+    minHeight: 38,
+    borderRadius: 15,
+    backgroundColor: colors.soft,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+  },
+  planStatText: {
+    color: colors.ink,
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  planSelectButton: {
+    minHeight: 42,
+    borderRadius: 16,
+    backgroundColor: colors.teal,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingLeft: 14,
+    paddingRight: 10,
+  },
+  planSelectButtonText: {
+    color: colors.white,
+    fontSize: 13,
     fontWeight: '900',
   },
   detailLoadingOverlay: {

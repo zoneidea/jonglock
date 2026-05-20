@@ -26,6 +26,18 @@ export type Market = {
   galleryImages: string[];
 };
 
+export type FloorPlan = {
+  id: number;
+  organizationId: number;
+  marketId: number;
+  name: string;
+  planImageUrl: string;
+  startDate?: string | null;
+  endDate?: string | null;
+  status: string;
+  boothCount: number;
+};
+
 function buildQuery(params: QueryParams = {}) {
   const query = Object.entries(params)
     .filter(([, value]) => value !== undefined && value !== null && value !== '')
@@ -57,6 +69,14 @@ function normalizeMarket(market: Market): Market {
   };
 }
 
+function normalizeFloorPlan(floorPlan: FloorPlan): FloorPlan {
+  return {
+    ...floorPlan,
+    planImageUrl: normalizeUrl(floorPlan.planImageUrl),
+    boothCount: Number(floorPlan.boothCount || 0),
+  };
+}
+
 async function request<T>(path: string, params?: QueryParams): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}${buildQuery(params)}`);
   if (!response.ok) {
@@ -75,4 +95,9 @@ export async function getMarkets(params: {q?: string} = {}) {
 export async function getMarket(marketId: number) {
   const market = await request<Market | null>(`/public/markets/${marketId}`);
   return market ? normalizeMarket(market) : null;
+}
+
+export async function getMarketFloorPlans(marketId: number) {
+  const floorPlans = await request<FloorPlan[]>(`/public/markets/${marketId}/floor-plans`);
+  return floorPlans.map(normalizeFloorPlan);
 }
