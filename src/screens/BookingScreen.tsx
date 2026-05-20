@@ -47,24 +47,6 @@ function BookingScreen() {
     );
   }, [markets, query]);
 
-  const featuredMarkets = useMemo(() => {
-    const seenOrganizations = new Set<number>();
-
-    return filteredMarkets.filter((market) => {
-      if (seenOrganizations.has(market.organizationId)) {
-        return false;
-      }
-
-      seenOrganizations.add(market.organizationId);
-      return true;
-    });
-  }, [filteredMarkets]);
-
-  const marketListItems = useMemo(() => {
-    const featuredIds = new Set(featuredMarkets.map((market) => market.id));
-    return filteredMarkets.filter((market) => !featuredIds.has(market.id));
-  }, [featuredMarkets, filteredMarkets]);
-
   const loadMarkets = useCallback(async () => {
     setLoading(true);
     setMessage('');
@@ -176,38 +158,21 @@ function BookingScreen() {
 
         {message ? <Text style={styles.messageText}>{message}</Text> : null}
 
-        <ScrollView
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.carouselTrack}>
-          {loading && featuredMarkets.length === 0 ? (
-            <ApiLoadingState label="กำลังโหลดตลาดแนะนำ" style={styles.heroLoadingCard} />
-          ) : (
-            featuredMarkets.map((market) => (
-              <MarketHeroCard key={market.id} market={market} onPress={() => selectMarket(market)} />
-            ))
-          )}
-          {!loading && featuredMarkets.length === 0 ? (
-            <EmptyCard text="ไม่พบตลาดตามคำค้นหา" large />
-          ) : null}
-        </ScrollView>
-
         <View style={styles.sectionHeaderRow}>
           <Text style={styles.sectionTitle}>ตลาดทั้งหมด</Text>
-          <Text style={styles.sectionCaption}>{`${marketListItems.length} ตลาด`}</Text>
+          <Text style={styles.sectionCaption}>{`${filteredMarkets.length} ตลาด`}</Text>
         </View>
         <View style={styles.marketList}>
-          {loading && marketListItems.length === 0 ? (
+          {loading && filteredMarkets.length === 0 ? (
             <>
               <ApiLoadingState label="กำลังโหลดรายการตลาด" />
               <ApiLoadingState label="กำลังโหลดรายการตลาด" />
             </>
           ) : null}
-          {marketListItems.map((market) => (
+          {filteredMarkets.map((market) => (
             <MarketListCard key={market.id} market={market} onPress={() => selectMarket(market)} />
           ))}
-          {!loading && marketListItems.length === 0 ? <EmptyCard text="ไม่มีรายการตลาด" /> : null}
+          {!loading && filteredMarkets.length === 0 ? <EmptyCard text="ไม่มีรายการตลาด" /> : null}
         </View>
       </ScrollView>
 
@@ -222,18 +187,6 @@ function BookingScreen() {
         }}
       />
     </View>
-  );
-}
-
-function MarketHeroCard({market, onPress}: {market: Market; onPress: () => void}) {
-  return (
-    <Pressable onPress={onPress} style={styles.heroCard}>
-      <MarketImage imageUrl={market.mainImageUrl} style={styles.heroImage} />
-      <LinearGradient colors={['transparent', 'rgba(7, 17, 31, 0.82)']} style={styles.heroOverlay}>
-        <Text style={styles.marketCode}>{market.code}</Text>
-        <Text style={styles.heroTitle}>{market.name}</Text>
-      </LinearGradient>
-    </Pressable>
   );
 }
 
@@ -584,46 +537,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textAlign: 'right',
   },
-  carouselTrack: {
-    gap: 14,
-    paddingRight: 22,
-  },
-  heroCard: {
-    width: 320,
-    height: 220,
-    borderRadius: 28,
-    overflow: 'hidden',
-    backgroundColor: colors.white,
-    ...shadow,
-  },
-  heroLoadingCard: {
-    width: 320,
-    height: 220,
-  },
-  heroImage: {
-    width: '100%',
-    height: '100%',
-  },
-  heroOverlay: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    padding: 18,
-    minHeight: 92,
-    justifyContent: 'flex-end',
-  },
   marketCode: {
     color: '#dff8f4',
     fontSize: 11,
     letterSpacing: 1,
-    fontWeight: '900',
-  },
-  heroTitle: {
-    marginTop: 4,
-    color: colors.white,
-    fontSize: 24,
-    lineHeight: 30,
     fontWeight: '900',
   },
   marketList: {
