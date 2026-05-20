@@ -92,8 +92,8 @@ const styles = StyleSheet.create({
   },
   bottomBar: {
     position: 'absolute',
-    left: 42,
-    right: 42,
+    left: 22,
+    right: 22,
     bottom: 22,
     height: 58,
     borderRadius: 29,

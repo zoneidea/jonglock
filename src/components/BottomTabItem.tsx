@@ -78,7 +78,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'transparent',
-    marginBottom: 1,
+    marginBottom: -1,
   },
   roundBubble: {
     borderRadius: 24,
@@ -93,9 +93,9 @@ const styles = StyleSheet.create({
   },
   bottomTabText: {
     color: colors.ink,
-    fontSize: 8,
+    fontSize: 9,
     fontWeight: '800',
-    lineHeight: 11,
+    lineHeight: 10,
   },
 });
 

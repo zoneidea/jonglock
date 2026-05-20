@@ -52,6 +52,22 @@ jest.mock('react-native-image-picker', () => ({
   launchImageLibrary: jest.fn(() => Promise.resolve({didCancel: true})),
 }));
 
+jest.mock('react-native-vision-camera', () => {
+  const React = require('react');
+  const {View} = require('react-native');
+  return {
+    Camera: function MockCamera(props) {
+      return React.createElement(View, props);
+    },
+    useCameraDevice: jest.fn(() => ({id: 'mock-camera'})),
+    useCameraPermission: jest.fn(() => ({
+      hasPermission: true,
+      requestPermission: jest.fn(() => Promise.resolve(true)),
+    })),
+    useCodeScanner: jest.fn((scanner) => scanner),
+  };
+});
+
 jest.mock('react-native-linear-gradient', () => {
   const React = require('react');
   const {View} = require('react-native');

@@ -69,6 +69,11 @@ The design should align with the Jonglock landing page:
 - Keep spacing generous and clean
 - Use cards for actionable mobile content
 - Keep copy short and task-focused
+- Favor symmetry and visual balance in every screen
+- Reuse the same horizontal gutters for cards, banners, tab bars, and major content blocks whenever possible
+- Keep major components aligned to a shared grid so widths feel intentional and consistent
+- Prefer even spacing and centered composition over decorative offset layouts
+- Avoid elements that look too tight, overlapping, or visually heavier on one side unless the screen explicitly needs asymmetry
 
 Splash screen may use animation and visual polish. Transactional screens must stay readable and direct.
 
