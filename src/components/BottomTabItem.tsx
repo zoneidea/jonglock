@@ -1,5 +1,6 @@
 import React, {useEffect, useRef} from 'react';
-import {Animated, Pressable, StyleSheet, Text} from 'react-native';
+import {Animated, Pressable, StyleSheet, View} from 'react-native';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import {colors} from '../theme/colors';
 import type {TabItem} from '../types/tabs';
@@ -20,67 +21,82 @@ function BottomTabItem({
       toValue: active ? 1 : 0,
       friction: 7,
       tension: 80,
-      useNativeDriver: false,
+      useNativeDriver: true,
     }).start();
   }, [active, progress]);
 
-  const width = progress.interpolate({
-    inputRange: [0, 1],
-    outputRange: [72, 104],
-  });
   const scale = progress.interpolate({
     inputRange: [0, 1],
-    outputRange: [1, 1.06],
+    outputRange: [0.82, 1],
+  });
+  const lift = progress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, -4],
+  });
+  const labelOpacity = progress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 0],
   });
 
   return (
-    <Pressable onPress={onPress}>
-      <Animated.View
-        style={[
-          styles.bottomTab,
-          active && styles.bottomTabActive,
-          {width, transform: [{scale}]},
-        ]}>
-        <Text style={[styles.bottomTabIcon, active && styles.bottomTabIconActive]}>
-          {item.icon}
-        </Text>
-        <Text style={[styles.bottomTabText, active && styles.bottomTabTextActive]}>
+    <Pressable onPress={onPress} hitSlop={10} style={styles.tabButton}>
+      <View style={styles.bottomTab}>
+        <Animated.View
+          style={[
+            styles.iconBubble,
+            styles.roundBubble,
+            active && styles.iconBubbleActive,
+            {transform: [{translateY: lift}, {scale}]},
+          ]}>
+          <MaterialCommunityIcons
+            name={item.icon}
+            size={active ? 24 : 17}
+            color={active ? colors.white : colors.ink}
+          />
+        </Animated.View>
+        <Animated.Text style={[styles.bottomTabText, {opacity: labelOpacity}]}>
           {item.label}
-        </Text>
-      </Animated.View>
+        </Animated.Text>
+      </View>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
+  tabButton: {
+    flex: 1,
+  },
   bottomTab: {
-    height: 56,
-    borderRadius: 20,
+    height: 58,
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    paddingBottom: 8,
+  },
+  iconBubble: {
+    width: 48,
+    height: 48,
     alignItems: 'center',
     justifyContent: 'center',
-    flexDirection: 'row',
-    gap: 7,
+    backgroundColor: 'transparent',
+    marginBottom: 1,
   },
-  bottomTabActive: {
+  roundBubble: {
+    borderRadius: 24,
+  },
+  iconBubbleActive: {
     backgroundColor: colors.teal,
-  },
-  bottomTabIcon: {
-    color: colors.muted,
-    fontSize: 21,
-    fontWeight: '900',
-  },
-  bottomTabIconActive: {
-    color: colors.white,
+    shadowColor: colors.teal,
+    shadowOffset: {width: 0, height: 8},
+    shadowOpacity: 0.32,
+    shadowRadius: 14,
+    elevation: 10,
   },
   bottomTabText: {
-    color: colors.muted,
-    fontSize: 10,
-    fontWeight: '900',
-  },
-  bottomTabTextActive: {
-    color: colors.white,
-    fontSize: 11,
+    color: colors.ink,
+    fontSize: 8,
+    fontWeight: '800',
+    lineHeight: 11,
   },
 });
 
-export default BottomTabItem;
+export default React.memo(BottomTabItem);

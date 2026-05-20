@@ -40,6 +40,18 @@ jest.mock('@react-native-firebase/app', () => ({
   },
 }));
 
+jest.mock('react-native-vector-icons/MaterialCommunityIcons', () => {
+  const React = require('react');
+  const {Text} = require('react-native');
+  return function MaterialCommunityIcons(props) {
+    return React.createElement(Text, props, props.name);
+  };
+});
+
+jest.mock('react-native-image-picker', () => ({
+  launchImageLibrary: jest.fn(() => Promise.resolve({didCancel: true})),
+}));
+
 jest.mock('react-native-linear-gradient', () => {
   const React = require('react');
   const {View} = require('react-native');

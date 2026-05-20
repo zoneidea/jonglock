@@ -21,4 +21,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default BookingScreen;
+export default React.memo(BookingScreen);

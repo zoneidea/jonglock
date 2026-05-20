@@ -2,12 +2,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import {GoogleSignin} from '@react-native-google-signin/google-signin';
 import {NavigationContainer} from '@react-navigation/native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
-import React, {useEffect, useState} from 'react';
+import React, {useCallback, useEffect, useState} from 'react';
 import {SafeAreaProvider} from 'react-native-safe-area-context';
 
 import {STORAGE_USER_KEY} from './src/constants/storage';
 import AppShell from './src/screens/AppShell';
-import AuthScreen from './src/screens/AuthScreen';
 import SplashScreen from './src/screens/SplashScreen';
 import type {RootStackParamList} from './src/types/navigation';
 import type {MobileUser} from './src/types/user';
@@ -32,7 +31,12 @@ function App(): React.JSX.Element {
       .catch(() => undefined);
   }, []);
 
-  async function logout() {
+  const persistUser = useCallback(async (nextUser: MobileUser) => {
+    await AsyncStorage.setItem(STORAGE_USER_KEY, JSON.stringify(nextUser));
+    setUser(nextUser);
+  }, []);
+
+  const logout = useCallback(async () => {
     await AsyncStorage.removeItem(STORAGE_USER_KEY);
     try {
       await GoogleSignin.signOut();
@@ -40,7 +44,7 @@ function App(): React.JSX.Element {
       // Google native config is optional in this UI-first MVP.
     }
     setUser(null);
-  }
+  }, []);
 
   return (
     <SafeAreaProvider>
@@ -49,15 +53,16 @@ function App(): React.JSX.Element {
       ) : (
         <NavigationContainer>
           <Stack.Navigator screenOptions={{headerShown: false}}>
-            {user ? (
-              <Stack.Screen name="Home">
-                {() => <AppShell user={user} onLogout={logout} />}
-              </Stack.Screen>
-            ) : (
-              <Stack.Screen name="Auth">
-                {() => <AuthScreen onAuthenticated={setUser} />}
-              </Stack.Screen>
-            )}
+            <Stack.Screen name="Home">
+              {() => (
+                <AppShell
+                  user={user}
+                  onLogout={logout}
+                  onAuthenticated={persistUser}
+                  onUserChange={persistUser}
+                />
+              )}
+            </Stack.Screen>
           </Stack.Navigator>
         </NavigationContainer>
       )}

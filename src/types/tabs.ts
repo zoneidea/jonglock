@@ -7,8 +7,8 @@ export type TabItem = {
 };
 
 export const tabs: TabItem[] = [
-  {key: 'home', label: 'หน้าหลัก', icon: '⌂'},
-  {key: 'booking', label: 'จอง', icon: '▤'},
-  {key: 'cart', label: 'ตระกร้า', icon: '▱'},
-  {key: 'profile', label: 'โปรไฟล์', icon: '◍'},
+  {key: 'home', label: 'หน้าหลัก', icon: 'home-variant'},
+  {key: 'booking', label: 'จอง', icon: 'storefront-outline'},
+  {key: 'cart', label: 'ตระกร้า', icon: 'cart-outline'},
+  {key: 'profile', label: 'โปรไฟล์', icon: 'card-account-details-outline'},
 ];

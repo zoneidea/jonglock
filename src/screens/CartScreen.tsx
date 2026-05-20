@@ -21,4 +21,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default CartScreen;
+export default React.memo(CartScreen);

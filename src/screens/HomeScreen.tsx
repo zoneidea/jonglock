@@ -7,7 +7,7 @@ import PromoCard from '../components/PromoCard';
 import {colors, shadow} from '../theme/colors';
 import type {MobileUser} from '../types/user';
 
-function HomeScreen({user, firebaseAppName}: {user: MobileUser; firebaseAppName: string}) {
+function HomeScreen({user, firebaseAppName}: {user: MobileUser | null; firebaseAppName: string}) {
   const stats = useMemo(
     () => [
       {label: 'ตลาดเปิดจอง', value: '2'},
@@ -22,10 +22,10 @@ function HomeScreen({user, firebaseAppName}: {user: MobileUser; firebaseAppName:
       <View style={styles.homeTopbar}>
         <View>
           <Text style={styles.homeHello}>สวัสดี</Text>
-          <Text style={styles.homeName}>{user.name}</Text>
+          <Text style={styles.homeName}>{user?.name || 'ผู้ใช้งาน'}</Text>
         </View>
         <View style={styles.userChip}>
-          <Text style={styles.userChipText}>Gmail</Text>
+          <Text style={styles.userChipText}>{user ? 'Gmail' : 'Guest'}</Text>
         </View>
       </View>
 
@@ -219,4 +219,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default HomeScreen;
+export default React.memo(HomeScreen);
