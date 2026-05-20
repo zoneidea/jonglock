@@ -183,7 +183,7 @@ function BookingScreen() {
           ) : null}
         </ScrollView>
 
-        <View style={styles.sectionHeader}>
+        <View style={styles.sectionHeaderRow}>
           <Text style={styles.sectionTitle}>ตลาดทั้งหมด</Text>
           <Text style={styles.sectionCaption}>{loading ? 'กำลังโหลดข้อมูล...' : `${marketListItems.length} ตลาด`}</Text>
         </View>
@@ -542,16 +542,23 @@ const styles = StyleSheet.create({
     marginTop: 24,
     marginBottom: 12,
   },
+  sectionHeaderRow: {
+    marginTop: 24,
+    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   sectionTitle: {
     color: colors.ink,
     fontSize: 21,
     fontWeight: '900',
   },
   sectionCaption: {
-    marginTop: 4,
     color: colors.muted,
     fontSize: 13,
     fontWeight: '700',
+    textAlign: 'right',
   },
   carouselTrack: {
     gap: 14,
