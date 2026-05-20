@@ -654,7 +654,9 @@ const styles = StyleSheet.create({
   },
   topNextButton: {
     height: 42,
-    width: 82,
+    // width: 82,
+    // paddingHorizontal: 8,
+    paddingLeft: 14,
     borderRadius: 16,
     backgroundColor: colors.teal,
     flexDirection: 'row',
