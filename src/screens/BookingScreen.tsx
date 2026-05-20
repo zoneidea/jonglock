@@ -483,9 +483,7 @@ function FloorPlanSelectionScreen({
           </View>
         </View>
 
-        <Text style={styles.planHelpText}>
-          เลือกผังหรือโซนที่ต้องการจอง ก่อนเข้าสู่ขั้นตอนเลือกบูธ
-        </Text>
+        <Text style={styles.planHelpText}>เลือกโซนที่ต้องการ ก่อนเข้าสู่ขั้นตอนการเลือกบูธ</Text>
 
         {message ? <Text style={styles.messageText}>{message}</Text> : null}
 
@@ -1005,7 +1003,7 @@ const styles = StyleSheet.create({
     ...shadow,
   },
   planImageWrap: {
-    height: 156,
+    height: 78,
     backgroundColor: colors.soft,
   },
   planImage: {
@@ -1019,7 +1017,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   planCardBody: {
-    padding: 16,
+    padding: 12,
   },
   planCardHeader: {
     flexDirection: 'row',
@@ -1031,8 +1029,8 @@ const styles = StyleSheet.create({
   },
   planName: {
     color: colors.ink,
-    fontSize: 19,
-    lineHeight: 24,
+    fontSize: 17,
+    lineHeight: 22,
     fontWeight: '900',
   },
   planDate: {
@@ -1053,7 +1051,7 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   planStatsRow: {
-    marginTop: 16,
+    marginTop: 10,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
