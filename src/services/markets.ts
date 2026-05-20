@@ -14,6 +14,7 @@ export type Market = {
   code: string;
   name: string;
   description: string;
+  terms: string;
   mainImageUrl: string;
   address: string;
   openingHours: string;

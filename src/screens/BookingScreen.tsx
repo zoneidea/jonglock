@@ -1,9 +1,12 @@
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
+  Alert,
   Image,
   Modal,
   Pressable,
   ScrollView,
+  Switch,
   StyleSheet,
   Text,
   TextInput,
@@ -15,6 +18,8 @@ import {Camera, useCameraDevice, useCameraPermission, useCodeScanner} from 'reac
 
 import {getMarket, getMarkets, type Market} from '../services/markets';
 import {colors, shadow} from '../theme/colors';
+
+const MARKET_TERMS_DISMISSED_KEY = 'jonglock.marketTerms.dismissed';
 
 function BookingScreen() {
   const [query, setQuery] = useState('');
@@ -257,13 +262,79 @@ function MarketDetailScreen({
   onClosePreview: () => void;
 }) {
   const gallery = market.galleryImages.length ? market.galleryImages : market.mainImageUrl ? [market.mainImageUrl] : [];
+  const [termsVisible, setTermsVisible] = useState(false);
+  const [doNotShowAgain, setDoNotShowAgain] = useState(false);
+  const [skipTerms, setSkipTerms] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadPreference() {
+      try {
+        const raw = await AsyncStorage.getItem(MARKET_TERMS_DISMISSED_KEY);
+        const marketIds = raw ? (JSON.parse(raw) as number[]) : [];
+        if (mounted) {
+          setSkipTerms(Array.isArray(marketIds) && marketIds.includes(market.id));
+        }
+      } catch {
+        if (mounted) {
+          setSkipTerms(false);
+        }
+      }
+    }
+
+    setDoNotShowAgain(false);
+    loadPreference();
+
+    return () => {
+      mounted = false;
+    };
+  }, [market.id]);
+
+  const plainTerms = useMemo(() => htmlToPlainText(market.terms), [market.terms]);
+
+  const handleNextPress = useCallback(() => {
+    if (skipTerms) {
+      Alert.alert('พร้อมสำหรับขั้นตอนถัดไป', 'ระบบจะข้ามหน้าเงื่อนไขนี้ให้ในครั้งถัดไป');
+      return;
+    }
+
+    setTermsVisible(true);
+  }, [skipTerms]);
+
+  const handleTermsAccept = useCallback(async () => {
+    if (doNotShowAgain) {
+      try {
+        const raw = await AsyncStorage.getItem(MARKET_TERMS_DISMISSED_KEY);
+        const marketIds = raw ? (JSON.parse(raw) as number[]) : [];
+        const nextIds = Array.isArray(marketIds)
+          ? Array.from(new Set([...marketIds, market.id]))
+          : [market.id];
+        await AsyncStorage.setItem(MARKET_TERMS_DISMISSED_KEY, JSON.stringify(nextIds));
+        setSkipTerms(true);
+      } catch {
+        // Ignore local preference persistence failures for now.
+      }
+    }
+
+    setTermsVisible(false);
+    setDoNotShowAgain(false);
+    Alert.alert('รับทราบเงื่อนไขแล้ว', 'ขั้นตอนถัดไปจะถูกเชื่อมต่อในลำดับถัดไป');
+  }, [doNotShowAgain, market.id]);
+
   return (
     <View style={styles.flex}>
       <ScrollView contentContainerStyle={styles.screenScroll}>
-        <Pressable onPress={onBack} style={styles.backButton}>
-          <MaterialCommunityIcons name="chevron-left" size={24} color={colors.ink} />
-          <Text style={styles.backText}>กลับ</Text>
-        </Pressable>
+        <View style={styles.detailHeaderRow}>
+          <Pressable onPress={onBack} style={styles.backButton}>
+            <MaterialCommunityIcons name="chevron-left" size={24} color={colors.ink} />
+            <Text style={styles.backText}>กลับ</Text>
+          </Pressable>
+          <Pressable onPress={handleNextPress} style={styles.topNextButton}>
+            <Text style={styles.topNextButtonText}>ถัดไป</Text>
+            <MaterialCommunityIcons name="chevron-right" size={20} color={colors.white} />
+          </Pressable>
+        </View>
 
         <View style={styles.detailHero}>
           <MarketImage imageUrl={market.mainImageUrl} style={styles.detailHeroImage} />
@@ -295,7 +366,7 @@ function MarketDetailScreen({
           <InfoRow icon="chat-outline" label="LINE ID" value={market.lineId || '-'} />
         </View>
 
-        <Pressable style={styles.nextButton}>
+        <Pressable onPress={handleNextPress} style={styles.nextButton}>
           <Text style={styles.nextButtonText}>ถัดไป</Text>
           <MaterialCommunityIcons name="chevron-right" size={20} color={colors.white} />
         </Pressable>
@@ -309,8 +380,56 @@ function MarketDetailScreen({
           <Image source={{uri: previewImage}} style={styles.previewImage} resizeMode="contain" />
         </View>
       </Modal>
+
+      <Modal visible={termsVisible} transparent animationType="slide" onRequestClose={() => setTermsVisible(false)}>
+        <Pressable style={styles.sheetBackdrop} onPress={() => setTermsVisible(false)}>
+          <Pressable style={styles.sheetCard} onPress={() => {}}>
+            <View style={styles.sheetHandle} />
+            <Text style={styles.sheetTitle}>เงื่อนไขการจอง</Text>
+            <Text style={styles.sheetMarketName}>{market.name}</Text>
+            <ScrollView style={styles.sheetBody} contentContainerStyle={styles.sheetBodyContent}>
+              <Text style={styles.sheetTermsText}>
+                {plainTerms || 'ยังไม่มีการกำหนดเงื่อนไขการจองสำหรับตลาดนี้'}
+              </Text>
+            </ScrollView>
+            <View style={styles.sheetOptionRow}>
+              <Switch
+                value={doNotShowAgain}
+                onValueChange={setDoNotShowAgain}
+                trackColor={{false: '#d7e4ec', true: '#8be0d6'}}
+                thumbColor={doNotShowAgain ? colors.teal : colors.white}
+              />
+              <Text style={styles.sheetOptionText}>ไม่ต้องแสดงอีก</Text>
+            </View>
+            <Pressable style={styles.sheetActionButton} onPress={handleTermsAccept}>
+              <Text style={styles.sheetActionButtonText}>ตกลง</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
+}
+
+function htmlToPlainText(value: string) {
+  if (!value) {
+    return '';
+  }
+
+  return value
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n\n')
+    .replace(/<\/div>/gi, '\n')
+    .replace(/<\/li>/gi, '\n')
+    .replace(/<li>/gi, '• ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim();
 }
 
 function InfoRow({icon, label, value}: {icon: string; label: string; value: string}) {
@@ -521,10 +640,30 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: colors.border,
+  },
+  detailHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 14,
   },
   backText: {
     color: colors.ink,
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  topNextButton: {
+    height: 42,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    backgroundColor: colors.teal,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    ...shadow,
+  },
+  topNextButtonText: {
+    color: colors.white,
     fontSize: 14,
     fontWeight: '900',
   },
@@ -611,9 +750,9 @@ const styles = StyleSheet.create({
     paddingRight: 22,
   },
   galleryItem: {
-    width: 116,
-    height: 116,
-    borderRadius: 22,
+    width: 58,
+    height: 58,
+    borderRadius: 14,
     overflow: 'hidden',
     backgroundColor: colors.white,
   },
@@ -633,6 +772,82 @@ const styles = StyleSheet.create({
     ...shadow,
   },
   nextButtonText: {
+    color: colors.white,
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  sheetBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(7, 17, 31, 0.34)',
+    justifyContent: 'flex-end',
+  },
+  sheetCard: {
+    backgroundColor: colors.white,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 22,
+    paddingTop: 12,
+    paddingBottom: 26,
+    minHeight: 380,
+    maxHeight: '78%',
+  },
+  sheetHandle: {
+    alignSelf: 'center',
+    width: 52,
+    height: 5,
+    borderRadius: 999,
+    backgroundColor: colors.border,
+    marginBottom: 18,
+  },
+  sheetTitle: {
+    color: colors.ink,
+    fontSize: 22,
+    fontWeight: '900',
+  },
+  sheetMarketName: {
+    marginTop: 6,
+    color: colors.muted,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  sheetBody: {
+    marginTop: 18,
+    borderRadius: 20,
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+    maxHeight: 260,
+  },
+  sheetBodyContent: {
+    padding: 16,
+  },
+  sheetTermsText: {
+    color: colors.ink,
+    fontSize: 14,
+    lineHeight: 22,
+    fontWeight: '700',
+  },
+  sheetOptionRow: {
+    marginTop: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  sheetOptionText: {
+    color: colors.ink,
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  sheetActionButton: {
+    marginTop: 18,
+    height: 54,
+    borderRadius: 20,
+    backgroundColor: colors.teal,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadow,
+  },
+  sheetActionButtonText: {
     color: colors.white,
     fontSize: 16,
     fontWeight: '900',
