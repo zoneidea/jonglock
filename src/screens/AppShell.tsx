@@ -45,7 +45,7 @@ function AppShell({
       return <HomeScreen user={user} />;
     }
     if (activeTab === 'booking') {
-      return <BookingScreen />;
+      return <BookingScreen user={user} onRequireAuth={() => changeTab('profile')} />;
     }
     if (activeTab === 'cart') {
       return <CartScreen />;

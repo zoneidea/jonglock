@@ -19,10 +19,17 @@ import {Camera, useCameraDevice, useCameraPermission, useCodeScanner} from 'reac
 import ApiLoadingState from '../components/ApiLoadingState';
 import {getMarket, getMarkets, type Market} from '../services/markets';
 import {colors, shadow} from '../theme/colors';
+import type {MobileUser} from '../types/user';
 
 const MARKET_TERMS_DISMISSED_KEY = 'jonglock.marketTerms.dismissed';
 
-function BookingScreen() {
+function BookingScreen({
+  user,
+  onRequireAuth,
+}: {
+  user: MobileUser | null;
+  onRequireAuth: () => void;
+}) {
   const [query, setQuery] = useState('');
   const [markets, setMarkets] = useState<Market[]>([]);
   const [selectedMarket, setSelectedMarket] = useState<Market | null>(null);
@@ -126,7 +133,9 @@ function BookingScreen() {
     return (
       <MarketDetailScreen
         market={selectedMarket}
+        user={user}
         loading={marketDetailLoading}
+        onRequireAuth={onRequireAuth}
         onBack={() => setSelectedMarket(null)}
         onPreview={setPreviewImage}
         previewImage={previewImage}
@@ -219,14 +228,18 @@ function MarketImage({imageUrl, style}: {imageUrl: string; style: object}) {
 
 function MarketDetailScreen({
   market,
+  user,
   onBack,
   onPreview,
   previewImage,
   onClosePreview,
   loading,
+  onRequireAuth,
 }: {
   market: Market;
+  user: MobileUser | null;
   loading?: boolean;
+  onRequireAuth: () => void;
   onBack: () => void;
   onPreview: (imageUrl: string) => void;
   previewImage: string;
@@ -265,13 +278,28 @@ function MarketDetailScreen({
   const plainTerms = useMemo(() => htmlToPlainText(market.terms), [market.terms]);
 
   const handleNextPress = useCallback(() => {
+    if (!user) {
+      Alert.alert(
+        'กรุณาเข้าสู่ระบบก่อน',
+        'คุณต้องล็อกอินหรือสมัครใช้งานก่อนจึงจะดำเนินการจองต่อได้',
+        [
+          {text: 'ยกเลิก', style: 'cancel'},
+          {
+            text: 'ไปหน้าเข้าสู่ระบบ',
+            onPress: onRequireAuth,
+          },
+        ],
+      );
+      return;
+    }
+
     if (skipTerms) {
       Alert.alert('พร้อมสำหรับขั้นตอนถัดไป', 'ระบบจะข้ามหน้าเงื่อนไขนี้ให้ในครั้งถัดไป');
       return;
     }
 
     setTermsVisible(true);
-  }, [skipTerms]);
+  }, [onRequireAuth, skipTerms, user]);
 
   const handleTermsAccept = useCallback(async () => {
     if (doNotShowAgain) {
