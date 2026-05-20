@@ -49,6 +49,7 @@ function BoothSelectionStep({
   const [dateAvailability, setDateAvailability] = useState<BoothDateAvailability[]>([]);
   const [checkingAvailability, setCheckingAvailability] = useState(false);
   const [selectionDialog, setSelectionDialog] = useState('');
+  const currentDate = useMemo(() => toIsoDate(new Date()), []);
   const planStartDate = useMemo(() => normalizeDateString(floorPlan.startDate), [floorPlan.startDate]);
   const planEndDate = useMemo(() => normalizeDateString(floorPlan.endDate), [floorPlan.endDate]);
 
@@ -56,13 +57,13 @@ function BoothSelectionStep({
     setLoading(true);
     setMessage('');
     try {
-      setBooths(await getFloorPlanBooths(floorPlan.id, toIsoDate(new Date())));
+      setBooths(await getFloorPlanBooths(floorPlan.id, currentDate));
     } catch {
       setMessage('ยังไม่สามารถโหลดข้อมูลบูธได้');
     } finally {
       setLoading(false);
     }
-  }, [floorPlan.id]);
+  }, [currentDate, floorPlan.id]);
 
   useEffect(() => {
     loadBooths();
