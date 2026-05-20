@@ -1,20 +1,36 @@
-import React, {useMemo} from 'react';
+import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {ScrollView, StyleSheet, Text, View} from 'react-native';
-import LinearGradient from 'react-native-linear-gradient';
 
-import ActionItem from '../components/ActionItem';
 import PromoCard from '../components/PromoCard';
-import {colors, shadow} from '../theme/colors';
+import {getAnnouncements, type Announcement} from '../services/announcements';
+import {colors} from '../theme/colors';
 import type {MobileUser} from '../types/user';
 
-function HomeScreen({user, firebaseAppName}: {user: MobileUser | null; firebaseAppName: string}) {
-  const stats = useMemo(
-    () => [
-      {label: 'ตลาดเปิดจอง', value: '2'},
-      {label: 'บูธพร้อมจอง', value: '46'},
-      {label: 'รายการของฉัน', value: '3'},
-    ],
-    [],
+function HomeScreen({user}: {user: MobileUser | null}) {
+  const [items, setItems] = useState<Announcement[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [message, setMessage] = useState('');
+
+  const loadAnnouncements = useCallback(async () => {
+    setLoading(true);
+    setMessage('');
+    try {
+      const nextItems = await getAnnouncements({limit: 20});
+      setItems(nextItems);
+    } catch {
+      setMessage('ยังไม่สามารถโหลดข่าวสารและโปรโมชั่นได้');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadAnnouncements();
+  }, [loadAnnouncements]);
+
+  const feedItems = useMemo(
+    () => items.map((item) => ({...item, relativeTime: formatRelativeTime(item.createdAt || item.startDate || '')})),
+    [items],
   );
 
   return (
@@ -29,43 +45,56 @@ function HomeScreen({user, firebaseAppName}: {user: MobileUser | null; firebaseA
         </View>
       </View>
 
-      <LinearGradient colors={['#ffffff', '#dff8f4']} style={styles.bannerCard}>
-        <View style={styles.bannerBadge}>
-          <Text style={styles.bannerBadgeText}>MARKET READY</Text>
-        </View>
-        <Text style={styles.bannerTitle}>เลือกพื้นที่ขายได้ง่ายในไม่กี่ขั้นตอน</Text>
-        <Text style={styles.bannerText}>
-          โครงสำหรับแสดงแคมเปญหลัก ข่าวประกาศ หรือโปรโมชันสำคัญของตลาด
-        </Text>
-        <View style={styles.bannerVisual}>
-          <View style={styles.bannerBoothLarge} />
-          <View style={styles.bannerBoothSmall} />
-          <View style={styles.bannerBoothSmallAlt} />
-        </View>
-      </LinearGradient>
-
-      <View style={styles.statGrid}>
-        {stats.map((item) => (
-          <View key={item.label} style={styles.statCard}>
-            <Text style={styles.statValue}>{item.value}</Text>
-            <Text style={styles.statLabel}>{item.label}</Text>
-          </View>
-        ))}
-      </View>
-
       <Text style={styles.sectionTitle}>ข่าวสารและโปรโมชั่น</Text>
+      {message ? <Text style={styles.messageText}>{message}</Text> : null}
       <View style={styles.promoList}>
-        <PromoCard title="ข่าวสารตลาด" text="พื้นที่สำหรับแสดงประกาศล่าสุดจากระบบจัดการ" />
-        <PromoCard title="โปรโมชั่น" text="พื้นที่สำหรับคูปอง ส่วนลด และแคมเปญของตลาด" />
-      </View>
-
-      <Text style={styles.sectionTitle}>เมนูหลัก</Text>
-      <View style={styles.actionList}>
-        <ActionItem title="Firebase พร้อมใช้งาน" text={`Default app: ${firebaseAppName}`} />
-        <ActionItem title="ค้นหาตลาด" text="ดูตลาดที่เปิดจองและวันที่พร้อมขาย" />
+        {feedItems.map((item) => (
+          <PromoCard
+            key={item.id}
+            title={item.title}
+            text={item.description}
+            marketName={item.marketName}
+            relativeTime={item.relativeTime}
+            imageUrl={item.imageUrl}
+            type={item.type}
+          />
+        ))}
+        {!loading && feedItems.length === 0 ? (
+          <View style={styles.emptyCard}>
+            <Text style={styles.emptyTitle}>ยังไม่มีข่าวสารและโปรโมชั่น</Text>
+            <Text style={styles.emptyText}>รายการประกาศจากตลาดจะมาแสดงที่หน้านี้</Text>
+          </View>
+        ) : null}
       </View>
     </ScrollView>
   );
+}
+
+function formatRelativeTime(input: string) {
+  if (!input) {
+    return 'เมื่อสักครู่';
+  }
+
+  const date = new Date(input);
+  if (Number.isNaN(date.getTime())) {
+    return 'เมื่อสักครู่';
+  }
+
+  const diffMs = Date.now() - date.getTime();
+  const diffMinutes = Math.floor(diffMs / (1000 * 60));
+  const diffHours = Math.floor(diffMinutes / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffMinutes < 1) {
+    return 'เมื่อสักครู่';
+  }
+  if (diffMinutes < 60) {
+    return `${diffMinutes} นาทีที่แล้ว`;
+  }
+  if (diffHours < 24) {
+    return `${diffHours} ชั่วโมงที่แล้ว`;
+  }
+  return `${diffDays} วันที่แล้ว`;
 }
 
 const styles = StyleSheet.create({
@@ -104,118 +133,43 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '900',
   },
-  bannerCard: {
-    minHeight: 230,
-    borderRadius: 30,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: colors.border,
-    overflow: 'hidden',
-    ...shadow,
-  },
-  bannerBadge: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 12,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: colors.white,
-    justifyContent: 'center',
-  },
-  bannerBadgeText: {
-    color: colors.tealDark,
-    fontSize: 11,
-    fontWeight: '900',
-    letterSpacing: 1,
-  },
-  bannerTitle: {
-    marginTop: 14,
-    color: colors.ink,
-    fontSize: 30,
-    lineHeight: 38,
-    fontWeight: '900',
-    maxWidth: 270,
-  },
-  bannerText: {
-    marginTop: 10,
-    color: colors.muted,
-    fontSize: 14,
-    lineHeight: 21,
-    fontWeight: '700',
-    maxWidth: 250,
-  },
-  bannerVisual: {
-    position: 'absolute',
-    right: 18,
-    bottom: 18,
-    width: 116,
-    height: 116,
-  },
-  bannerBoothLarge: {
-    position: 'absolute',
-    right: 0,
-    bottom: 0,
-    width: 78,
-    height: 78,
-    borderRadius: 24,
-    backgroundColor: colors.teal,
-    opacity: 0.18,
-  },
-  bannerBoothSmall: {
-    position: 'absolute',
-    left: 4,
-    top: 8,
-    width: 54,
-    height: 54,
-    borderRadius: 18,
-    backgroundColor: colors.navy,
-    opacity: 0.1,
-  },
-  bannerBoothSmallAlt: {
-    position: 'absolute',
-    left: 22,
-    bottom: 10,
-    width: 38,
-    height: 38,
-    borderRadius: 14,
-    backgroundColor: colors.gold,
-  },
-  statGrid: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 18,
-  },
-  statCard: {
-    flex: 1,
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 20,
-    padding: 16,
-  },
-  statValue: {
-    color: colors.ink,
-    fontSize: 24,
-    fontWeight: '900',
-  },
-  statLabel: {
-    marginTop: 4,
-    color: colors.muted,
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: '700',
-  },
   sectionTitle: {
-    marginTop: 26,
+    marginTop: 10,
     marginBottom: 12,
     color: colors.ink,
     fontSize: 20,
     fontWeight: '900',
   },
+  messageText: {
+    marginBottom: 12,
+    color: colors.danger,
+    fontSize: 13,
+    fontWeight: '800',
+  },
   promoList: {
     gap: 12,
   },
-  actionList: {
-    gap: 12,
+  emptyCard: {
+    minHeight: 112,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+  },
+  emptyTitle: {
+    color: colors.ink,
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  emptyText: {
+    marginTop: 6,
+    color: colors.muted,
+    fontSize: 13,
+    fontWeight: '700',
+    textAlign: 'center',
   },
 });
 

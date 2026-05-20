@@ -1,5 +1,4 @@
-import firebase from '@react-native-firebase/app';
-import React, {useCallback, useMemo, useRef, useState} from 'react';
+import React, {useCallback, useRef, useState} from 'react';
 import {Animated, SafeAreaView, StatusBar, StyleSheet, View} from 'react-native';
 
 import BottomTabItem from '../components/BottomTabItem';
@@ -22,7 +21,6 @@ function AppShell({
   onAuthenticated: (user: MobileUser) => void;
   onUserChange: (user: MobileUser) => void;
 }) {
-  const firebaseAppName = useMemo(() => firebase.app().name, []);
   const [activeTab, setActiveTab] = useState<TabKey>('home');
   const contentOpacity = useRef(new Animated.Value(1)).current;
 
@@ -44,7 +42,7 @@ function AppShell({
 
   function renderTabContent() {
     if (activeTab === 'home') {
-      return <HomeScreen user={user} firebaseAppName={firebaseAppName} />;
+      return <HomeScreen user={user} />;
     }
     if (activeTab === 'booking') {
       return <BookingScreen />;
