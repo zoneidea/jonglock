@@ -1,13 +1,30 @@
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
-import {ScrollView, StyleSheet, Text, View} from 'react-native';
+import {Image, ScrollView, StyleSheet, Text, View} from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
 
 import PromoCard from '../components/PromoCard';
 import {getAnnouncements, type Announcement} from '../services/announcements';
-import {colors} from '../theme/colors';
+import {colors, shadow} from '../theme/colors';
 import type {MobileUser} from '../types/user';
+
+const MOCK_HOME_BANNER: Announcement = {
+  id: 0,
+  organizationId: 0,
+  marketId: null,
+  marketCode: '',
+  marketName: 'Jonglock',
+  type: 'banner',
+  title: 'Jonglock Market Operating System',
+  description: 'จองบูธ บริหารตลาด และจัดการข่าวสารได้ในระบบเดียว รองรับการเติบโตหลายตลาด',
+  imageUrl: '',
+  startDate: null,
+  endDate: null,
+  createdAt: new Date().toISOString(),
+};
 
 function HomeScreen({user}: {user: MobileUser | null}) {
   const [items, setItems] = useState<Announcement[]>([]);
+  const [banners, setBanners] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
 
@@ -15,10 +32,15 @@ function HomeScreen({user}: {user: MobileUser | null}) {
     setLoading(true);
     setMessage('');
     try {
-      const nextItems = await getAnnouncements({limit: 20});
+      const [nextBanners, nextItems] = await Promise.all([
+        getAnnouncements({type: 'banner', limit: 6}),
+        getAnnouncements({type: 'news', limit: 20}),
+      ]);
+      setBanners(nextBanners);
       setItems(nextItems);
     } catch {
-      setMessage('ยังไม่สามารถโหลดข่าวสารและโปรโมชั่นได้');
+      setBanners([]);
+      setMessage('ยังไม่สามารถโหลดข้อมูลหน้าหลักได้');
     } finally {
       setLoading(false);
     }
@@ -33,6 +55,8 @@ function HomeScreen({user}: {user: MobileUser | null}) {
     [items],
   );
 
+  const bannerItems = useMemo(() => (banners.length ? banners : [MOCK_HOME_BANNER]), [banners]);
+
   return (
     <ScrollView contentContainerStyle={styles.homeScroll}>
       <View style={styles.homeTopbar}>
@@ -44,6 +68,16 @@ function HomeScreen({user}: {user: MobileUser | null}) {
           <Text style={styles.userChipText}>{user ? 'Gmail' : 'Guest'}</Text>
         </View>
       </View>
+
+      <ScrollView
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.carouselTrack}>
+        {bannerItems.map((item) => (
+          <HomeAdCard key={item.id || item.title} banner={item} />
+        ))}
+      </ScrollView>
 
       <Text style={styles.sectionTitle}>ข่าวสารและโปรโมชั่น</Text>
       {message ? <Text style={styles.messageText}>{message}</Text> : null}
@@ -67,6 +101,30 @@ function HomeScreen({user}: {user: MobileUser | null}) {
         ) : null}
       </View>
     </ScrollView>
+  );
+}
+
+function HomeAdCard({banner}: {banner: Announcement}) {
+  return (
+    <View style={styles.bannerCard}>
+      {banner.imageUrl ? <Image source={{uri: banner.imageUrl}} style={styles.bannerImage} resizeMode="cover" /> : null}
+      {!banner.imageUrl ? (
+        <LinearGradient colors={['#071827', '#0d3448', '#14a997']} style={styles.bannerMockBackground}>
+          <View style={styles.bannerGlowPrimary} />
+          <View style={styles.bannerGlowSecondary} />
+        </LinearGradient>
+      ) : null}
+      <View style={styles.bannerAdsBadge}>
+        <Text style={styles.bannerAdsBadgeText}>Ads</Text>
+      </View>
+      <LinearGradient colors={['transparent', 'rgba(7, 17, 31, 0.88)']} style={styles.bannerOverlay}>
+        <Text style={styles.bannerMarketName}>{banner.marketName || 'Jonglock'}</Text>
+        <Text style={styles.bannerTitle}>{banner.title}</Text>
+        <Text style={styles.bannerDescription} numberOfLines={2}>
+          {banner.description || 'พื้นที่สำหรับแสดงโฆษณาหลักของระบบและตลาด'}
+        </Text>
+      </LinearGradient>
+    </View>
   );
 }
 
@@ -133,8 +191,92 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '900',
   },
+  carouselTrack: {
+    gap: 14,
+    paddingRight: 22,
+  },
+  bannerCard: {
+    width: 320,
+    height: 220,
+    borderRadius: 28,
+    overflow: 'hidden',
+    backgroundColor: colors.white,
+    ...shadow,
+  },
+  bannerImage: {
+    width: '100%',
+    height: '100%',
+  },
+  bannerMockBackground: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  bannerGlowPrimary: {
+    position: 'absolute',
+    right: -26,
+    top: 18,
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+  },
+  bannerGlowSecondary: {
+    position: 'absolute',
+    left: 28,
+    bottom: 30,
+    width: 92,
+    height: 92,
+    borderRadius: 46,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  bannerAdsBadge: {
+    position: 'absolute',
+    top: 14,
+    right: 14,
+    minWidth: 38,
+    height: 24,
+    paddingHorizontal: 9,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.62)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bannerAdsBadgeText: {
+    color: colors.ink,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  bannerOverlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    padding: 18,
+    minHeight: 98,
+    justifyContent: 'flex-end',
+  },
+  bannerMarketName: {
+    color: '#dff8f4',
+    fontSize: 11,
+    letterSpacing: 1,
+    fontWeight: '900',
+  },
+  bannerTitle: {
+    marginTop: 4,
+    color: colors.white,
+    fontSize: 24,
+    lineHeight: 30,
+    fontWeight: '900',
+  },
+  bannerDescription: {
+    marginTop: 8,
+    color: '#dce7ee',
+    fontSize: 13,
+    lineHeight: 19,
+    fontWeight: '700',
+    maxWidth: 236,
+  },
   sectionTitle: {
-    marginTop: 10,
+    marginTop: 24,
     marginBottom: 12,
     color: colors.ink,
     fontSize: 20,

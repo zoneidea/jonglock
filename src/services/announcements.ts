@@ -12,6 +12,7 @@ export type Announcement = {
   id: number;
   organizationId: number;
   marketId: number | null;
+  marketCode: string;
   marketName: string;
   type: 'news' | 'banner';
   title: string;
