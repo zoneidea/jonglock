@@ -654,11 +654,12 @@ const styles = StyleSheet.create({
   },
   topNextButton: {
     height: 42,
-    paddingHorizontal: 16,
+    width: 82,
     borderRadius: 16,
     backgroundColor: colors.teal,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 4,
     ...shadow,
   },
