@@ -16,6 +16,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import {Camera, useCameraDevice, useCameraPermission, useCodeScanner} from 'react-native-vision-camera';
 
+import AppDialog from '../components/AppDialog';
 import ApiLoadingState from '../components/ApiLoadingState';
 import {getMarket, getMarkets, type Market} from '../services/markets';
 import {colors, shadow} from '../theme/colors';
@@ -404,32 +405,19 @@ function MarketDetailScreen({
         </Pressable>
       </Modal>
 
-      <Modal visible={authPromptVisible} transparent animationType="fade" onRequestClose={() => setAuthPromptVisible(false)}>
-        <View style={styles.authPromptBackdrop}>
-          <View style={styles.authPromptCard}>
-            <LinearGradient colors={['#e4fbf8', '#ffffff']} style={styles.authPromptIconWrap}>
-              <MaterialCommunityIcons name="account-lock-outline" size={28} color={colors.tealDark} />
-            </LinearGradient>
-            <Text style={styles.authPromptTitle}>กรุณาเข้าสู่ระบบก่อน</Text>
-            <Text style={styles.authPromptText}>
-              คุณต้องล็อกอินหรือสมัครใช้งานก่อน จึงจะดำเนินการจองตลาดต่อได้
-            </Text>
-            <View style={styles.authPromptActions}>
-              <Pressable onPress={() => setAuthPromptVisible(false)} style={styles.authPromptSecondaryButton}>
-                <Text style={styles.authPromptSecondaryText}>ยกเลิก</Text>
-              </Pressable>
-              <Pressable
-                onPress={() => {
-                  setAuthPromptVisible(false);
-                  onRequireAuth();
-                }}
-                style={styles.authPromptPrimaryButton}>
-                <Text style={styles.authPromptPrimaryText}>ไปหน้าเข้าสู่ระบบ</Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      <AppDialog
+        visible={authPromptVisible}
+        icon="account-lock-outline"
+        title="กรุณาเข้าสู่ระบบก่อน"
+        message="คุณต้องล็อกอินหรือสมัครใช้งานก่อน จึงจะดำเนินการจองตลาดต่อได้"
+        cancelLabel="ยกเลิก"
+        confirmLabel="ไปหน้าเข้าสู่ระบบ"
+        onCancel={() => setAuthPromptVisible(false)}
+        onConfirm={() => {
+          setAuthPromptVisible(false);
+          onRequireAuth();
+        }}
+      />
     </View>
   );
 }
@@ -787,78 +775,6 @@ const styles = StyleSheet.create({
   detailLoadingCard: {
     width: '100%',
     maxWidth: 280,
-  },
-  authPromptBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(7, 17, 31, 0.42)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 26,
-  },
-  authPromptCard: {
-    width: '100%',
-    maxWidth: 340,
-    borderRadius: 28,
-    backgroundColor: colors.white,
-    paddingHorizontal: 22,
-    paddingTop: 24,
-    paddingBottom: 20,
-    alignItems: 'center',
-    ...shadow,
-  },
-  authPromptIconWrap: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  authPromptTitle: {
-    marginTop: 16,
-    color: colors.ink,
-    fontSize: 22,
-    fontWeight: '900',
-    textAlign: 'center',
-  },
-  authPromptText: {
-    marginTop: 10,
-    color: colors.muted,
-    fontSize: 14,
-    lineHeight: 22,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  authPromptActions: {
-    marginTop: 22,
-    width: '100%',
-    gap: 10,
-  },
-  authPromptSecondaryButton: {
-    height: 52,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: '#f8fbfc',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  authPromptSecondaryText: {
-    color: colors.ink,
-    fontSize: 15,
-    fontWeight: '800',
-  },
-  authPromptPrimaryButton: {
-    height: 54,
-    borderRadius: 18,
-    backgroundColor: colors.teal,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...shadow,
-  },
-  authPromptPrimaryText: {
-    color: colors.white,
-    fontSize: 15,
-    fontWeight: '900',
   },
   sheetBackdrop: {
     flex: 1,
