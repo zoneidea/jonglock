@@ -892,14 +892,18 @@ function FavoriteBoothSheet({
   onClose: () => void;
   onToggleFavorite: () => Promise<void>;
 }) {
+  if (!booth) {
+    return null;
+  }
+
   return (
-    <Modal visible={Boolean(booth)} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal visible transparent animationType="fade" hardwareAccelerated onRequestClose={onClose}>
       <Pressable style={styles.sheetBackdrop} onPress={onClose}>
         <Pressable style={styles.compactSheetCard} onPress={() => {}}>
           <View style={styles.sheetHandle} />
           <Text style={styles.sheetTitle}>บูธกำลังดำเนินการ</Text>
           <Text style={styles.sheetMarketName}>
-            {booth ? `${boothLabel(booth)} • ค่าเช่า ${formatMoney(booth.grossPrice)} บาท` : ''}
+            {`${boothLabel(booth)} • ค่าเช่า ${formatMoney(booth.grossPrice)} บาท`}
           </Text>
           <Text style={styles.favoriteSheetCopy}>
             บูธนี้มีผู้เลือกแล้วและอยู่ระหว่างดำเนินการ สามารถบันทึกเป็น Favorite ไว้ติดตามได้
@@ -939,14 +943,25 @@ function BookingDateSheet({
   onDatePress: (date: string) => void;
   onConfirm: () => void;
 }) {
+  const {width} = useWindowDimensions();
+  const calendarWidth = useMemo(() => Math.min(width - 36, 392), [width]);
+  const calendarGap = 6;
+  const daySize = useMemo(
+    () => Math.floor((calendarWidth - (calendarGap * 6)) / 7),
+    [calendarWidth],
+  );
   const calendarDays = useMemo(() => getCalendarDays(42), []);
   const availabilityByDate = useMemo(
     () => new Map(dateAvailability.map((item) => [item.date, item.status])),
     [dateAvailability],
   );
 
+  if (!booth) {
+    return null;
+  }
+
   return (
-    <Modal visible={Boolean(booth)} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal visible transparent animationType="fade" hardwareAccelerated onRequestClose={onClose}>
       <Pressable style={styles.sheetBackdrop} onPress={onClose}>
         <Pressable style={styles.dateSheetCard} onPress={() => {}}>
           <View style={styles.sheetHandle} />
@@ -954,7 +969,7 @@ function BookingDateSheet({
             <View style={styles.planIntroCopy}>
               <Text style={styles.sheetTitle}>เลือกวันที่จอง</Text>
               <Text style={styles.sheetMarketName}>
-                {booth ? `${boothLabel(booth)} • ค่าเช่า ${formatMoney(booth.grossPrice)} บาท/วัน` : ''}
+                {`${boothLabel(booth)} • ค่าเช่า ${formatMoney(booth.grossPrice)} บาท/วัน`}
               </Text>
             </View>
             <Pressable onPress={onClose} style={styles.sheetCloseButton}>
@@ -962,16 +977,17 @@ function BookingDateSheet({
             </Pressable>
           </View>
 
-          <View style={styles.weekHeader}>
+          <View style={[styles.weekHeader, {width: calendarWidth}]}>
             {['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'].map((day) => (
-              <Text key={day} style={styles.weekHeaderText}>{day}</Text>
+              <Text key={day} style={[styles.weekHeaderText, {width: daySize}]}>{day}</Text>
             ))}
           </View>
-          <View style={styles.calendarGrid}>
+          <View style={[styles.calendarGrid, {width: calendarWidth, gap: calendarGap}]}>
             {calendarDays.map((date) => (
               <CalendarDayButton
                 key={date}
                 date={date}
+                size={daySize}
                 rangeStart={rangeStart}
                 rangeEnd={rangeEnd}
                 status={availabilityByDate.get(date)}
@@ -1006,12 +1022,14 @@ function BookingDateSheet({
 
 function CalendarDayButton({
   date,
+  size,
   rangeStart,
   rangeEnd,
   status,
   onPress,
 }: {
   date: string;
+  size: number;
   rangeStart: string;
   rangeEnd: string;
   status?: BoothAvailabilityStatus;
@@ -1027,6 +1045,10 @@ function CalendarDayButton({
       onPress={onPress}
       style={[
         styles.calendarDay,
+        {
+          width: size,
+          height: size,
+        },
         inRange && styles.calendarDayInRange,
         isEdge && styles.calendarDayEdge,
         statusStyle && {
@@ -1784,9 +1806,10 @@ const styles = StyleSheet.create({
   weekHeader: {
     marginTop: 18,
     flexDirection: 'row',
+    alignSelf: 'center',
+    justifyContent: 'space-between',
   },
   weekHeaderText: {
-    flex: 1,
     color: colors.muted,
     fontSize: 12,
     fontWeight: '900',
@@ -1794,19 +1817,18 @@ const styles = StyleSheet.create({
   },
   calendarGrid: {
     marginTop: 8,
+    alignSelf: 'center',
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 6,
   },
   calendarDay: {
-    width: '13.1%',
-    aspectRatio: 1,
     borderRadius: 15,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.background,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
   calendarDayInRange: {
     backgroundColor: '#e4fbf8',
