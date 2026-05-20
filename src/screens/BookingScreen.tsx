@@ -213,6 +213,9 @@ function MarketHeroCard({market, onPress}: {market: Market; onPress: () => void}
   return (
     <Pressable onPress={onPress} style={styles.heroCard}>
       <MarketImage imageUrl={market.mainImageUrl} style={styles.heroImage} />
+      <View style={styles.adsBadge}>
+        <Text style={styles.adsBadgeText}>Ads</Text>
+      </View>
       <LinearGradient colors={['transparent', 'rgba(7, 17, 31, 0.82)']} style={styles.heroOverlay}>
         <Text style={styles.marketCode}>{market.code}</Text>
         <Text style={styles.heroTitle}>{market.name}</Text>
@@ -584,6 +587,23 @@ const styles = StyleSheet.create({
     padding: 18,
     minHeight: 92,
     justifyContent: 'flex-end',
+  },
+  adsBadge: {
+    position: 'absolute',
+    top: 14,
+    right: 14,
+    minWidth: 38,
+    height: 24,
+    paddingHorizontal: 9,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  adsBadgeText: {
+    color: colors.ink,
+    fontSize: 11,
+    fontWeight: '900',
   },
   marketCode: {
     color: '#dff8f4',
