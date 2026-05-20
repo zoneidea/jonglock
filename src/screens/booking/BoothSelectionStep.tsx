@@ -25,7 +25,6 @@ import {
 import {colors, shadow} from '../../theme/colors';
 
 const FAVORITE_BOOTHS_KEY = 'jonglock.favoriteBooths';
-const CALENDAR_DAYS = getCalendarDays(42);
 
 function BoothSelectionStep({
   market,
@@ -391,12 +390,14 @@ function BookingDateSheet({
   onConfirm: () => void;
 }) {
   const {width} = useWindowDimensions();
+  const [displayedMonth, setDisplayedMonth] = useState(() => startOfMonth(rangeStart || new Date()));
   const calendarWidth = useMemo(() => Math.min(width - 36, 392), [width]);
   const calendarGap = 6;
   const daySize = useMemo(
     () => Math.floor((calendarWidth - (calendarGap * 6)) / 7),
     [calendarWidth],
   );
+  const calendarCells = useMemo(() => getMonthCalendarCells(displayedMonth), [displayedMonth]);
   const availabilityByDate = useMemo(
     () => new Map(dateAvailability.map((item) => [item.date, item.status])),
     [dateAvailability],
@@ -423,21 +424,36 @@ function BookingDateSheet({
             </Pressable>
           </View>
 
+          <View style={[styles.monthHeader, {width: calendarWidth}]}>
+            <Pressable
+              onPress={() => setDisplayedMonth((currentMonth) => addMonths(currentMonth, -1))}
+              style={styles.monthNavButton}>
+              <MaterialCommunityIcons name="chevron-left" size={22} color={colors.ink} />
+            </Pressable>
+            <Text style={styles.monthTitle}>{formatMonthTitle(displayedMonth)}</Text>
+            <Pressable
+              onPress={() => setDisplayedMonth((currentMonth) => addMonths(currentMonth, 1))}
+              style={styles.monthNavButton}>
+              <MaterialCommunityIcons name="chevron-right" size={22} color={colors.ink} />
+            </Pressable>
+          </View>
+
           <View style={[styles.weekHeader, {width: calendarWidth}]}>
             {['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'].map((day) => (
               <Text key={day} style={[styles.weekHeaderText, {width: daySize}]}>{day}</Text>
             ))}
           </View>
           <View style={[styles.calendarGrid, {width: calendarWidth, gap: calendarGap}]}>
-            {CALENDAR_DAYS.map((date) => (
+            {calendarCells.map((cell, index) => (
               <CalendarDayButton
-                key={date}
-                date={date}
+                key={`${cell.date}-${index}`}
+                date={cell.date}
+                currentMonth={cell.currentMonth}
                 size={daySize}
                 rangeStart={rangeStart}
                 rangeEnd={rangeEnd}
-                status={availabilityByDate.get(date)}
-                onPress={() => onDatePress(date)}
+                status={cell.currentMonth ? availabilityByDate.get(cell.date) : undefined}
+                onPress={() => onDatePress(cell.date)}
               />
             ))}
           </View>
@@ -468,6 +484,7 @@ function BookingDateSheet({
 
 function CalendarDayButton({
   date,
+  currentMonth,
   size,
   rangeStart,
   rangeEnd,
@@ -475,19 +492,21 @@ function CalendarDayButton({
   onPress,
 }: {
   date: string;
+  currentMonth: boolean;
   size: number;
   rangeStart: string;
   rangeEnd: string;
   status?: BoothAvailabilityStatus;
   onPress: () => void;
 }) {
-  const inRange = Boolean(rangeStart && rangeEnd && date >= rangeStart && date <= rangeEnd);
-  const isEdge = date === rangeStart || date === rangeEnd;
+  const inRange = currentMonth && Boolean(rangeStart && rangeEnd && date >= rangeStart && date <= rangeEnd);
+  const isEdge = currentMonth && (date === rangeStart || date === rangeEnd);
   const dateNumber = Number(date.slice(-2));
   const statusStyle = status ? boothStatusStyles[status] : null;
 
   return (
     <Pressable
+      disabled={!currentMonth}
       onPress={onPress}
       style={[
         styles.calendarDay,
@@ -495,6 +514,7 @@ function CalendarDayButton({
           width: size,
           height: size,
         },
+        !currentMonth && styles.calendarDayMuted,
         inRange && styles.calendarDayInRange,
         isEdge && styles.calendarDayEdge,
         statusStyle && {
@@ -505,6 +525,7 @@ function CalendarDayButton({
       <Text
         style={[
           styles.calendarDayText,
+          !currentMonth && styles.calendarDayTextMuted,
           (inRange || statusStyle) && styles.calendarDayTextActive,
           statusStyle && {color: statusStyle.text},
         ]}>
@@ -583,10 +604,37 @@ function addDays(date: Date, days: number) {
   return nextDate;
 }
 
-function getCalendarDays(length: number) {
-  const today = new Date();
-  const start = addDays(today, -today.getDay());
-  return Array.from({length}, (_, index) => toIsoDate(addDays(start, index)));
+function addMonths(date: Date, months: number) {
+  const nextDate = new Date(date.getFullYear(), date.getMonth() + months, 1);
+  nextDate.setHours(0, 0, 0, 0);
+  return nextDate;
+}
+
+function startOfMonth(value: string | Date) {
+  const date = typeof value === 'string' ? new Date(`${value}T00:00:00`) : value;
+  const monthStart = new Date(date);
+  monthStart.setDate(1);
+  monthStart.setHours(0, 0, 0, 0);
+  return monthStart;
+}
+
+function getMonthCalendarCells(monthStart: Date) {
+  const firstDay = startOfMonth(monthStart);
+  const gridStart = addDays(firstDay, -firstDay.getDay());
+  return Array.from({length: 42}, (_, index) => {
+    const date = addDays(gridStart, index);
+    return {
+      date: toIsoDate(date),
+      currentMonth: date.getMonth() === firstDay.getMonth(),
+    };
+  });
+}
+
+function formatMonthTitle(monthStart: Date) {
+  return new Intl.DateTimeFormat('th-TH', {
+    month: 'long',
+    year: 'numeric',
+  }).format(monthStart);
 }
 
 function getDateRange(startDate: string, endDate: string) {
@@ -849,6 +897,30 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: 12,
   },
+  monthHeader: {
+    marginTop: 18,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  monthNavButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 16,
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  monthTitle: {
+    flex: 1,
+    color: colors.ink,
+    fontSize: 17,
+    fontWeight: '900',
+    textAlign: 'center',
+  },
   sheetCloseButton: {
     width: 40,
     height: 40,
@@ -860,7 +932,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   weekHeader: {
-    marginTop: 18,
+    marginTop: 14,
     flexDirection: 'row',
     alignSelf: 'center',
     justifyContent: 'space-between',
@@ -886,6 +958,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     overflow: 'hidden',
   },
+  calendarDayMuted: {
+    backgroundColor: '#f4f7f9',
+    borderColor: '#edf1f4',
+  },
   calendarDayInRange: {
     backgroundColor: '#e4fbf8',
     borderColor: '#a9e8df',
@@ -898,6 +974,9 @@ const styles = StyleSheet.create({
     color: colors.ink,
     fontSize: 13,
     fontWeight: '900',
+  },
+  calendarDayTextMuted: {
+    color: '#c3ced8',
   },
   calendarDayTextActive: {
     color: colors.white,
