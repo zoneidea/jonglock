@@ -479,7 +479,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 10,
     alignItems: 'center',
-    marginBottom: 18,
+    marginBottom: 10,
   },
   searchBox: {
     flex: 1,
@@ -520,7 +520,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   sectionHeaderRow: {
-    marginTop: 24,
+    marginTop: 16,
     marginBottom: 12,
     flexDirection: 'row',
     alignItems: 'center',
