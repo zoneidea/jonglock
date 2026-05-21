@@ -152,6 +152,7 @@ function BookingScreen({
         selectedDates={selectedBookingDates}
         onBack={() => setSelectedBookingDates([])}
         onChangeMarket={() => {
+          setSelectedMarket(null);
           setFloorPlanMarket(null);
           setSelectedFloorPlan(null);
           setSelectedBookingDates([]);
@@ -172,6 +173,7 @@ function BookingScreen({
         floorPlan={selectedFloorPlan}
         onBack={() => setSelectedFloorPlan(null)}
         onChangeMarket={() => {
+          setSelectedMarket(null);
           setFloorPlanMarket(null);
           setSelectedFloorPlan(null);
           setSelectedBookingDates([]);
@@ -191,6 +193,7 @@ function BookingScreen({
         market={floorPlanMarket}
         onBack={() => setFloorPlanMarket(null)}
         onChangeMarket={() => {
+          setSelectedMarket(null);
           setFloorPlanMarket(null);
           setSelectedFloorPlan(null);
           setSelectedBookingDates([]);

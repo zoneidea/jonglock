@@ -274,10 +274,10 @@ const styles = StyleSheet.create({
   shortcutRow: {
     marginTop: 12,
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: 8,
   },
   shortcutButton: {
+    flex: 1,
     minHeight: 34,
     borderRadius: 999,
     backgroundColor: '#effbf8',
@@ -285,12 +285,13 @@ const styles = StyleSheet.create({
     borderColor: '#c8eee7',
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 6,
     paddingHorizontal: 12,
   },
   shortcutText: {
     color: colors.tealDark,
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '900',
   },
   planHelpText: {
