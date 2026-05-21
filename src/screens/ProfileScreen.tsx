@@ -148,12 +148,12 @@ function ProfileScreen({
       return historyItems;
     }
     if (historyFilter === 'success') {
-      return historyItems.filter((item) => item.status === 'paid');
+      return historyItems.filter((item) => resolveBookingHistoryStatus(item.status) === 'paid');
     }
     if (historyFilter === 'cancelled') {
-      return historyItems.filter((item) => item.status === 'cancelled');
+      return historyItems.filter((item) => resolveBookingHistoryStatus(item.status) === 'cancelled');
     }
-    return historyItems.filter((item) => item.status === 'expired');
+    return historyItems.filter((item) => resolveBookingHistoryStatus(item.status) === 'expired');
   }, [historyFilter, historyItems]);
 
   const userIdentity = useMemo(
@@ -1034,7 +1034,7 @@ function formatHistoryLine(item: BookingHistoryRecord) {
 }
 
 function mapBookingStatus(status: string) {
-  switch (status) {
+  switch (resolveBookingHistoryStatus(status)) {
     case 'paid':
       return 'ชำระแล้ว';
     case 'payment_processing':
@@ -1051,7 +1051,7 @@ function mapBookingStatus(status: string) {
 }
 
 function statusPillStyles(status: string, resolvedTheme: 'light' | 'dark') {
-  switch (status) {
+  switch (resolveBookingHistoryStatus(status)) {
     case 'paid':
       return {
         backgroundColor: resolvedTheme === 'dark' ? '#17392f' : '#e5faf3',
@@ -1079,7 +1079,7 @@ function statusTextStyles(
   status: string,
   palette: ReturnType<typeof useTheme>['palette'],
 ) {
-  switch (status) {
+  switch (resolveBookingHistoryStatus(status)) {
     case 'paid':
       return {color: '#119c6b'};
     case 'payment_processing':
@@ -1091,6 +1091,10 @@ function statusTextStyles(
     default:
       return {color: palette.accentDark};
   }
+}
+
+function resolveBookingHistoryStatus(status?: string | null) {
+  return String(status || '').trim().toLowerCase();
 }
 
 function ReadonlyRow({label, value, icon}: {label: string; value: string; icon: string}) {
