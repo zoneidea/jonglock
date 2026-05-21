@@ -150,6 +150,7 @@ function BookingScreen({
         market={floorPlanMarket}
         floorPlan={selectedFloorPlan}
         selectedDates={selectedBookingDates}
+        user={user}
         onBack={() => setSelectedBookingDates([])}
         onChangeMarket={() => {
           setSelectedMarket(null);

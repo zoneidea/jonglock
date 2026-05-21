@@ -18,12 +18,23 @@ import {
   type FloorPlan,
   type Market,
 } from '../../services/markets';
+import {
+  acquireBoothTempLocks,
+  availabilityStatusWithTempLock,
+  BOOTH_TEMP_LOCK_TTL_SECONDS,
+  releaseBoothTempLocks,
+  subscribeFloorPlanTempLocks,
+  tempLockKey,
+  type BoothTempLockMap,
+} from '../../services/boothTempLocks';
 import {colors, shadow} from '../../theme/colors';
+import type {MobileUser} from '../../types/user';
 
 function BoothSelectionStep({
   market,
   floorPlan,
   selectedDates,
+  user,
   onBack,
   onChangeMarket,
   onChangeFloorPlan,
@@ -32,6 +43,7 @@ function BoothSelectionStep({
   market: Market;
   floorPlan: FloorPlan;
   selectedDates: string[];
+  user: MobileUser | null;
   onBack: () => void;
   onChangeMarket: () => void;
   onChangeFloorPlan: () => void;
@@ -44,6 +56,10 @@ function BoothSelectionStep({
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
   const [selectedBooth, setSelectedBooth] = useState<Booth | null>(null);
+  const [tempLocks, setTempLocks] = useState<BoothTempLockMap>(new Map());
+  const [activeLockDocIds, setActiveLockDocIds] = useState<string[]>([]);
+  const ownerId = user?.email || user?.name || 'anonymous-mobile-user';
+  const ownerLabel = user?.email || user?.name || 'mobile-user';
 
   const loadBooths = useCallback(async () => {
     setLoading(true);
@@ -60,6 +76,77 @@ function BoothSelectionStep({
   useEffect(() => {
     loadBooths();
   }, [loadBooths]);
+
+  useEffect(() => {
+    return subscribeFloorPlanTempLocks({
+      organizationId: floorPlan.organizationId,
+      marketId: floorPlan.marketId,
+      floorPlanId: floorPlan.id,
+      dates: selectedDates,
+      onChange: setTempLocks,
+    });
+  }, [floorPlan.id, floorPlan.marketId, floorPlan.organizationId, selectedDates]);
+
+  useEffect(() => {
+    return () => {
+      releaseBoothTempLocks(activeLockDocIds).catch(() => undefined);
+    };
+  }, [activeLockDocIds]);
+
+  const effectiveBooths = useMemo(
+    () => booths.map((booth) => applyTempLocksToBooth(booth, selectedDates, tempLocks, ownerId)),
+    [booths, ownerId, selectedDates, tempLocks],
+  );
+
+  const closeSelectedBooth = useCallback(() => {
+    const docIds = activeLockDocIds;
+    setActiveLockDocIds([]);
+    setSelectedBooth(null);
+    releaseBoothTempLocks(docIds).catch(() => undefined);
+  }, [activeLockDocIds]);
+
+  const handleBoothPress = useCallback(async (booth: Booth) => {
+    setMessage('');
+    if (booth.availabilityStatus !== 'available') {
+      setSelectedBooth(booth);
+      return;
+    }
+
+    try {
+      if (activeLockDocIds.length) {
+        await releaseBoothTempLocks(activeLockDocIds);
+        setActiveLockDocIds([]);
+      }
+      const lockResult = await acquireBoothTempLocks({
+        organizationId: floorPlan.organizationId,
+        marketId: floorPlan.marketId,
+        floorPlanId: floorPlan.id,
+        boothId: booth.id,
+        dates: selectedDates,
+        ownerId,
+        ownerLabel,
+      });
+      setActiveLockDocIds(lockResult.map((lock) => lock.docId));
+      setSelectedBooth(booth);
+    } catch (error) {
+      if ((error as Error).message === 'TEMP_LOCK_CONFLICT') {
+        setMessage('บูธนี้มีผู้ใช้งานกำลังเลือกอยู่ กรุณาเลือกบูธอื่นหรือรอสักครู่');
+        loadBooths();
+        return;
+      }
+      setMessage('ยังไม่สามารถล็อกบูธแบบเรียลไทม์ได้ ระบบจะตรวจสอบซ้ำตอนยืนยันจอง');
+      setSelectedBooth(booth);
+    }
+  }, [
+    activeLockDocIds,
+    floorPlan.id,
+    floorPlan.marketId,
+    floorPlan.organizationId,
+    loadBooths,
+    ownerId,
+    ownerLabel,
+    selectedDates,
+  ]);
 
   return (
     <View style={styles.flex}>
@@ -105,12 +192,12 @@ function BoothSelectionStep({
               <ApiLoadingState label="กำลังโหลดบูธ" style={styles.boothLoadingCard} />
             </>
           ) : null}
-          {booths.map((booth) => (
+          {effectiveBooths.map((booth) => (
             <BoothTile
               key={booth.id}
               booth={booth}
               size={tileSize}
-              onPress={() => setSelectedBooth(booth)}
+              onPress={() => handleBoothPress(booth)}
             />
           ))}
           {!loading && booths.length === 0 ? <EmptyCard text="ยังไม่มีบูธในแผนผังนี้" /> : null}
@@ -120,7 +207,7 @@ function BoothSelectionStep({
       <BoothDetailSheet
         booth={selectedBooth}
         selectedDates={selectedDates}
-        onClose={() => setSelectedBooth(null)}
+        onClose={closeSelectedBooth}
       />
     </View>
   );
@@ -152,7 +239,7 @@ function BoothTile({
   size: number;
   onPress: () => void;
 }) {
-  const disabled = booth.availabilityStatus === 'unavailable';
+  const disabled = booth.availabilityStatus === 'unavailable' || booth.availabilityStatus === 'booked';
   const statusStyle = boothStatusStyles[booth.availabilityStatus];
 
   return (
@@ -230,6 +317,9 @@ function BoothDetailSheet({
           <View style={styles.sheetSummaryRow}>
             <SummaryPill color="#14b879" label={`ว่าง ${availableDates.length} วัน`} />
             <SummaryPill color="#ef4444" label={`ไม่ว่าง ${unavailableDates.length} วัน`} />
+            {booth.availabilityStatus === 'available' ? (
+              <SummaryPill color="#f5b93f" label={`ล็อกชั่วคราว ${BOOTH_TEMP_LOCK_TTL_SECONDS / 60} นาที`} />
+            ) : null}
           </View>
 
           <ScrollView style={styles.dateList} contentContainerStyle={styles.dateListContent}>
@@ -309,6 +399,39 @@ function normalizeBoothDates(booth: Booth, selectedDates: string[]) {
     date,
     status: availabilityByDate.get(date) || 'available',
   }));
+}
+
+function applyTempLocksToBooth(
+  booth: Booth,
+  selectedDates: string[],
+  tempLocks: BoothTempLockMap,
+  ownerId: string,
+): Booth {
+  const currentDates = normalizeBoothDates(booth, selectedDates).map((item) => {
+    const lock = tempLocks.get(tempLockKey(booth.id, item.date));
+    const status = lock
+      ? availabilityStatusWithTempLock(item.status, [lock], ownerId)
+      : item.status;
+    return {...item, status};
+  });
+  const availableCount = currentDates.filter((item) => item.status === 'available').length;
+  let availabilityStatus: BoothAvailabilityStatus = 'processing';
+  if (booth.status !== 'active') {
+    availabilityStatus = 'unavailable';
+  } else if (availableCount === selectedDates.length) {
+    availabilityStatus = 'available';
+  } else if (availableCount === 0) {
+    availabilityStatus = 'booked';
+  }
+
+  return {
+    ...booth,
+    availabilityStatus,
+    availabilityDates: currentDates,
+    availableDateCount: availableCount,
+    unavailableDateCount: selectedDates.length - availableCount,
+    selectedDateCount: selectedDates.length,
+  };
 }
 
 function formatSelectedDateSummary(dates: string[]) {

@@ -40,6 +40,37 @@ jest.mock('@react-native-firebase/app', () => ({
   },
 }));
 
+jest.mock('@react-native-firebase/firestore', () => {
+  const collection = {
+    doc: jest.fn(() => ({
+      delete: jest.fn(() => Promise.resolve()),
+      set: jest.fn(() => Promise.resolve()),
+    })),
+    where: jest.fn(() => collection),
+    onSnapshot: jest.fn((onNext) => {
+      onNext({forEach: jest.fn()});
+      return jest.fn();
+    }),
+  };
+  const firestore = jest.fn(() => ({
+    batch: jest.fn(() => ({
+      delete: jest.fn(),
+      commit: jest.fn(() => Promise.resolve()),
+    })),
+    collection: jest.fn(() => collection),
+    runTransaction: jest.fn((handler) =>
+      handler({
+        get: jest.fn(() => Promise.resolve({exists: false, id: 'mock-lock', data: jest.fn()})),
+        set: jest.fn(),
+      }),
+    ),
+  }));
+  return {
+    __esModule: true,
+    default: firestore,
+  };
+});
+
 jest.mock('react-native-vector-icons/MaterialCommunityIcons', () => {
   const React = require('react');
   const {Text} = require('react-native');
