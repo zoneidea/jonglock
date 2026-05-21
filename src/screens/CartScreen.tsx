@@ -16,6 +16,7 @@ function CartScreen({
   onCountChange?: (count: number) => void;
 }) {
   const [bookings, setBookings] = useState<CartBooking[]>([]);
+  const [selectedBookingIds, setSelectedBookingIds] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [message, setMessage] = useState('');
@@ -33,6 +34,9 @@ function CartScreen({
     try {
       const nextBookings = await getCartBookings({email: user.email, name: user.name});
       setBookings(nextBookings);
+      setSelectedBookingIds((current) =>
+        current.filter((bookingId) => nextBookings.some((booking) => booking.bookingId === bookingId)),
+      );
       onCountChange?.(nextBookings.length);
     } catch (error) {
       setMessage((error as Error).message || 'ยังไม่สามารถโหลดตะกร้าได้');
@@ -53,6 +57,23 @@ function CartScreen({
       setRefreshing(false);
     }
   }, [loadCart]);
+
+  const toggleBookingSelection = useCallback((bookingId: number) => {
+    setSelectedBookingIds((current) =>
+      current.includes(bookingId)
+        ? current.filter((item) => item !== bookingId)
+        : [...current, bookingId],
+    );
+  }, []);
+
+  const toggleSelectAll = useCallback(() => {
+    setSelectedBookingIds((current) =>
+      current.length === bookings.length ? [] : bookings.map((booking) => booking.bookingId),
+    );
+  }, [bookings]);
+
+  const selectedCount = selectedBookingIds.length;
+  const allSelected = bookings.length > 0 && selectedCount === bookings.length;
 
   if (!user) {
     return (
@@ -81,6 +102,20 @@ function CartScreen({
         </Pressable>
       </View>
 
+      {!loading && bookings.length > 0 ? (
+        <View style={styles.selectionBar}>
+          <Pressable onPress={toggleSelectAll} style={styles.selectAllButton}>
+            <View style={[styles.checkbox, allSelected && styles.checkboxActive]}>
+              {allSelected ? (
+                <MaterialCommunityIcons name="check" size={14} color={colors.white} />
+              ) : null}
+            </View>
+            <Text style={styles.selectAllText}>{allSelected ? 'ยกเลิกทั้งหมด' : 'เลือกทั้งหมด'}</Text>
+          </Pressable>
+          <Text style={styles.selectionCountText}>{`เลือกแล้ว ${selectedCount} รายการ`}</Text>
+        </View>
+      ) : null}
+
       {message ? <Text style={styles.messageText}>{message}</Text> : null}
 
       {loading ? (
@@ -97,17 +132,37 @@ function CartScreen({
 
       <View style={styles.bookingList}>
         {bookings.map((booking) => (
-          <CartBookingCard key={booking.bookingId} booking={booking} />
+          <CartBookingCard
+            key={booking.bookingId}
+            booking={booking}
+            selected={selectedBookingIds.includes(booking.bookingId)}
+            onToggleSelect={() => toggleBookingSelection(booking.bookingId)}
+          />
         ))}
       </View>
     </ScrollView>
   );
 }
 
-function CartBookingCard({booking}: {booking: CartBooking}) {
+function CartBookingCard({
+  booking,
+  selected,
+  onToggleSelect,
+}: {
+  booking: CartBooking;
+  selected: boolean;
+  onToggleSelect: () => void;
+}) {
   return (
-    <View style={styles.bookingCard}>
+    <Pressable onPress={onToggleSelect} style={[styles.bookingCard, selected && styles.bookingCardSelected]}>
       <View style={styles.cardTopRow}>
+        <Pressable onPress={onToggleSelect} style={styles.checkboxWrap}>
+          <View style={[styles.checkbox, selected && styles.checkboxActive]}>
+            {selected ? (
+              <MaterialCommunityIcons name="check" size={14} color={colors.white} />
+            ) : null}
+          </View>
+        </Pressable>
         {booking.marketImageUrl ? (
           <Image source={{uri: booking.marketImageUrl}} style={styles.marketImage} />
         ) : (
@@ -147,7 +202,7 @@ function CartBookingCard({booking}: {booking: CartBooking}) {
         <Text style={styles.totalLabel}>ยอดชำระ</Text>
         <Text style={styles.totalValue}>{formatMoney(booking.totalAmount)} บาท</Text>
       </View>
-    </View>
+    </Pressable>
   );
 }
 
@@ -225,6 +280,35 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
   },
+  selectionBar: {
+    marginBottom: 12,
+    borderRadius: 18,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.border,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    ...shadow,
+  },
+  selectAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  selectAllText: {
+    color: colors.ink,
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  selectionCountText: {
+    color: colors.tealDark,
+    fontSize: 12,
+    fontWeight: '900',
+  },
   bookingList: {
     gap: 12,
   },
@@ -236,10 +320,32 @@ const styles = StyleSheet.create({
     padding: 14,
     ...shadow,
   },
+  bookingCardSelected: {
+    borderColor: colors.teal,
+    backgroundColor: '#f2fcfa',
+  },
   cardTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+  },
+  checkboxWrap: {
+    alignSelf: 'flex-start',
+    paddingTop: 2,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 7,
+    borderWidth: 1.5,
+    borderColor: '#bdd0dd',
+    backgroundColor: colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxActive: {
+    borderColor: colors.teal,
+    backgroundColor: colors.teal,
   },
   marketImage: {
     width: 58,
