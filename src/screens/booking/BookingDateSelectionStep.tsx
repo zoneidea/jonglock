@@ -69,12 +69,14 @@ function BookingDateSelectionStep({
 
         <View style={styles.introCard}>
           <View style={styles.introIcon}>
-            <MaterialCommunityIcons name="calendar-month-outline" size={28} color={colors.tealDark} />
+            <MaterialCommunityIcons name="calendar-month-outline" size={22} color={colors.tealDark} />
           </View>
           <View style={styles.introCopy}>
             <Text style={styles.eyebrow}>{market.name}</Text>
             <Text style={styles.title}>เลือกวันที่ขาย</Text>
-            <Text style={styles.subtitle}>{floorPlan.name}</Text>
+            <Text style={styles.subtitle}>
+              {`${floorPlan.name}${minDate || maxDate ? ` • ${formatActiveDateRange(minDate, maxDate)}` : ''}`}
+            </Text>
           </View>
         </View>
 
@@ -125,16 +127,6 @@ function BookingDateSelectionStep({
           </View>
         </View>
 
-        <Text style={styles.selectionText}>
-          {selectedDates.length > 0
-            ? rangeEnd
-              ? `เลือก ${selectedDates.length} วัน: ${formatShortDate(rangeStart)} - ${formatShortDate(rangeEnd)}`
-              : `เลือก 1 วัน: ${formatShortDate(rangeStart)}`
-            : 'เลือกได้ทั้งวันเดียวหรือช่วงวันที่'}
-        </Text>
-        {(minDate || maxDate) ? (
-          <Text style={styles.activeDateText}>{formatActiveDateRange(minDate, maxDate)}</Text>
-        ) : null}
       </ScrollView>
 
       <View style={styles.footerBar}>
@@ -360,21 +352,21 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   introCard: {
-    minHeight: 118,
-    borderRadius: 28,
+    minHeight: 82,
+    borderRadius: 22,
     backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: colors.border,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
-    padding: 18,
+    gap: 12,
+    padding: 14,
     ...shadow,
   },
   introIcon: {
-    width: 58,
-    height: 58,
-    borderRadius: 21,
+    width: 44,
+    height: 44,
+    borderRadius: 16,
     backgroundColor: colors.soft,
     alignItems: 'center',
     justifyContent: 'center',
@@ -389,14 +381,14 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   title: {
-    marginTop: 4,
+    marginTop: 2,
     color: colors.ink,
-    fontSize: 25,
-    lineHeight: 31,
+    fontSize: 20,
+    lineHeight: 25,
     fontWeight: '900',
   },
   subtitle: {
-    marginTop: 4,
+    marginTop: 2,
     color: colors.muted,
     fontSize: 13,
     lineHeight: 18,
@@ -499,22 +491,6 @@ const styles = StyleSheet.create({
     height: 4,
     borderRadius: 2,
     backgroundColor: colors.teal,
-  },
-  selectionText: {
-    marginTop: 16,
-    color: colors.ink,
-    fontSize: 14,
-    lineHeight: 22,
-    fontWeight: '900',
-    textAlign: 'center',
-  },
-  activeDateText: {
-    marginTop: 6,
-    color: colors.muted,
-    fontSize: 12,
-    lineHeight: 18,
-    fontWeight: '800',
-    textAlign: 'center',
   },
   footerBar: {
     position: 'absolute',

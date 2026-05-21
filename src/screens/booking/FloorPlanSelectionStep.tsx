@@ -48,7 +48,7 @@ function FloorPlanSelectionStep({
 
         <View style={styles.planIntroCard}>
           <View style={styles.planIntroIcon}>
-            <MaterialCommunityIcons name="map-outline" size={28} color={colors.tealDark} />
+            <MaterialCommunityIcons name="map-outline" size={22} color={colors.tealDark} />
           </View>
           <View style={styles.planIntroCopy}>
             <Text style={styles.planEyebrow}>{market.code}</Text>
@@ -206,21 +206,21 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   planIntroCard: {
-    minHeight: 118,
-    borderRadius: 28,
+    minHeight: 82,
+    borderRadius: 22,
     backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: colors.border,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
-    padding: 18,
+    gap: 12,
+    padding: 14,
     ...shadow,
   },
   planIntroIcon: {
-    width: 58,
-    height: 58,
-    borderRadius: 21,
+    width: 44,
+    height: 44,
+    borderRadius: 16,
     backgroundColor: colors.soft,
     alignItems: 'center',
     justifyContent: 'center',
@@ -235,14 +235,14 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   planTitle: {
-    marginTop: 4,
+    marginTop: 2,
     color: colors.ink,
-    fontSize: 25,
-    lineHeight: 31,
+    fontSize: 20,
+    lineHeight: 25,
     fontWeight: '900',
   },
   planSubtitle: {
-    marginTop: 4,
+    marginTop: 2,
     color: colors.muted,
     fontSize: 13,
     lineHeight: 18,

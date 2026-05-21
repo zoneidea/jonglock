@@ -32,7 +32,7 @@ function BoothSelectionStep({
   onBack: () => void;
 }) {
   const {width} = useWindowDimensions();
-  const columns = useMemo(() => getBoothGridColumns(width), [width]);
+  const columns = 6;
   const tileSize = useMemo(() => getBoothTileSize(width, columns), [columns, width]);
   const [booths, setBooths] = useState<Booth[]>([]);
   const [loading, setLoading] = useState(true);
@@ -67,7 +67,7 @@ function BoothSelectionStep({
 
         <View style={styles.boothHeaderCard}>
           <View style={styles.planIntroIcon}>
-            <MaterialCommunityIcons name="view-grid-outline" size={28} color={colors.tealDark} />
+            <MaterialCommunityIcons name="view-grid-outline" size={22} color={colors.tealDark} />
           </View>
           <View style={styles.planIntroCopy}>
             <Text style={styles.planEyebrow}>{market.name}</Text>
@@ -259,24 +259,14 @@ const boothStatusStyles: Record<BoothAvailabilityStatus, {
   },
 };
 
-function getBoothGridColumns(width: number) {
-  if (width >= 760) {
-    return 6;
-  }
-  if (width >= 390) {
-    return 5;
-  }
-  return 4;
-}
-
 function getBoothTileSize(width: number, columns: number) {
   const horizontalPadding = 44;
   const gapTotal = 8 * (columns - 1);
   const rawSize = (width - horizontalPadding - gapTotal) / columns;
   if (width >= 760) {
-    return Math.min(88, Math.max(76, rawSize));
+    return Math.min(88, Math.max(64, rawSize));
   }
-  return Math.min(66, Math.max(56, rawSize));
+  return Math.min(58, Math.max(46, rawSize));
 }
 
 function boothDisplayName(booth: Booth) {
@@ -370,9 +360,9 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   planIntroIcon: {
-    width: 58,
-    height: 58,
-    borderRadius: 21,
+    width: 44,
+    height: 44,
+    borderRadius: 16,
     backgroundColor: colors.soft,
     alignItems: 'center',
     justifyContent: 'center',
@@ -387,29 +377,29 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   planTitle: {
-    marginTop: 4,
+    marginTop: 2,
     color: colors.ink,
-    fontSize: 25,
-    lineHeight: 31,
+    fontSize: 20,
+    lineHeight: 25,
     fontWeight: '900',
   },
   planSubtitle: {
-    marginTop: 4,
+    marginTop: 2,
     color: colors.muted,
     fontSize: 13,
     lineHeight: 18,
     fontWeight: '800',
   },
   boothHeaderCard: {
-    minHeight: 104,
-    borderRadius: 28,
+    minHeight: 82,
+    borderRadius: 22,
     backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: colors.border,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
-    padding: 18,
+    gap: 12,
+    padding: 14,
     ...shadow,
   },
   boothLegendRow: {
@@ -444,14 +434,16 @@ const styles = StyleSheet.create({
     marginTop: 14,
     flexDirection: 'row',
     flexWrap: 'wrap',
+    justifyContent: 'center',
+    alignSelf: 'center',
     gap: 8,
   },
   boothTile: {
-    borderRadius: 16,
+    borderRadius: 14,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 4,
+    paddingHorizontal: 3,
     overflow: 'hidden',
     ...shadow,
   },
@@ -459,14 +451,14 @@ const styles = StyleSheet.create({
     opacity: 0.74,
   },
   boothTileText: {
-    fontSize: 17,
-    lineHeight: 20,
+    fontSize: 14,
+    lineHeight: 17,
     fontWeight: '900',
     textAlign: 'center',
   },
   boothPriceText: {
-    marginTop: 2,
-    fontSize: 10,
+    marginTop: 1,
+    fontSize: 9,
     fontWeight: '900',
     textAlign: 'center',
     opacity: 0.88,
