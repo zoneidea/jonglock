@@ -78,7 +78,7 @@ function BookingDateSelectionStep({
           </View>
         </View>
 
-        <View style={styles.calendarCard}>
+        <View style={styles.calendarSurface}>
           <View style={[styles.monthHeader, {width: calendarWidth}]}>
             <Pressable
               disabled={previousMonthDisabled}
@@ -116,6 +116,7 @@ function BookingDateSelectionStep({
                 currentMonth={cell.currentMonth}
                 disabled={cell.date < today || isDateOutsideRange(cell.date, minDate, maxDate)}
                 size={daySize}
+                today={cell.date === today}
                 rangeStart={rangeStart}
                 rangeEnd={rangeEnd}
                 onPress={() => handleDatePress(cell.date)}
@@ -154,6 +155,7 @@ function CalendarDayButton({
   currentMonth,
   disabled,
   size,
+  today,
   rangeStart,
   rangeEnd,
   onPress,
@@ -162,6 +164,7 @@ function CalendarDayButton({
   currentMonth: boolean;
   disabled: boolean;
   size: number;
+  today: boolean;
   rangeStart: string;
   rangeEnd: string;
   onPress: () => void;
@@ -179,16 +182,19 @@ function CalendarDayButton({
         styles.calendarDay,
         {width: size, height: size},
         !selectable && styles.calendarDayMuted,
+        today && selectable && styles.calendarDayToday,
         inRange && styles.calendarDayInRange,
         isEdge && styles.calendarDayEdge,
       ]}>
       <Text style={[
         styles.calendarDayText,
         !selectable && styles.calendarDayTextMuted,
+        today && selectable && !isEdge && styles.calendarDayTextToday,
         (inRange || isEdge) && styles.calendarDayTextActive,
       ]}>
         {dateNumber}
       </Text>
+      {today && selectable && !isEdge ? <View style={styles.todayDot} /> : null}
     </Pressable>
   );
 }
@@ -328,7 +334,7 @@ const styles = StyleSheet.create({
   },
   screenScroll: {
     padding: 22,
-    paddingBottom: 112,
+    paddingBottom: 220,
   },
   headerRow: {
     flexDirection: 'row',
@@ -396,15 +402,10 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     fontWeight: '800',
   },
-  calendarCard: {
+  calendarSurface: {
     marginTop: 16,
-    borderRadius: 28,
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingVertical: 18,
-    paddingHorizontal: 12,
-    ...shadow,
+    paddingVertical: 12,
+    paddingHorizontal: 0,
   },
   monthHeader: {
     alignSelf: 'center',
@@ -464,6 +465,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#f4f7f9',
     borderColor: '#edf1f4',
   },
+  calendarDayToday: {
+    backgroundColor: '#f1fbf9',
+    borderColor: colors.teal,
+    borderWidth: 2,
+  },
   calendarDayInRange: {
     backgroundColor: '#e4fbf8',
     borderColor: '#a9e8df',
@@ -480,8 +486,19 @@ const styles = StyleSheet.create({
   calendarDayTextMuted: {
     color: '#c3ced8',
   },
+  calendarDayTextToday: {
+    color: colors.tealDark,
+  },
   calendarDayTextActive: {
     color: colors.white,
+  },
+  todayDot: {
+    position: 'absolute',
+    bottom: 5,
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.teal,
   },
   selectionText: {
     marginTop: 16,
@@ -503,11 +520,12 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
-    bottom: 0,
+    bottom: 96,
     paddingHorizontal: 22,
     paddingTop: 12,
-    paddingBottom: 30,
-    backgroundColor: 'rgba(247,251,251,0.94)',
+    paddingBottom: 0,
+    backgroundColor: 'transparent',
+    zIndex: 10,
   },
   confirmButton: {
     height: 56,
