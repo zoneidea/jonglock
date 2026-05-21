@@ -18,7 +18,7 @@ export type BoothTempLock = {
 export type BoothTempLockMap = Map<string, BoothTempLock>;
 
 const TEMP_LOCK_COLLECTION = 'booth_temp_locks';
-const TEMP_LOCK_TTL_MS = 2 * 60 * 1000;
+const TEMP_LOCK_TTL_MS = 10 * 60 * 1000;
 
 export function tempLockKey(boothId: number, date: string) {
   return `${boothId}:${date}`;
@@ -213,3 +213,4 @@ export async function releaseBoothTempLocks(docIds: string[]) {
 }
 
 export const BOOTH_TEMP_LOCK_TTL_SECONDS = Math.floor(TEMP_LOCK_TTL_MS / 1000);
+export const BOOTH_TEMP_LOCK_TTL_MINUTES = Math.floor(BOOTH_TEMP_LOCK_TTL_SECONDS / 60);

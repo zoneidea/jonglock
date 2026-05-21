@@ -25,7 +25,7 @@ import {
 } from '../../services/markets';
 import {
   availabilityStatusWithTempLock,
-  BOOTH_TEMP_LOCK_TTL_SECONDS,
+  BOOTH_TEMP_LOCK_TTL_MINUTES,
   saveBoothTempLocks,
   subscribeFloorPlanTempLocks,
   tempLockKey,
@@ -418,7 +418,7 @@ function BoothDetailSheet({
             <SummaryPill color="#14b879" label={`ว่าง ${availableDates.length} วัน`} />
             <SummaryPill color="#ef4444" label={`ไม่ว่าง ${unavailableDates.length} วัน`} />
             {booth.availabilityStatus === 'available' ? (
-              <SummaryPill color="#f5b93f" label={`ล็อกชั่วคราว ${BOOTH_TEMP_LOCK_TTL_SECONDS / 60} นาที`} />
+              <SummaryPill color="#f5b93f" label={`ทำรายการภายใน ${BOOTH_TEMP_LOCK_TTL_MINUTES} นาที`} />
             ) : null}
           </View>
 
@@ -593,7 +593,7 @@ function getLockExpiryMs(expiresAt?: string | null) {
   if (Number.isFinite(parsed)) {
     return parsed;
   }
-  return Date.now() + 10 * 60 * 1000;
+  return Date.now() + BOOTH_TEMP_LOCK_TTL_MINUTES * 60 * 1000;
 }
 
 function EmptyCard({text}: {text: string}) {
