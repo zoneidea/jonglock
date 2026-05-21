@@ -666,7 +666,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 22,
     right: 22,
-    bottom: 94,
+    bottom: 22,
   },
   payButton: {
     height: 54,

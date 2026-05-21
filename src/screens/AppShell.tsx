@@ -22,6 +22,7 @@ function AppShell({
   onUserChange: (user: MobileUser) => void;
 }) {
   const [activeTab, setActiveTab] = useState<TabKey>('home');
+  const [bookingTabHidden, setBookingTabHidden] = useState(false);
   const contentOpacity = useRef(new Animated.Value(1)).current;
 
   const changeTab = useCallback((nextTab: TabKey) => {
@@ -45,10 +46,16 @@ function AppShell({
       return <HomeScreen user={user} />;
     }
     if (activeTab === 'booking') {
-      return <BookingScreen user={user} onRequireAuth={() => changeTab('profile')} />;
+      return (
+        <BookingScreen
+          user={user}
+          onRequireAuth={() => changeTab('profile')}
+          onBottomTabHiddenChange={setBookingTabHidden}
+        />
+      );
     }
     if (activeTab === 'cart') {
-      return <CartScreen />;
+      return <CartScreen user={user} />;
     }
     return (
       <ProfileScreen
@@ -66,16 +73,18 @@ function AppShell({
       <Animated.View style={[styles.shellContent, {opacity: contentOpacity}]}>
         {renderTabContent()}
       </Animated.View>
-      <View style={styles.bottomBar}>
-        {tabs.map((tab) => (
-          <BottomTabItem
-            key={tab.key}
-            item={tab}
-            active={tab.key === activeTab}
-            onPress={() => changeTab(tab.key)}
-          />
-        ))}
-      </View>
+      {!(activeTab === 'booking' && bookingTabHidden) ? (
+        <View style={styles.bottomBar}>
+          {tabs.map((tab) => (
+            <BottomTabItem
+              key={tab.key}
+              item={tab}
+              active={tab.key === activeTab}
+              onPress={() => changeTab(tab.key)}
+            />
+          ))}
+        </View>
+      ) : null}
     </SafeAreaView>
   );
 }

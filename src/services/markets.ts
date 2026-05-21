@@ -139,6 +139,25 @@ export type BookingSummary = {
   accessories: MarketAccessory[];
 };
 
+export type CartBooking = {
+  bookingId: number;
+  publicId: string;
+  organizationId: number;
+  marketId: number;
+  marketName: string;
+  marketImageUrl: string;
+  status: string;
+  expiresAt?: string | null;
+  subtotalAmount: number;
+  discountAmount: number;
+  vatAmount: number;
+  totalAmount: number;
+  vatEnabled: boolean;
+  vatRate: number;
+  items: BookingSummary['items'];
+  accessories: MarketAccessory[];
+};
+
 type CachedValue<T> = {
   value: T;
   expiresAt: number;
@@ -251,6 +270,23 @@ function normalizeSummary(summary: BookingSummary): BookingSummary {
       unitPrice: Number(item.unitPrice || 0),
     })),
     accessories: (summary.accessories || []).map(normalizeAccessory),
+  };
+}
+
+function normalizeCartBooking(booking: CartBooking): CartBooking {
+  return {
+    ...booking,
+    marketImageUrl: normalizeUrl(booking.marketImageUrl),
+    subtotalAmount: Number(booking.subtotalAmount || 0),
+    discountAmount: Number(booking.discountAmount || 0),
+    vatAmount: Number(booking.vatAmount || 0),
+    totalAmount: Number(booking.totalAmount || 0),
+    vatRate: Number(booking.vatRate || 0),
+    items: (booking.items || []).map((item) => ({
+      ...item,
+      unitPrice: Number(item.unitPrice || 0),
+    })),
+    accessories: (booking.accessories || []).map(normalizeAccessory),
   };
 }
 
@@ -374,4 +410,9 @@ export async function updateBookingSummary(
     couponCode,
   });
   return normalizeSummary(summary);
+}
+
+export async function getCartBookings(user: BoothHoldUser) {
+  const bookings = await post<CartBooking[]>('/public/bookings/cart', {user});
+  return bookings.map(normalizeCartBooking);
 }

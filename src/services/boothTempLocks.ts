@@ -79,6 +79,7 @@ export function subscribeFloorPlanTempLocks({
       (snapshot) => {
         const nowMs = Date.now();
         const locks = new Map<string, BoothTempLock>();
+        const expiredDocIds: string[] = [];
         snapshot.forEach((doc) => {
           const data = doc.data() as Omit<BoothTempLock, 'id'>;
           if (!selectedDateSet.has(data.date)) {
@@ -86,10 +87,12 @@ export function subscribeFloorPlanTempLocks({
           }
           const lock = {id: doc.id, ...data};
           if (!isTempLockActive(lock, nowMs)) {
+            expiredDocIds.push(doc.id);
             return;
           }
           locks.set(tempLockKey(lock.boothId, lock.date), lock);
         });
+        releaseBoothTempLocks(expiredDocIds).catch(() => undefined);
         onChange(locks);
       },
       () => onChange(new Map()),

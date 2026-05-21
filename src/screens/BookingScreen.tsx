@@ -77,9 +77,11 @@ function findFloorPlanForDates(floorPlans: FloorPlan[], dates: string[]) {
 function BookingScreen({
   user,
   onRequireAuth,
+  onBottomTabHiddenChange,
 }: {
   user: MobileUser | null;
   onRequireAuth: () => void;
+  onBottomTabHiddenChange?: (hidden: boolean) => void;
 }) {
   const [query, setQuery] = useState('');
   const [markets, setMarkets] = useState<Market[]>([]);
@@ -250,6 +252,12 @@ function BookingScreen({
     },
   });
 
+  const isSummaryStep = Boolean(floorPlanMarket && selectedFloorPlan && bookingHold && reservedBooth);
+  useEffect(() => {
+    onBottomTabHiddenChange?.(isSummaryStep);
+    return () => onBottomTabHiddenChange?.(false);
+  }, [isSummaryStep, onBottomTabHiddenChange]);
+
   if (floorPlanMarket && selectedFloorPlan && bookingHold && reservedBooth) {
     return (
       <BookingSummaryStep
@@ -259,6 +267,10 @@ function BookingScreen({
         hold={bookingHold}
         user={user}
         onBack={() => {
+          setSelectedMarket(null);
+          setFloorPlanMarket(null);
+          setSelectedFloorPlan(null);
+          setSelectedBookingDates([]);
           setBookingHold(null);
           setReservedBooth(null);
         }}
