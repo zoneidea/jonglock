@@ -1,4 +1,4 @@
-import React, {useCallback, useEffect, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {Image, Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -6,21 +6,26 @@ import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityI
 import ApiLoadingState from '../../components/ApiLoadingState';
 import {getMarketFloorPlans, type FloorPlan, type Market} from '../../services/markets';
 import {colors, shadow} from '../../theme/colors';
+import BookingSelectionModal, {marketToSelectionItem} from './BookingSelectionModal';
 
 function FloorPlanSelectionStep({
   market,
+  markets,
   onBack,
-  onChangeMarket,
+  onSelectMarket,
   onSelectFloorPlan,
 }: {
   market: Market;
+  markets: Market[];
   onBack: () => void;
-  onChangeMarket: () => void;
+  onSelectMarket: (market: Market) => void;
   onSelectFloorPlan: (floorPlan: FloorPlan) => void;
 }) {
   const [floorPlans, setFloorPlans] = useState<FloorPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
+  const [marketModalOpen, setMarketModalOpen] = useState(false);
+  const marketItems = useMemo(() => markets.map(marketToSelectionItem), [markets]);
 
   const loadFloorPlans = useCallback(async () => {
     setLoading(true);
@@ -60,7 +65,7 @@ function FloorPlanSelectionStep({
         </View>
 
         <View style={styles.shortcutRow}>
-          <ShortcutButton icon="store-search-outline" label="เปลี่ยนตลาด" onPress={onChangeMarket} />
+          <ShortcutButton icon="store-search-outline" label="เปลี่ยนตลาด" onPress={() => setMarketModalOpen(true)} />
         </View>
 
         <Text style={styles.planHelpText}>เลือกโซนที่ต้องการ ก่อนเข้าสู่ขั้นตอนการเลือกบูธ</Text>
@@ -86,6 +91,21 @@ function FloorPlanSelectionStep({
           ) : null}
         </View>
       </ScrollView>
+      <BookingSelectionModal
+        open={marketModalOpen}
+        title="เลือกตลาด"
+        searchPlaceholder="ค้นหาชื่อตลาดหรือรหัสตลาด"
+        emptyText="ไม่พบตลาด"
+        items={marketItems}
+        selectedId={market.id}
+        onClose={() => setMarketModalOpen(false)}
+        onSelect={(marketId) => {
+          const nextMarket = markets.find((item) => item.id === marketId);
+          if (!nextMarket) {return;}
+          setMarketModalOpen(false);
+          onSelectMarket(nextMarket);
+        }}
+      />
     </View>
   );
 }

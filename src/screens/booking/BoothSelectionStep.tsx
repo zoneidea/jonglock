@@ -29,24 +29,29 @@ import {
 } from '../../services/boothTempLocks';
 import {colors, shadow} from '../../theme/colors';
 import type {MobileUser} from '../../types/user';
+import BookingSelectionModal, {floorPlanToSelectionItem, marketToSelectionItem} from './BookingSelectionModal';
 
 function BoothSelectionStep({
   market,
+  markets,
+  floorPlans,
   floorPlan,
   selectedDates,
   user,
   onBack,
-  onChangeMarket,
-  onChangeFloorPlan,
+  onSelectMarket,
+  onSelectFloorPlan,
   onChangeDates,
 }: {
   market: Market;
+  markets: Market[];
+  floorPlans: FloorPlan[];
   floorPlan: FloorPlan;
   selectedDates: string[];
   user: MobileUser | null;
   onBack: () => void;
-  onChangeMarket: () => void;
-  onChangeFloorPlan: () => void;
+  onSelectMarket: (market: Market) => void;
+  onSelectFloorPlan: (floorPlan: FloorPlan) => void;
   onChangeDates: () => void;
 }) {
   const {width} = useWindowDimensions();
@@ -58,8 +63,12 @@ function BoothSelectionStep({
   const [selectedBooth, setSelectedBooth] = useState<Booth | null>(null);
   const [tempLocks, setTempLocks] = useState<BoothTempLockMap>(new Map());
   const [activeLockDocIds, setActiveLockDocIds] = useState<string[]>([]);
+  const [marketModalOpen, setMarketModalOpen] = useState(false);
+  const [floorPlanModalOpen, setFloorPlanModalOpen] = useState(false);
   const ownerId = user?.email || user?.name || 'anonymous-mobile-user';
   const ownerLabel = user?.email || user?.name || 'mobile-user';
+  const marketItems = useMemo(() => markets.map(marketToSelectionItem), [markets]);
+  const floorPlanItems = useMemo(() => floorPlans.map(floorPlanToSelectionItem), [floorPlans]);
 
   const loadBooths = useCallback(async () => {
     setLoading(true);
@@ -172,8 +181,8 @@ function BoothSelectionStep({
         </View>
 
         <View style={styles.shortcutRow}>
-          <ShortcutButton icon="store-search-outline" label="เปลี่ยนตลาด" onPress={onChangeMarket} />
-          <ShortcutButton icon="map-marker-path" label="เปลี่ยนโซน" onPress={onChangeFloorPlan} />
+          <ShortcutButton icon="store-search-outline" label="เปลี่ยนตลาด" onPress={() => setMarketModalOpen(true)} />
+          <ShortcutButton icon="map-marker-path" label="เปลี่ยนโซน" onPress={() => setFloorPlanModalOpen(true)} />
           <ShortcutButton icon="calendar-edit" label="เปลี่ยนวันที่" onPress={onChangeDates} />
         </View>
 
@@ -208,6 +217,36 @@ function BoothSelectionStep({
         booth={selectedBooth}
         selectedDates={selectedDates}
         onClose={closeSelectedBooth}
+      />
+      <BookingSelectionModal
+        open={marketModalOpen}
+        title="เลือกตลาด"
+        searchPlaceholder="ค้นหาชื่อตลาดหรือรหัสตลาด"
+        emptyText="ไม่พบตลาด"
+        items={marketItems}
+        selectedId={market.id}
+        onClose={() => setMarketModalOpen(false)}
+        onSelect={(marketId) => {
+          const nextMarket = markets.find((item) => item.id === marketId);
+          if (!nextMarket) {return;}
+          setMarketModalOpen(false);
+          onSelectMarket(nextMarket);
+        }}
+      />
+      <BookingSelectionModal
+        open={floorPlanModalOpen}
+        title="เลือกโซน"
+        searchPlaceholder="ค้นหาชื่อโซนหรือแผนผัง"
+        emptyText="ไม่พบโซน"
+        items={floorPlanItems}
+        selectedId={floorPlan.id}
+        onClose={() => setFloorPlanModalOpen(false)}
+        onSelect={(floorPlanId) => {
+          const nextFloorPlan = floorPlans.find((item) => item.id === floorPlanId);
+          if (!nextFloorPlan) {return;}
+          setFloorPlanModalOpen(false);
+          onSelectFloorPlan(nextFloorPlan);
+        }}
       />
     </View>
   );

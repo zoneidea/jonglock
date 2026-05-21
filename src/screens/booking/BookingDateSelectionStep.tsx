@@ -4,20 +4,25 @@ import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityI
 
 import {type FloorPlan, type Market} from '../../services/markets';
 import {colors, shadow} from '../../theme/colors';
+import BookingSelectionModal, {floorPlanToSelectionItem, marketToSelectionItem} from './BookingSelectionModal';
 
 function BookingDateSelectionStep({
   market,
+  markets,
+  floorPlans,
   floorPlan,
   onBack,
-  onChangeMarket,
-  onChangeFloorPlan,
+  onSelectMarket,
+  onSelectFloorPlan,
   onConfirm,
 }: {
   market: Market;
+  markets: Market[];
+  floorPlans: FloorPlan[];
   floorPlan: FloorPlan;
   onBack: () => void;
-  onChangeMarket: () => void;
-  onChangeFloorPlan: () => void;
+  onSelectMarket: (market: Market) => void;
+  onSelectFloorPlan: (floorPlan: FloorPlan) => void;
   onConfirm: (dates: string[]) => void;
 }) {
   const {width} = useWindowDimensions();
@@ -28,9 +33,13 @@ function BookingDateSelectionStep({
   const [displayedMonth, setDisplayedMonth] = useState(() => startOfMonth(minSelectableDate || new Date()));
   const [rangeStart, setRangeStart] = useState('');
   const [rangeEnd, setRangeEnd] = useState('');
+  const [marketModalOpen, setMarketModalOpen] = useState(false);
+  const [floorPlanModalOpen, setFloorPlanModalOpen] = useState(false);
 
-  const calendarWidth = useMemo(() => Math.min(width - 44, 400), [width]);
-  const calendarGap = 6;
+  const calendarWidth = useMemo(() => Math.min(width - 88, 320), [width]);
+  const calendarGap = 4;
+  const marketItems = useMemo(() => markets.map(marketToSelectionItem), [markets]);
+  const floorPlanItems = useMemo(() => floorPlans.map(floorPlanToSelectionItem), [floorPlans]);
   const daySize = useMemo(
     () => Math.floor((calendarWidth - (calendarGap * 6)) / 7),
     [calendarWidth],
@@ -85,8 +94,8 @@ function BookingDateSelectionStep({
         </View>
 
         <View style={styles.shortcutRow}>
-          <ShortcutButton icon="store-search-outline" label="เปลี่ยนตลาด" onPress={onChangeMarket} />
-          <ShortcutButton icon="map-marker-path" label="เปลี่ยนโซน" onPress={onChangeFloorPlan} />
+          <ShortcutButton icon="store-search-outline" label="เปลี่ยนตลาด" onPress={() => setMarketModalOpen(true)} />
+          <ShortcutButton icon="map-marker-path" label="เปลี่ยนโซน" onPress={() => setFloorPlanModalOpen(true)} />
         </View>
 
         <View style={styles.calendarSurface}>
@@ -137,6 +146,36 @@ function BookingDateSelectionStep({
         </View>
 
       </ScrollView>
+      <BookingSelectionModal
+        open={marketModalOpen}
+        title="เลือกตลาด"
+        searchPlaceholder="ค้นหาชื่อตลาดหรือรหัสตลาด"
+        emptyText="ไม่พบตลาด"
+        items={marketItems}
+        selectedId={market.id}
+        onClose={() => setMarketModalOpen(false)}
+        onSelect={(marketId) => {
+          const nextMarket = markets.find((item) => item.id === marketId);
+          if (!nextMarket) {return;}
+          setMarketModalOpen(false);
+          onSelectMarket(nextMarket);
+        }}
+      />
+      <BookingSelectionModal
+        open={floorPlanModalOpen}
+        title="เลือกโซน"
+        searchPlaceholder="ค้นหาชื่อโซนหรือแผนผัง"
+        emptyText="ไม่พบโซน"
+        items={floorPlanItems}
+        selectedId={floorPlan.id}
+        onClose={() => setFloorPlanModalOpen(false)}
+        onSelect={(floorPlanId) => {
+          const nextFloorPlan = floorPlans.find((item) => item.id === floorPlanId);
+          if (!nextFloorPlan) {return;}
+          setFloorPlanModalOpen(false);
+          onSelectFloorPlan(nextFloorPlan);
+        }}
+      />
 
       <View style={styles.footerBar}>
         <Pressable
@@ -421,7 +460,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   shortcutRow: {
-    marginTop: 12,
+    marginTop: 10,
     flexDirection: 'row',
     gap: 8,
   },
@@ -444,8 +483,8 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   calendarSurface: {
-    marginTop: 16,
-    paddingVertical: 12,
+    marginTop: 4,
+    paddingVertical: 8,
     paddingHorizontal: 0,
   },
   monthHeader: {
@@ -476,7 +515,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   weekHeader: {
-    marginTop: 14,
+    marginTop: 10,
     flexDirection: 'row',
     alignSelf: 'center',
     justifyContent: 'space-between',
@@ -488,13 +527,13 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   calendarGrid: {
-    marginTop: 8,
+    marginTop: 6,
     alignSelf: 'center',
     flexDirection: 'row',
     flexWrap: 'wrap',
   },
   calendarDay: {
-    borderRadius: 15,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.background,

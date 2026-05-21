@@ -19,6 +19,7 @@ import AppDialog from '../components/AppDialog';
 import ApiLoadingState from '../components/ApiLoadingState';
 import {
   getMarket,
+  getMarketFloorPlans,
   getMarkets,
   warmMarketFloorPlans,
   type FloorPlan,
@@ -43,6 +44,7 @@ function BookingScreen({
   const [markets, setMarkets] = useState<Market[]>([]);
   const [selectedMarket, setSelectedMarket] = useState<Market | null>(null);
   const [floorPlanMarket, setFloorPlanMarket] = useState<Market | null>(null);
+  const [floorPlans, setFloorPlans] = useState<FloorPlan[]>([]);
   const [selectedFloorPlan, setSelectedFloorPlan] = useState<FloorPlan | null>(null);
   const [selectedBookingDates, setSelectedBookingDates] = useState<string[]>([]);
   const [marketDetailLoading, setMarketDetailLoading] = useState(false);
@@ -100,6 +102,31 @@ function BookingScreen({
     }
   }, []);
 
+  const selectBookingMarket = useCallback(async (market: Market) => {
+    setSelectedMarket(null);
+    setFloorPlanMarket(market);
+    setSelectedFloorPlan(null);
+    setSelectedBookingDates([]);
+    setFloorPlans([]);
+    try {
+      const [latest, plans] = await Promise.all([
+        getMarket(market.id),
+        getMarketFloorPlans(market.id),
+      ]);
+      if (latest) {
+        setFloorPlanMarket(latest);
+      }
+      setFloorPlans(plans);
+    } catch {
+      setFloorPlans([]);
+    }
+  }, []);
+
+  const selectBookingFloorPlan = useCallback((floorPlan: FloorPlan) => {
+    setSelectedBookingDates([]);
+    setSelectedFloorPlan(floorPlan);
+  }, []);
+
   const openScanner = useCallback(async () => {
     if (!hasPermission) {
       const granted = await requestPermission();
@@ -148,20 +175,14 @@ function BookingScreen({
     return (
       <BoothSelectionStep
         market={floorPlanMarket}
+        markets={markets}
+        floorPlans={floorPlans}
         floorPlan={selectedFloorPlan}
         selectedDates={selectedBookingDates}
         user={user}
         onBack={() => setSelectedBookingDates([])}
-        onChangeMarket={() => {
-          setSelectedMarket(null);
-          setFloorPlanMarket(null);
-          setSelectedFloorPlan(null);
-          setSelectedBookingDates([]);
-        }}
-        onChangeFloorPlan={() => {
-          setSelectedFloorPlan(null);
-          setSelectedBookingDates([]);
-        }}
+        onSelectMarket={selectBookingMarket}
+        onSelectFloorPlan={selectBookingFloorPlan}
         onChangeDates={() => setSelectedBookingDates([])}
       />
     );
@@ -171,18 +192,12 @@ function BookingScreen({
     return (
       <BookingDateSelectionStep
         market={floorPlanMarket}
+        markets={markets}
+        floorPlans={floorPlans}
         floorPlan={selectedFloorPlan}
         onBack={() => setSelectedFloorPlan(null)}
-        onChangeMarket={() => {
-          setSelectedMarket(null);
-          setFloorPlanMarket(null);
-          setSelectedFloorPlan(null);
-          setSelectedBookingDates([]);
-        }}
-        onChangeFloorPlan={() => {
-          setSelectedFloorPlan(null);
-          setSelectedBookingDates([]);
-        }}
+        onSelectMarket={selectBookingMarket}
+        onSelectFloorPlan={selectBookingFloorPlan}
         onConfirm={setSelectedBookingDates}
       />
     );
@@ -192,17 +207,10 @@ function BookingScreen({
     return (
       <FloorPlanSelectionStep
         market={floorPlanMarket}
+        markets={markets}
         onBack={() => setFloorPlanMarket(null)}
-        onChangeMarket={() => {
-          setSelectedMarket(null);
-          setFloorPlanMarket(null);
-          setSelectedFloorPlan(null);
-          setSelectedBookingDates([]);
-        }}
-        onSelectFloorPlan={(floorPlan) => {
-          setSelectedBookingDates([]);
-          setSelectedFloorPlan(floorPlan);
-        }}
+        onSelectMarket={selectBookingMarket}
+        onSelectFloorPlan={selectBookingFloorPlan}
       />
     );
   }
@@ -215,7 +223,7 @@ function BookingScreen({
         loading={marketDetailLoading}
         onRequireAuth={onRequireAuth}
         onBack={() => setSelectedMarket(null)}
-        onContinue={() => setFloorPlanMarket(selectedMarket)}
+        onContinue={() => selectBookingMarket(selectedMarket)}
         onPreview={setPreviewImage}
         previewImage={previewImage}
         onClosePreview={() => setPreviewImage('')}
