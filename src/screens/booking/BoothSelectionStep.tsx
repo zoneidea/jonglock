@@ -230,6 +230,7 @@ function BoothSelectionStep({
           const nextMarket = markets.find((item) => item.id === marketId);
           if (!nextMarket) {return;}
           setMarketModalOpen(false);
+          closeSelectedBooth();
           onSelectMarket(nextMarket);
         }}
       />
@@ -245,6 +246,7 @@ function BoothSelectionStep({
           const nextFloorPlan = floorPlans.find((item) => item.id === floorPlanId);
           if (!nextFloorPlan) {return;}
           setFloorPlanModalOpen(false);
+          closeSelectedBooth();
           onSelectFloorPlan(nextFloorPlan);
         }}
       />

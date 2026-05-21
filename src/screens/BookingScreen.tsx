@@ -33,6 +33,44 @@ import FloorPlanSelectionStep from './booking/FloorPlanSelectionStep';
 
 const MARKET_TERMS_DISMISSED_KEY = 'jonglock.marketTerms.dismissed';
 
+function toIsoDate(value: Date) {
+  const year = value.getFullYear();
+  const month = `${value.getMonth() + 1}`.padStart(2, '0');
+  const day = `${value.getDate()}`.padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function normalizeDateString(value?: string | null) {
+  if (!value) {
+    return '';
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return String(value).slice(0, 10);
+  }
+  return toIsoDate(date);
+}
+
+function isDateInFloorPlanRange(date: string, floorPlan: FloorPlan) {
+  const startDate = normalizeDateString(floorPlan.startDate);
+  const endDate = normalizeDateString(floorPlan.endDate);
+  if (startDate && date < startDate) {
+    return false;
+  }
+  if (endDate && date > endDate) {
+    return false;
+  }
+  return true;
+}
+
+function floorPlanContainsDates(floorPlan: FloorPlan, dates: string[]) {
+  return dates.every((date) => isDateInFloorPlanRange(date, floorPlan));
+}
+
+function findFloorPlanForDates(floorPlans: FloorPlan[], dates: string[]) {
+  return floorPlans.find((floorPlan) => floorPlanContainsDates(floorPlan, dates)) || null;
+}
+
 function BookingScreen({
   user,
   onRequireAuth,
@@ -127,6 +165,34 @@ function BookingScreen({
     setSelectedFloorPlan(floorPlan);
   }, []);
 
+  const selectBoothMarket = useCallback(async (market: Market) => {
+    setSelectedMarket(null);
+    setFloorPlanMarket(market);
+    setSelectedFloorPlan(null);
+    setFloorPlans([]);
+    try {
+      const [latest, plans] = await Promise.all([
+        getMarket(market.id),
+        getMarketFloorPlans(market.id),
+      ]);
+      if (latest) {
+        setFloorPlanMarket(latest);
+      }
+      setFloorPlans(plans);
+      setSelectedFloorPlan(findFloorPlanForDates(plans, selectedBookingDates));
+    } catch {
+      setFloorPlans([]);
+      setSelectedFloorPlan(null);
+    }
+  }, [selectedBookingDates]);
+
+  const selectBoothFloorPlan = useCallback((floorPlan: FloorPlan) => {
+    setSelectedFloorPlan(floorPlan);
+    if (!floorPlanContainsDates(floorPlan, selectedBookingDates)) {
+      setSelectedBookingDates([]);
+    }
+  }, [selectedBookingDates]);
+
   const openScanner = useCallback(async () => {
     if (!hasPermission) {
       const granted = await requestPermission();
@@ -181,8 +247,8 @@ function BookingScreen({
         selectedDates={selectedBookingDates}
         user={user}
         onBack={() => setSelectedBookingDates([])}
-        onSelectMarket={selectBookingMarket}
-        onSelectFloorPlan={selectBookingFloorPlan}
+        onSelectMarket={selectBoothMarket}
+        onSelectFloorPlan={selectBoothFloorPlan}
         onChangeDates={() => setSelectedBookingDates([])}
       />
     );
