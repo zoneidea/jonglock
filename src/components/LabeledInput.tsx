@@ -2,19 +2,29 @@ import React from 'react';
 import {StyleSheet, Text, TextInput, View} from 'react-native';
 
 import {colors} from '../theme/colors';
+import {useTheme} from '../theme/theme';
 
 function LabeledInput({
   label,
   ...props
 }: React.ComponentProps<typeof TextInput> & {label: string}) {
+  const {palette} = useTheme();
+
   return (
     <View style={styles.inputGroup}>
-      <Text style={styles.inputLabel}>{label}</Text>
+      <Text style={[styles.inputLabel, {color: palette.text}]}>{label}</Text>
       <TextInput
         {...props}
-        placeholderTextColor="#9badbc"
-        style={styles.input}
-        selectionColor={colors.teal}
+        placeholderTextColor={palette.muted}
+        style={[
+          styles.input,
+          {
+            borderColor: palette.border,
+            backgroundColor: palette.surface,
+            color: palette.text,
+          },
+        ]}
+        selectionColor={palette.accent}
       />
     </View>
   );

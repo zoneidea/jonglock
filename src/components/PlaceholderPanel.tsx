@@ -2,6 +2,7 @@ import React from 'react';
 import {Pressable, StyleSheet, Text, View} from 'react-native';
 
 import {colors, shadow} from '../theme/colors';
+import {useTheme} from '../theme/theme';
 
 type PlaceholderPanelProps = {
   title: string;
@@ -11,14 +12,16 @@ type PlaceholderPanelProps = {
 };
 
 function PlaceholderPanel({title, text, actionLabel, onAction}: PlaceholderPanelProps) {
+  const {palette} = useTheme();
+
   return (
-    <View style={styles.placeholderCard}>
-      <Text style={styles.eyebrow}>COMING NEXT</Text>
-      <Text style={styles.placeholderTitle}>{title}</Text>
-      <Text style={styles.placeholderText}>{text}</Text>
+    <View style={[styles.placeholderCard, {backgroundColor: palette.surface, borderColor: palette.border}]}>
+      <Text style={[styles.eyebrow, {color: palette.accentDark}]}>COMING NEXT</Text>
+      <Text style={[styles.placeholderTitle, {color: palette.text}]}>{title}</Text>
+      <Text style={[styles.placeholderText, {color: palette.muted}]}>{text}</Text>
       {actionLabel ? (
-        <Pressable onPress={onAction} style={styles.actionButton}>
-          <Text style={styles.actionButtonText}>{actionLabel}</Text>
+        <Pressable onPress={onAction} style={[styles.actionButton, {backgroundColor: palette.accent}]}>
+          <Text style={[styles.actionButtonText, {color: palette.inverseText}]}>{actionLabel}</Text>
         </Pressable>
       ) : null}
     </View>

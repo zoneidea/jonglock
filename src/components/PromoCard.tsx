@@ -2,6 +2,7 @@ import React from 'react';
 import {Image, Pressable, StyleSheet, Text, View} from 'react-native';
 
 import {colors} from '../theme/colors';
+import {useTheme} from '../theme/theme';
 
 function PromoCard({
   title,
@@ -18,27 +19,31 @@ function PromoCard({
   imageUrl?: string;
   type: 'news' | 'banner';
 }) {
+  const {palette} = useTheme();
+
   return (
-    <Pressable style={styles.promoCard}>
+    <Pressable style={[styles.promoCard, {backgroundColor: palette.surface, borderColor: palette.border}]}>
       {imageUrl ? (
         <Image source={{uri: imageUrl}} style={styles.coverImage} resizeMode="cover" />
       ) : (
-        <View style={styles.promoMarker} />
+        <View style={[styles.promoMarker, {backgroundColor: palette.surfaceMuted, borderColor: palette.border}]} />
       )}
       <View style={styles.actionCopy}>
         <View style={styles.metaRow}>
-          <Text style={styles.marketName} numberOfLines={1}>
+          <Text style={[styles.marketName, {color: palette.accentDark}]} numberOfLines={1}>
             {marketName || 'ข่าวสารจากระบบ'}
           </Text>
-          <View style={styles.typeBadge}>
-            <Text style={styles.typeBadgeText}>{type === 'banner' ? 'โปรโมชัน' : 'ข่าวสาร'}</Text>
+          <View style={[styles.typeBadge, {backgroundColor: palette.surfaceMuted}]}>
+            <Text style={[styles.typeBadgeText, {color: palette.accentDark}]}>
+              {type === 'banner' ? 'โปรโมชัน' : 'ข่าวสาร'}
+            </Text>
           </View>
         </View>
-        <Text style={styles.actionTitle}>{title}</Text>
-        <Text style={styles.actionText} numberOfLines={2}>
+        <Text style={[styles.actionTitle, {color: palette.text}]}>{title}</Text>
+        <Text style={[styles.actionText, {color: palette.muted}]} numberOfLines={2}>
           {text || 'ไม่มีรายละเอียดเพิ่มเติม'}
         </Text>
-        <Text style={styles.timeText}>{relativeTime}</Text>
+        <Text style={[styles.timeText, {color: palette.muted}]}>{relativeTime}</Text>
       </View>
     </Pressable>
   );

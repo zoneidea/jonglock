@@ -6,6 +6,7 @@ import ApiLoadingState from '../components/ApiLoadingState';
 import PlaceholderPanel from '../components/PlaceholderPanel';
 import {getCartBookings, type CartBooking} from '../services/markets';
 import {colors, shadow} from '../theme/colors';
+import {useTheme} from '../theme/theme';
 import type {MobileUser} from '../types/user';
 
 function CartScreen({
@@ -15,6 +16,7 @@ function CartScreen({
   user: MobileUser | null;
   onCountChange?: (count: number) => void;
 }) {
+  const {palette} = useTheme();
   const [bookings, setBookings] = useState<CartBooking[]>([]);
   const [selectedBookingIds, setSelectedBookingIds] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
@@ -78,8 +80,8 @@ function CartScreen({
   if (!user) {
     return (
       <ScrollView
-        contentContainerStyle={styles.screenScroll}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.teal} />}>
+        contentContainerStyle={[styles.screenScroll, {backgroundColor: palette.background}]}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={palette.accent} />}>
         <PlaceholderPanel
           title="ตะกร้า"
           text="กรุณาเข้าสู่ระบบด้วย Gmail เพื่อดูรายการจองที่รอชำระเงิน"
@@ -90,43 +92,43 @@ function CartScreen({
 
   return (
     <ScrollView
-      contentContainerStyle={styles.screenScroll}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.teal} />}>
+      contentContainerStyle={[styles.screenScroll, {backgroundColor: palette.background}]}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={palette.accent} />}>
       <View style={styles.headerRow}>
         <View>
-          <Text style={styles.title}>ตะกร้า</Text>
-          <Text style={styles.subtitle}>รายการจองที่รอชำระเงิน</Text>
+          <Text style={[styles.title, {color: palette.text}]}>ตะกร้า</Text>
+          <Text style={[styles.subtitle, {color: palette.muted}]}>รายการจองที่รอชำระเงิน</Text>
         </View>
-        <Pressable onPress={handleRefresh} style={styles.refreshButton}>
-          <MaterialCommunityIcons name="refresh" size={20} color={colors.tealDark} />
+        <Pressable onPress={handleRefresh} style={[styles.refreshButton, {backgroundColor: palette.surface, borderColor: palette.border}]}>
+          <MaterialCommunityIcons name="refresh" size={20} color={palette.accentDark} />
         </Pressable>
       </View>
 
       {!loading && bookings.length > 0 ? (
         <View style={styles.selectionBar}>
           <Pressable onPress={toggleSelectAll} style={styles.selectAllButton}>
-            <View style={[styles.checkbox, allSelected && styles.checkboxActive]}>
+            <View style={[styles.checkbox, {borderColor: palette.border, backgroundColor: palette.surface}, allSelected && [styles.checkboxActive, {backgroundColor: palette.accent, borderColor: palette.accent}]]}>
               {allSelected ? (
-                <MaterialCommunityIcons name="check" size={14} color={colors.white} />
+                <MaterialCommunityIcons name="check" size={14} color={palette.inverseText} />
               ) : null}
             </View>
-            <Text style={styles.selectAllText}>{allSelected ? 'ยกเลิกทั้งหมด' : 'เลือกทั้งหมด'}</Text>
+            <Text style={[styles.selectAllText, {color: palette.text}]}>{allSelected ? 'ยกเลิกทั้งหมด' : 'เลือกทั้งหมด'}</Text>
           </Pressable>
-          <Text style={styles.selectionCountText}>{`เลือกแล้ว ${selectedCount} รายการ`}</Text>
+          <Text style={[styles.selectionCountText, {color: palette.muted}]}>{`เลือกแล้ว ${selectedCount} รายการ`}</Text>
         </View>
       ) : null}
 
-      {message ? <Text style={styles.messageText}>{message}</Text> : null}
+      {message ? <Text style={[styles.messageText, {color: palette.danger}]}>{message}</Text> : null}
 
       {loading ? (
         <ApiLoadingState label="กำลังโหลดตะกร้า" />
       ) : null}
 
       {!loading && bookings.length === 0 ? (
-        <View style={styles.emptyCard}>
-          <MaterialCommunityIcons name="cart-outline" size={34} color={colors.tealDark} />
-          <Text style={styles.emptyTitle}>ยังไม่มีรายการรอชำระเงิน</Text>
-          <Text style={styles.emptyText}>รายการที่จองแล้วแต่ยังไม่ชำระเงินจะแสดงที่นี่</Text>
+        <View style={[styles.emptyCard, {backgroundColor: palette.surface, borderColor: palette.border}]}>
+          <MaterialCommunityIcons name="cart-outline" size={34} color={palette.accentDark} />
+          <Text style={[styles.emptyTitle, {color: palette.text}]}>ยังไม่มีรายการรอชำระเงิน</Text>
+          <Text style={[styles.emptyText, {color: palette.muted}]}>รายการที่จองแล้วแต่ยังไม่ชำระเงินจะแสดงที่นี่</Text>
         </View>
       ) : null}
 

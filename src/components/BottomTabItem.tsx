@@ -3,6 +3,7 @@ import {Animated, Pressable, StyleSheet, View} from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import {colors} from '../theme/colors';
+import {useTheme} from '../theme/theme';
 import type {TabItem} from '../types/tabs';
 
 function BottomTabItem({
@@ -17,6 +18,7 @@ function BottomTabItem({
   onPress: () => void;
 }) {
   const progress = useRef(new Animated.Value(active ? 1 : 0)).current;
+  const {palette} = useTheme();
 
   useEffect(() => {
     Animated.spring(progress, {
@@ -47,21 +49,23 @@ function BottomTabItem({
           style={[
             styles.iconBubble,
             styles.roundBubble,
-            active && styles.iconBubbleActive,
+            active && [styles.iconBubbleActive, {backgroundColor: palette.accent, shadowColor: palette.accent}],
             {transform: [{translateY: lift}, {scale}]},
           ]}>
           <MaterialCommunityIcons
             name={item.icon}
             size={active ? 24 : 17}
-            color={active ? colors.white : colors.ink}
+            color={active ? palette.inverseText : palette.text}
           />
         </Animated.View>
-        <Animated.Text style={[styles.bottomTabText, {opacity: labelOpacity}]}>
+        <Animated.Text style={[styles.bottomTabText, {color: palette.text, opacity: labelOpacity}]}>
           {item.label}
         </Animated.Text>
         {badgeCount > 0 ? (
-          <View style={styles.badge}>
-            <Animated.Text style={styles.badgeText}>{badgeCount > 99 ? '99+' : badgeCount}</Animated.Text>
+          <View style={[styles.badge, {borderColor: palette.surface}]}>
+            <Animated.Text style={[styles.badgeText, {color: palette.inverseText}]}>
+              {badgeCount > 99 ? '99+' : badgeCount}
+            </Animated.Text>
           </View>
         ) : null}
       </View>

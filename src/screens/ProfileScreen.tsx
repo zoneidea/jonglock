@@ -25,6 +25,7 @@ import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityI
 import ApiLoadingState from '../components/ApiLoadingState';
 import GoogleIcon from '../components/GoogleIcon';
 import LabeledInput from '../components/LabeledInput';
+import {getBookingHistory, type BookingHistoryRecord} from '../services/markets';
 import {
   getAmphures,
   getProvinces,
@@ -34,6 +35,7 @@ import {
   type Subdistrict,
 } from '../services/locations';
 import {colors, shadow} from '../theme/colors';
+import {useTheme} from '../theme/theme';
 import type {MobileUser} from '../types/user';
 
 type ProfileTab = 'account' | 'address' | 'history' | 'settings';
@@ -81,9 +83,19 @@ function ProfileScreen({
   const [pdpaMarketing, setPdpaMarketing] = useState(false);
   const [pdpaTerms, setPdpaTerms] = useState(true);
   const [notification, setNotification] = useState(true);
-  const [themeMode, setThemeMode] = useState<'auto' | 'light' | 'dark'>('auto');
+  const [historyItems, setHistoryItems] = useState<BookingHistoryRecord[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyMessage, setHistoryMessage] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const [message, setMessage] = useState('');
+  const {themeMode, setThemeMode, palette, resolvedTheme} = useTheme();
+  const deleteButtonTone = useMemo(
+    () => ({
+      borderColor: resolvedTheme === 'dark' ? '#6b3040' : '#f3b9c6',
+      backgroundColor: resolvedTheme === 'dark' ? '#2f1820' : '#fff5f7',
+    }),
+    [resolvedTheme],
+  );
 
   const initials = useMemo(() => {
     const source = user?.name || user?.email || 'J';
@@ -137,23 +149,47 @@ function ProfileScreen({
     }
   }, [activeTab, loadProvinces, provinces.length]);
 
-  const handleRefresh = useCallback(async () => {
-    if (activeTab !== 'address') {
+  const loadHistory = useCallback(async () => {
+    if (!user?.email) {
+      setHistoryItems([]);
       return;
     }
+    setHistoryLoading(true);
+    setHistoryMessage('');
+    try {
+      setHistoryItems(await getBookingHistory({email: user.email, name: user.name}));
+    } catch {
+      setHistoryMessage('โหลดประวัติการจองไม่สำเร็จ');
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (activeTab === 'history' && historyItems.length === 0) {
+      loadHistory();
+    }
+  }, [activeTab, historyItems.length, loadHistory]);
+
+  const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await loadProvinces();
-      if (selectedProvince?.id) {
-        await loadAmphures(selectedProvince.id);
+      if (activeTab === 'address') {
+        await loadProvinces();
+        if (selectedProvince?.id) {
+          await loadAmphures(selectedProvince.id);
+        }
+        if (selectedAmphure?.id) {
+          await loadSubdistricts(selectedAmphure.id);
+        }
       }
-      if (selectedAmphure?.id) {
-        await loadSubdistricts(selectedAmphure.id);
+      if (activeTab === 'history') {
+        await loadHistory();
       }
     } finally {
       setRefreshing(false);
     }
-  }, [activeTab, loadAmphures, loadProvinces, loadSubdistricts, selectedAmphure, selectedProvince]);
+  }, [activeTab, loadAmphures, loadHistory, loadProvinces, loadSubdistricts, selectedAmphure, selectedProvince]);
 
   async function changeAvatar() {
     if (!user) {
@@ -217,17 +253,20 @@ function ProfileScreen({
     return (
       <Pressable onPress={changeAvatar} disabled={!user} style={styles.avatarWrap}>
         {user?.avatar ? (
-          <Image source={{uri: user.avatar}} style={[styles.avatarImage, {width: size, height: size}]} />
+          <Image
+            source={{uri: user.avatar}}
+            style={[styles.avatarImage, {width: size, height: size, borderColor: palette.surface}]}
+          />
         ) : (
           <LinearGradient
-            colors={['#dff8f4', '#ffffff']}
+            colors={resolvedTheme === 'dark' ? [palette.surfaceMuted, palette.surface] : ['#dff8f4', '#ffffff']}
             style={[styles.avatarImage, styles.avatarFallback, {width: size, height: size}]}>
-            <Text style={styles.avatarInitial}>{initials}</Text>
+            <Text style={[styles.avatarInitial, {color: palette.accentDark}]}>{initials}</Text>
           </LinearGradient>
         )}
         {user ? (
-          <View style={styles.avatarEdit}>
-            <MaterialCommunityIcons name="camera-outline" size={17} color={colors.white} />
+          <View style={[styles.avatarEdit, {backgroundColor: palette.accent, borderColor: palette.surface}]}>
+            <MaterialCommunityIcons name="camera-outline" size={17} color={palette.inverseText} />
           </View>
         ) : null}
       </Pressable>
@@ -238,22 +277,24 @@ function ProfileScreen({
     return (
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.screenScroll} keyboardShouldPersistTaps="handled">
-          <LinearGradient colors={['#e4fbf8', '#ffffff']} style={styles.guestHero}>
-            <View style={styles.guestLogo}>
-              <MaterialCommunityIcons name="storefront-outline" size={28} color={colors.tealDark} />
+          <LinearGradient
+            colors={resolvedTheme === 'dark' ? [palette.surfaceMuted, palette.surface] : ['#e4fbf8', '#ffffff']}
+            style={[styles.guestHero, {borderColor: palette.border}]}>
+            <View style={[styles.guestLogo, {backgroundColor: palette.surface}]}>
+              <MaterialCommunityIcons name="storefront-outline" size={28} color={palette.accentDark} />
             </View>
-            <Text style={styles.guestTitle}>เข้าสู่ระบบผู้ค้า</Text>
-            <Text style={styles.guestText}>
+            <Text style={[styles.guestTitle, {color: palette.text}]}>เข้าสู่ระบบผู้ค้า</Text>
+            <Text style={[styles.guestText, {color: palette.muted}]}>
               ใช้ Gmail เพื่อดูข้อมูลบัญชี ประวัติการจอง และตั้งค่าการใช้งานส่วนตัว
             </Text>
           </LinearGradient>
 
-          <View style={styles.guestCard}>
-            <Pressable onPress={continueWithGmail} style={styles.gmailButton}>
+          <View style={[styles.guestCard, {backgroundColor: palette.surface, borderColor: palette.border}]}>
+            <Pressable onPress={continueWithGmail} style={[styles.gmailButton, {backgroundColor: palette.surface, borderColor: palette.border}]}>
               <GoogleIcon />
-              <Text style={styles.gmailButtonText}>ดำเนินการต่อด้วย Gmail</Text>
+              <Text style={[styles.gmailButtonText, {color: palette.text}]}>ดำเนินการต่อด้วย Gmail</Text>
             </Pressable>
-            {message ? <Text style={styles.messageText}>{message}</Text> : null}
+            {message ? <Text style={[styles.messageText, {color: palette.danger}]}>{message}</Text> : null}
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -263,7 +304,7 @@ function ProfileScreen({
   function renderAccountTab() {
     return (
       <View style={styles.panel}>
-        <Text style={styles.panelTitle}>ข้อมูล Account</Text>
+        <Text style={[styles.panelTitle, {color: palette.text}]}>ข้อมูล Account</Text>
         <ReadonlyRow label="Gmail ที่เข้าใช้งาน" value={user?.email || '-'} icon="gmail" />
         <LabeledInput
           label="เบอร์มือถือ"
@@ -282,8 +323,8 @@ function ProfileScreen({
               keyboardType="number-pad"
             />
           </View>
-          <Pressable style={styles.secondaryButton}>
-            <Text style={styles.secondaryButtonText}>ส่ง OTP</Text>
+          <Pressable style={[styles.secondaryButton, {backgroundColor: palette.text}]}>
+            <Text style={[styles.secondaryButtonText, {color: palette.inverseText}]}>ส่ง OTP</Text>
           </Pressable>
         </View>
         <LabeledInput
@@ -300,20 +341,24 @@ function ProfileScreen({
           placeholder="กรอกรหัสผ่านอีกครั้ง"
           secureTextEntry
         />
-        <View style={styles.policyBox}>
+        <View style={[styles.policyBox, {backgroundColor: palette.surfaceMuted}]}>
           {passwordPolicy.map((item) => (
             <View key={item} style={styles.policyRow}>
-              <MaterialCommunityIcons name="check-circle-outline" size={16} color={colors.tealDark} />
-              <Text style={styles.policyText}>{item}</Text>
+              <MaterialCommunityIcons name="check-circle-outline" size={16} color={palette.accentDark} />
+              <Text style={[styles.policyText, {color: palette.muted}]}>{item}</Text>
             </View>
           ))}
         </View>
-        <Pressable style={styles.saveButton}>
-          <Text style={styles.saveButtonText}>บันทึกข้อมูลบัญชี</Text>
+        <Pressable style={[styles.saveButton, {backgroundColor: palette.accent}]}>
+          <Text style={[styles.saveButtonText, {color: palette.inverseText}]}>บันทึกข้อมูลบัญชี</Text>
         </Pressable>
-        <Pressable style={styles.deleteButton}>
-          <MaterialCommunityIcons name="trash-can-outline" size={18} color={colors.danger} />
-          <Text style={styles.deleteButtonText}>ลบบัญชี</Text>
+        <Pressable
+          style={[
+            styles.deleteButton,
+            deleteButtonTone,
+          ]}>
+          <MaterialCommunityIcons name="trash-can-outline" size={18} color={palette.danger} />
+          <Text style={[styles.deleteButtonText, {color: palette.danger}]}>ลบบัญชี</Text>
         </Pressable>
       </View>
     );
@@ -322,7 +367,7 @@ function ProfileScreen({
   function renderAddressTab() {
     return (
       <View style={styles.panel}>
-        <Text style={styles.panelTitle}>ข้อมูลที่อยู่</Text>
+        <Text style={[styles.panelTitle, {color: palette.text}]}>ข้อมูลที่อยู่</Text>
         <LabeledInput
           label="ที่อยู่"
           value={address}
@@ -411,7 +456,7 @@ function ProfileScreen({
         {locationLoading && provinces.length === 0 ? (
           <ApiLoadingState label="กำลังโหลดข้อมูลที่อยู่" style={styles.addressLoadingCard} />
         ) : null}
-        {locationMessage ? <Text style={styles.locationMessage}>{locationMessage}</Text> : null}
+        {locationMessage ? <Text style={[styles.locationMessage, {color: palette.danger}]}>{locationMessage}</Text> : null}
         <PdpaRow
           title="ยอมรับเงื่อนไข PDPA และนโยบายความเป็นส่วนตัว"
           value={pdpaTerms}
@@ -423,34 +468,35 @@ function ProfileScreen({
           onValueChange={setPdpaMarketing}
         />
         <Pressable style={styles.linkButton}>
-          <Text style={styles.linkButtonText}>อ่านรายละเอียด PDPA</Text>
-          <MaterialCommunityIcons name="open-in-new" size={16} color={colors.tealDark} />
+          <Text style={[styles.linkButtonText, {color: palette.accentDark}]}>อ่านรายละเอียด PDPA</Text>
+          <MaterialCommunityIcons name="open-in-new" size={16} color={palette.accentDark} />
         </Pressable>
-        <Pressable style={styles.saveButton}>
-          <Text style={styles.saveButtonText}>บันทึกที่อยู่</Text>
+        <Pressable style={[styles.saveButton, {backgroundColor: palette.accent}]}>
+          <Text style={[styles.saveButtonText, {color: palette.inverseText}]}>บันทึกที่อยู่</Text>
         </Pressable>
       </View>
     );
   }
 
   function renderHistoryTab() {
-    const histories = [
-      {id: 'T22605000336', market: 'อาคาร ชินวัตร 2', booth: 'B15', date: '18 พ.ค. 2569', status: 'ชำระแล้ว'},
-      {id: 'T22605000309', market: 'ตลาดนัดทดสอบ', booth: 'B10', date: '15 พ.ค. 2569', status: 'รอชำระเงิน'},
-      {id: 'T22604001738', market: 'อาคาร ชินวัตร 2', booth: 'B7', date: '5 พ.ค. 2569', status: 'หมดเวลา'},
-    ];
     return (
       <View style={styles.panel}>
-        <Text style={styles.panelTitle}>ประวัติการจอง</Text>
-        {histories.map((item) => (
-          <View key={item.id} style={styles.historyCard}>
-            <View>
-              <Text style={styles.historyId}>{item.id}</Text>
-              <Text style={styles.historyText}>{item.market}</Text>
-              <Text style={styles.historyText}>Booth {item.booth} · {item.date}</Text>
+        <Text style={[styles.panelTitle, {color: palette.text}]}>ประวัติการจอง</Text>
+        {historyLoading ? <ApiLoadingState label="กำลังโหลดประวัติการจอง" /> : null}
+        {historyMessage ? <Text style={[styles.locationMessage, {color: palette.danger}]}>{historyMessage}</Text> : null}
+        {!historyLoading && historyItems.length === 0 ? (
+          <Text style={[styles.optionStateText, {color: palette.muted}]}>ยังไม่มีประวัติการจอง</Text>
+        ) : null}
+        {historyItems.map((item) => (
+          <View key={item.publicId} style={[styles.historyCard, {borderColor: palette.border, backgroundColor: palette.surface}]}>
+            <View style={styles.historyCopy}>
+              <Text style={[styles.historyId, {color: palette.text}]}>{item.publicId}</Text>
+              <Text style={[styles.historyText, {color: palette.muted}]}>{item.marketName}</Text>
+              <Text style={[styles.historyText, {color: palette.muted}]}>{formatHistoryLine(item)}</Text>
+              <Text style={[styles.historyAmount, {color: palette.text}]}>{`${formatMoney(item.totalAmount)} บาท`}</Text>
             </View>
-            <View style={styles.statusPill}>
-              <Text style={styles.statusText}>{item.status}</Text>
+            <View style={[styles.statusPill, statusPillStyles(item.status, resolvedTheme)]}>
+              <Text style={[styles.statusText, statusTextStyles(item.status, palette)]}>{mapBookingStatus(item.status)}</Text>
             </View>
           </View>
         ))}
@@ -461,23 +507,31 @@ function ProfileScreen({
   function renderSettingsTab() {
     return (
       <View style={styles.panel}>
-        <Text style={styles.panelTitle}>การตั้งค่า</Text>
+        <Text style={[styles.panelTitle, {color: palette.text}]}>การตั้งค่า</Text>
         <SettingSwitch
           title="Notification"
           text="เปิดหรือปิดการแจ้งเตือนข่าวสารและสถานะการจอง"
           value={notification}
           onValueChange={setNotification}
         />
-        <View style={styles.settingBlock}>
-          <Text style={styles.settingTitle}>Theme</Text>
-          <Text style={styles.settingText}>เลือก Dark, Light หรือปรับตามเครื่อง</Text>
-          <View style={styles.themeSegment}>
+        <View style={[styles.settingBlock, {borderBottomColor: palette.border}]}>
+          <Text style={[styles.settingTitle, {color: palette.text}]}>Theme</Text>
+          <Text style={[styles.settingText, {color: palette.muted}]}>เลือก Dark, Light หรือปรับตามเครื่อง</Text>
+          <View style={[styles.themeSegment, {backgroundColor: palette.surfaceMuted}]}>
             {(['auto', 'light', 'dark'] as const).map((mode) => (
               <Pressable
                 key={mode}
                 onPress={() => setThemeMode(mode)}
-                style={[styles.themeButton, themeMode === mode && styles.themeButtonActive]}>
-                <Text style={[styles.themeText, themeMode === mode && styles.themeTextActive]}>
+                style={[
+                  styles.themeButton,
+                  themeMode === mode && [styles.themeButtonActive, {backgroundColor: palette.surface}],
+                ]}>
+                <Text
+                  style={[
+                    styles.themeText,
+                    {color: palette.muted},
+                    themeMode === mode && [styles.themeTextActive, {color: palette.text}],
+                  ]}>
                   {mode === 'auto' ? 'Auto' : mode === 'light' ? 'Light' : 'Dark'}
                 </Text>
               </Pressable>
@@ -485,12 +539,12 @@ function ProfileScreen({
           </View>
         </View>
         <Pressable style={styles.settingLink}>
-          <MaterialCommunityIcons name="help-circle-outline" size={23} color={colors.tealDark} />
+          <MaterialCommunityIcons name="help-circle-outline" size={23} color={palette.accentDark} />
           <View style={styles.settingCopy}>
-            <Text style={styles.settingTitle}>วิธีใช้งาน</Text>
-            <Text style={styles.settingText}>Mock หน้าคู่มือการจองและการชำระเงิน</Text>
+            <Text style={[styles.settingTitle, {color: palette.text}]}>วิธีใช้งาน</Text>
+            <Text style={[styles.settingText, {color: palette.muted}]}>Mock หน้าคู่มือการจองและการชำระเงิน</Text>
           </View>
-          <MaterialCommunityIcons name="chevron-right" size={24} color={colors.muted} />
+          <MaterialCommunityIcons name="chevron-right" size={24} color={palette.muted} />
         </Pressable>
       </View>
     );
@@ -502,35 +556,44 @@ function ProfileScreen({
 
   return (
     <ScrollView
-      contentContainerStyle={styles.screenScroll}
+      contentContainerStyle={[styles.screenScroll, {backgroundColor: palette.background}]}
       refreshControl={
-        activeTab === 'address'
-          ? <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.teal} />
+        activeTab === 'address' || activeTab === 'history'
+          ? <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={palette.accent} />
           : undefined
       }>
       <View style={styles.profileHero}>
-        <Pressable onPress={onLogout} style={styles.logoutButton}>
-          <MaterialCommunityIcons name="logout" size={20} color={colors.danger} />
+        <Pressable onPress={onLogout} style={[styles.logoutButton, {backgroundColor: palette.surface, borderColor: palette.border}]}>
+          <MaterialCommunityIcons name="logout" size={20} color={palette.danger} />
         </Pressable>
         {renderAvatar()}
-        <Text style={styles.profileName}>{user.name}</Text>
-        <View style={styles.profileBadge}>
-          <Text style={styles.profileBadgeText}>Gmail Connected</Text>
+        <Text style={[styles.profileName, {color: palette.text}]}>{user.name}</Text>
+        <View style={[styles.profileBadge, {backgroundColor: palette.accent}]}>
+          <Text style={[styles.profileBadgeText, {color: palette.inverseText}]}>Gmail Connected</Text>
         </View>
       </View>
 
-      <View style={styles.tabBar}>
+      <View style={[styles.tabBar, {backgroundColor: palette.surfaceMuted, borderColor: palette.surface}]}>
         {profileTabs.map((tab) => (
           <Pressable
             key={tab.key}
             onPress={() => setActiveTab(tab.key)}
-            style={[styles.profileTab, activeTab === tab.key && styles.profileTabActive]}>
+            style={[
+              styles.profileTab,
+              {backgroundColor: palette.surface},
+              activeTab === tab.key && [styles.profileTabActive, {backgroundColor: palette.accent}],
+            ]}>
             <MaterialCommunityIcons
               name={tab.icon}
               size={21}
-              color={activeTab === tab.key ? colors.white : colors.tealDark}
+              color={activeTab === tab.key ? palette.inverseText : palette.accentDark}
             />
-            <Text style={[styles.profileTabText, activeTab === tab.key && styles.profileTabTextActive]}>
+            <Text
+              style={[
+                styles.profileTabText,
+                {color: palette.accentDark},
+                activeTab === tab.key && [styles.profileTabTextActive, {color: palette.inverseText}],
+              ]}>
               {tab.label}
             </Text>
           </Pressable>
@@ -545,13 +608,99 @@ function ProfileScreen({
   );
 }
 
+function formatMoney(value: number) {
+  return new Intl.NumberFormat('th-TH', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(value || 0);
+}
+
+function formatShortDate(value?: string | null) {
+  if (!value) {
+    return '-';
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return String(value).slice(0, 10);
+  }
+  return new Intl.DateTimeFormat('th-TH', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(date);
+}
+
+function formatHistoryLine(item: BookingHistoryRecord) {
+  const boothLabel = item.boothNames.length ? item.boothNames.join(', ') : '-';
+  const firstDate = formatShortDate(item.firstBookingDate);
+  const lastDate = formatShortDate(item.lastBookingDate);
+  const dateLabel = item.firstBookingDate && item.lastBookingDate && item.firstBookingDate !== item.lastBookingDate
+    ? `${firstDate} - ${lastDate}`
+    : firstDate;
+  return `${boothLabel} • ${dateLabel}`;
+}
+
+function mapBookingStatus(status: string) {
+  switch (status) {
+    case 'paid':
+      return 'ชำระแล้ว';
+    case 'payment_processing':
+      return 'รอตรวจสอบ';
+    case 'pending_payment':
+      return 'รอชำระ';
+    case 'expired':
+      return 'หมดอายุ';
+    default:
+      return status || '-';
+  }
+}
+
+function statusPillStyles(status: string, resolvedTheme: 'light' | 'dark') {
+  switch (status) {
+    case 'paid':
+      return {
+        backgroundColor: resolvedTheme === 'dark' ? '#17392f' : '#e5faf3',
+      };
+    case 'payment_processing':
+      return {
+        backgroundColor: resolvedTheme === 'dark' ? '#433110' : '#fff5d8',
+      };
+    case 'expired':
+      return {
+        backgroundColor: resolvedTheme === 'dark' ? '#391a23' : '#ffe8ee',
+      };
+    default:
+      return {
+        backgroundColor: resolvedTheme === 'dark' ? '#1e3344' : colors.soft,
+      };
+  }
+}
+
+function statusTextStyles(
+  status: string,
+  palette: ReturnType<typeof useTheme>['palette'],
+) {
+  switch (status) {
+    case 'paid':
+      return {color: '#119c6b'};
+    case 'payment_processing':
+      return {color: '#cc8a00'};
+    case 'expired':
+      return {color: palette.danger};
+    default:
+      return {color: palette.accentDark};
+  }
+}
+
 function ReadonlyRow({label, value, icon}: {label: string; value: string; icon: string}) {
+  const {palette} = useTheme();
+
   return (
-    <View style={styles.readonlyRow}>
-      <MaterialCommunityIcons name={icon} size={22} color={colors.tealDark} />
+    <View style={[styles.readonlyRow, {backgroundColor: palette.surfaceMuted}]}>
+      <MaterialCommunityIcons name={icon} size={22} color={palette.accentDark} />
       <View style={styles.readonlyCopy}>
-        <Text style={styles.readonlyLabel}>{label}</Text>
-        <Text style={styles.readonlyValue}>{value}</Text>
+        <Text style={[styles.readonlyLabel, {color: palette.muted}]}>{label}</Text>
+        <Text style={[styles.readonlyValue, {color: palette.text}]}>{value}</Text>
       </View>
     </View>
   );
@@ -580,28 +729,40 @@ function LocationDropdown<T>({
   onPress: () => void;
   onSelect: (item: T) => void;
 }) {
+  const {palette} = useTheme();
+
   return (
     <View style={styles.dropdownWrap}>
-      <Pressable onPress={onPress} disabled={disabled} style={[styles.dropdown, disabled && styles.dropdownDisabled]}>
+      <Pressable
+        onPress={onPress}
+        disabled={disabled}
+        style={[
+          styles.dropdown,
+          {borderColor: palette.border, backgroundColor: palette.surface},
+          disabled && [styles.dropdownDisabled, {backgroundColor: palette.surfaceMuted}],
+        ]}>
         <View>
-          <Text style={styles.dropdownLabel}>{label}</Text>
-          <Text style={[styles.dropdownValue, disabled && styles.dropdownValueDisabled]}>{value}</Text>
+          <Text style={[styles.dropdownLabel, {color: palette.muted}]}>{label}</Text>
+          <Text style={[styles.dropdownValue, {color: palette.text}, disabled && styles.dropdownValueDisabled]}>{value}</Text>
         </View>
         <MaterialCommunityIcons
           name={expanded ? 'chevron-up' : 'chevron-down'}
           size={24}
-          color={disabled ? '#b8c8d4' : colors.muted}
+          color={disabled ? '#b8c8d4' : palette.muted}
         />
       </Pressable>
       {expanded ? (
-        <View style={styles.optionList}>
+        <View style={[styles.optionList, {borderColor: palette.border, backgroundColor: palette.surface}]}>
           {loading ? <ApiLoadingState label="กำลังโหลดข้อมูล" variant="inline" /> : null}
-          {!loading && options.length === 0 ? <Text style={styles.optionStateText}>ไม่พบข้อมูล</Text> : null}
+          {!loading && options.length === 0 ? <Text style={[styles.optionStateText, {color: palette.muted}]}>ไม่พบข้อมูล</Text> : null}
           {!loading ? (
             <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled">
               {options.map((item) => (
-                <Pressable key={String(getOptionKey(item))} onPress={() => onSelect(item)} style={styles.optionItem}>
-                  <Text style={styles.optionText}>{getOptionLabel(item)}</Text>
+                <Pressable
+                  key={String(getOptionKey(item))}
+                  onPress={() => onSelect(item)}
+                  style={[styles.optionItem, {borderBottomColor: palette.border}]}>
+                  <Text style={[styles.optionText, {color: palette.text}]}>{getOptionLabel(item)}</Text>
                 </Pressable>
               ))}
             </ScrollView>
@@ -621,14 +782,16 @@ function PdpaRow({
   value: boolean;
   onValueChange: (value: boolean) => void;
 }) {
+  const {palette} = useTheme();
+
   return (
-    <View style={styles.pdpaRow}>
-      <Text style={styles.pdpaText}>{title}</Text>
+    <View style={[styles.pdpaRow, {borderBottomColor: palette.border}]}>
+      <Text style={[styles.pdpaText, {color: palette.text}]}>{title}</Text>
       <Switch
         value={value}
         onValueChange={onValueChange}
-        thumbColor={value ? colors.white : '#f4f7fa'}
-        trackColor={{false: '#d7e3eb', true: colors.teal}}
+        thumbColor={value ? palette.inverseText : '#f4f7fa'}
+        trackColor={{false: '#d7e3eb', true: palette.accent}}
       />
     </View>
   );
@@ -645,18 +808,20 @@ function SettingSwitch({
   value: boolean;
   onValueChange: (value: boolean) => void;
 }) {
+  const {palette} = useTheme();
+
   return (
-    <View style={styles.settingLink}>
-      <MaterialCommunityIcons name="bell-outline" size={23} color={colors.tealDark} />
+    <View style={[styles.settingLink, {borderBottomColor: palette.border}]}>
+      <MaterialCommunityIcons name="bell-outline" size={23} color={palette.accentDark} />
       <View style={styles.settingCopy}>
-        <Text style={styles.settingTitle}>{title}</Text>
-        <Text style={styles.settingText}>{text}</Text>
+        <Text style={[styles.settingTitle, {color: palette.text}]}>{title}</Text>
+        <Text style={[styles.settingText, {color: palette.muted}]}>{text}</Text>
       </View>
       <Switch
         value={value}
         onValueChange={onValueChange}
-        thumbColor={value ? colors.white : '#f4f7fa'}
-        trackColor={{false: '#d7e3eb', true: colors.teal}}
+        thumbColor={value ? palette.inverseText : '#f4f7fa'}
+        trackColor={{false: '#d7e3eb', true: palette.accent}}
       />
     </View>
   );
@@ -1047,6 +1212,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 12,
   },
+  historyCopy: {
+    flex: 1,
+  },
   historyId: {
     color: colors.ink,
     fontSize: 15,
@@ -1058,6 +1226,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 17,
     fontWeight: '700',
+  },
+  historyAmount: {
+    marginTop: 8,
+    fontSize: 14,
+    fontWeight: '900',
   },
   statusPill: {
     alignSelf: 'flex-start',

@@ -6,6 +6,7 @@ import ApiLoadingState from '../components/ApiLoadingState';
 import PromoCard from '../components/PromoCard';
 import {getAnnouncements, type Announcement} from '../services/announcements';
 import {colors, shadow} from '../theme/colors';
+import {useTheme} from '../theme/theme';
 import type {MobileUser} from '../types/user';
 
 const MOCK_HOME_BANNER: Announcement = {
@@ -24,6 +25,7 @@ const MOCK_HOME_BANNER: Announcement = {
 };
 
 function HomeScreen({user}: {user: MobileUser | null}) {
+  const {palette} = useTheme();
   const [items, setItems] = useState<Announcement[]>([]);
   const [banners, setBanners] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
@@ -70,15 +72,15 @@ function HomeScreen({user}: {user: MobileUser | null}) {
 
   return (
     <ScrollView
-      contentContainerStyle={styles.homeScroll}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.teal} />}>
+      contentContainerStyle={[styles.homeScroll, {backgroundColor: palette.background}]}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={palette.accent} />}>
       <View style={styles.homeTopbar}>
         <View>
-          <Text style={styles.homeHello}>สวัสดี</Text>
-          <Text style={styles.homeName}>{user?.name || 'ผู้ใช้งาน'}</Text>
+          <Text style={[styles.homeHello, {color: palette.muted}]}>สวัสดี</Text>
+          <Text style={[styles.homeName, {color: palette.text}]}>{user?.name || 'ผู้ใช้งาน'}</Text>
         </View>
-        <View style={styles.userChip}>
-          <Text style={styles.userChipText}>{user ? 'Gmail' : 'Guest'}</Text>
+        <View style={[styles.userChip, {backgroundColor: palette.surface, borderColor: palette.border}]}>
+          <Text style={[styles.userChipText, {color: palette.accentDark}]}>{user ? 'Gmail' : 'Guest'}</Text>
         </View>
       </View>
 
@@ -96,8 +98,8 @@ function HomeScreen({user}: {user: MobileUser | null}) {
         )}
       </ScrollView>
 
-      <Text style={styles.sectionTitle}>ข่าวสารและโปรโมชั่น</Text>
-      {message ? <Text style={styles.messageText}>{message}</Text> : null}
+      <Text style={[styles.sectionTitle, {color: palette.text}]}>ข่าวสารและโปรโมชั่น</Text>
+      {message ? <Text style={[styles.messageText, {color: palette.danger}]}>{message}</Text> : null}
       <View style={styles.promoList}>
         {loading && feedItems.length === 0 ? (
           <ApiLoadingState label="กำลังโหลดข่าวสารและโปรโมชั่น" />
@@ -114,9 +116,9 @@ function HomeScreen({user}: {user: MobileUser | null}) {
           />
         ))}
         {!loading && feedItems.length === 0 ? (
-          <View style={styles.emptyCard}>
-            <Text style={styles.emptyTitle}>ยังไม่มีข่าวสารและโปรโมชั่น</Text>
-            <Text style={styles.emptyText}>รายการประกาศจากตลาดจะมาแสดงที่หน้านี้</Text>
+          <View style={[styles.emptyCard, {backgroundColor: palette.surface, borderColor: palette.border}]}>
+            <Text style={[styles.emptyTitle, {color: palette.text}]}>ยังไม่มีข่าวสารและโปรโมชั่น</Text>
+            <Text style={[styles.emptyText, {color: palette.muted}]}>รายการประกาศจากตลาดจะมาแสดงที่หน้านี้</Text>
           </View>
         ) : null}
       </View>

@@ -4,6 +4,7 @@ import {Animated, SafeAreaView, StatusBar, StyleSheet, View} from 'react-native'
 import BottomTabItem from '../components/BottomTabItem';
 import {getCartBookings} from '../services/markets';
 import {colors} from '../theme/colors';
+import {useTheme} from '../theme/theme';
 import {TabKey, tabs} from '../types/tabs';
 import type {MobileUser} from '../types/user';
 import BookingScreen from './BookingScreen';
@@ -26,6 +27,7 @@ function AppShell({
   const [bookingTabHidden, setBookingTabHidden] = useState(false);
   const [cartItemCount, setCartItemCount] = useState(0);
   const contentOpacity = useRef(new Animated.Value(1)).current;
+  const {palette, resolvedTheme} = useTheme();
 
   const refreshCartCount = useCallback(async () => {
     if (!user?.email) {
@@ -89,13 +91,16 @@ function AppShell({
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
+    <SafeAreaView style={[styles.safe, {backgroundColor: palette.background}]}>
+      <StatusBar
+        barStyle={resolvedTheme === 'dark' ? 'light-content' : 'dark-content'}
+        backgroundColor={palette.background}
+      />
       <Animated.View style={[styles.shellContent, {opacity: contentOpacity}]}>
         {renderTabContent()}
       </Animated.View>
       {!(activeTab === 'booking' && bookingTabHidden) ? (
-        <View style={styles.bottomBar}>
+        <View style={[styles.bottomBar, {backgroundColor: palette.surface, borderColor: palette.border}]}>
           {tabs.map((tab) => (
             <BottomTabItem
               key={tab.key}

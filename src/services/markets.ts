@@ -158,6 +158,25 @@ export type CartBooking = {
   accessories: MarketAccessory[];
 };
 
+export type BookingHistoryRecord = {
+  bookingId: number;
+  publicId: string;
+  organizationId: number;
+  marketId: number;
+  marketName: string;
+  status: string;
+  totalAmount: number;
+  discountAmount: number;
+  vatAmount: number;
+  createdAt?: string | null;
+  expiresAt?: string | null;
+  paidAt?: string | null;
+  firstBookingDate?: string | null;
+  lastBookingDate?: string | null;
+  bookingDates: string[];
+  boothNames: string[];
+};
+
 export type BookingConfirmResult = {
   bookingId: number;
   publicId: string;
@@ -300,6 +319,17 @@ function normalizeCartBooking(booking: CartBooking): CartBooking {
   };
 }
 
+function normalizeBookingHistory(record: BookingHistoryRecord): BookingHistoryRecord {
+  return {
+    ...record,
+    totalAmount: Number(record.totalAmount || 0),
+    discountAmount: Number(record.discountAmount || 0),
+    vatAmount: Number(record.vatAmount || 0),
+    bookingDates: record.bookingDates || [],
+    boothNames: record.boothNames || [],
+  };
+}
+
 async function request<T>(path: string, params?: QueryParams): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}${buildQuery(params)}`);
   if (!response.ok) {
@@ -433,4 +463,9 @@ export async function confirmBooking(bookingId: number, user: BoothHoldUser) {
 export async function getCartBookings(user: BoothHoldUser) {
   const bookings = await post<CartBooking[]>('/public/bookings/cart', {user});
   return bookings.map(normalizeCartBooking);
+}
+
+export async function getBookingHistory(user: BoothHoldUser) {
+  const bookings = await post<BookingHistoryRecord[]>('/public/bookings/history', {user});
+  return bookings.map(normalizeBookingHistory);
 }

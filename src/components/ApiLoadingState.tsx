@@ -2,6 +2,7 @@ import React, {useEffect, useRef} from 'react';
 import {Animated, Easing, StyleSheet, Text, View, type ViewStyle} from 'react-native';
 
 import {colors, shadow} from '../theme/colors';
+import {useTheme} from '../theme/theme';
 
 function ApiLoadingState({
   label = 'กำลังโหลดข้อมูล',
@@ -13,6 +14,7 @@ function ApiLoadingState({
   style?: ViewStyle;
 }) {
   const progress = useRef(new Animated.Value(0)).current;
+  const {palette} = useTheme();
 
   useEffect(() => {
     const animation = Animated.loop(
@@ -33,7 +35,15 @@ function ApiLoadingState({
   }, [progress]);
 
   return (
-    <View style={[styles.base, variant === 'card' ? styles.card : styles.inline, style]}>
+    <View
+      style={[
+        styles.base,
+        variant === 'card' ? styles.card : styles.inline,
+        variant === 'card'
+          ? {borderColor: palette.border, backgroundColor: palette.surface}
+          : null,
+        style,
+      ]}>
       <View style={styles.dotsRow}>
         {[0, 1, 2].map((index) => {
           const opacity = progress.interpolate({
@@ -51,6 +61,7 @@ function ApiLoadingState({
               style={[
                 styles.dot,
                 {
+                  backgroundColor: palette.accent,
                   opacity,
                   transform: [{scale}],
                 },
@@ -59,7 +70,7 @@ function ApiLoadingState({
           );
         })}
       </View>
-      <Text style={[styles.label, variant === 'inline' && styles.inlineLabel]}>{label}</Text>
+      <Text style={[styles.label, {color: palette.muted}, variant === 'inline' && styles.inlineLabel]}>{label}</Text>
     </View>
   );
 }
