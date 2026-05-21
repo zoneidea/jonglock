@@ -8,7 +8,13 @@ import {getCartBookings, type CartBooking} from '../services/markets';
 import {colors, shadow} from '../theme/colors';
 import type {MobileUser} from '../types/user';
 
-function CartScreen({user}: {user: MobileUser | null}) {
+function CartScreen({
+  user,
+  onCountChange,
+}: {
+  user: MobileUser | null;
+  onCountChange?: (count: number) => void;
+}) {
   const [bookings, setBookings] = useState<CartBooking[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
@@ -16,6 +22,7 @@ function CartScreen({user}: {user: MobileUser | null}) {
   const loadCart = useCallback(async () => {
     if (!user?.email) {
       setBookings([]);
+      onCountChange?.(0);
       setLoading(false);
       return;
     }
@@ -23,13 +30,15 @@ function CartScreen({user}: {user: MobileUser | null}) {
     setLoading(true);
     setMessage('');
     try {
-      setBookings(await getCartBookings({email: user.email, name: user.name}));
+      const nextBookings = await getCartBookings({email: user.email, name: user.name});
+      setBookings(nextBookings);
+      onCountChange?.(nextBookings.length);
     } catch (error) {
       setMessage((error as Error).message || 'ยังไม่สามารถโหลดตระกร้าได้');
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [onCountChange, user]);
 
   useEffect(() => {
     loadCart();
@@ -61,10 +70,7 @@ function CartScreen({user}: {user: MobileUser | null}) {
       {message ? <Text style={styles.messageText}>{message}</Text> : null}
 
       {loading ? (
-        <>
-          <ApiLoadingState label="กำลังโหลดตระกร้า" />
-          <ApiLoadingState label="กำลังโหลดตระกร้า" />
-        </>
+        <ApiLoadingState label="กำลังโหลดตระกร้า" />
       ) : null}
 
       {!loading && bookings.length === 0 ? (

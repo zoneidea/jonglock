@@ -2,6 +2,7 @@ import React, {useCallback, useRef, useState} from 'react';
 import {Animated, SafeAreaView, StatusBar, StyleSheet, View} from 'react-native';
 
 import BottomTabItem from '../components/BottomTabItem';
+import {getCartBookings} from '../services/markets';
 import {colors} from '../theme/colors';
 import {TabKey, tabs} from '../types/tabs';
 import type {MobileUser} from '../types/user';
@@ -23,7 +24,25 @@ function AppShell({
 }) {
   const [activeTab, setActiveTab] = useState<TabKey>('home');
   const [bookingTabHidden, setBookingTabHidden] = useState(false);
+  const [cartItemCount, setCartItemCount] = useState(0);
   const contentOpacity = useRef(new Animated.Value(1)).current;
+
+  const refreshCartCount = useCallback(async () => {
+    if (!user?.email) {
+      setCartItemCount(0);
+      return;
+    }
+    try {
+      const bookings = await getCartBookings({email: user.email, name: user.name});
+      setCartItemCount(bookings.length);
+    } catch {
+      setCartItemCount(0);
+    }
+  }, [user]);
+
+  React.useEffect(() => {
+    refreshCartCount();
+  }, [refreshCartCount]);
 
   const changeTab = useCallback((nextTab: TabKey) => {
     if (nextTab === activeTab) {
@@ -51,11 +70,13 @@ function AppShell({
           user={user}
           onRequireAuth={() => changeTab('profile')}
           onBottomTabHiddenChange={setBookingTabHidden}
+          onCartChanged={refreshCartCount}
+          onOpenCart={() => changeTab('cart')}
         />
       );
     }
     if (activeTab === 'cart') {
-      return <CartScreen user={user} />;
+      return <CartScreen user={user} onCountChange={setCartItemCount} />;
     }
     return (
       <ProfileScreen
@@ -80,6 +101,7 @@ function AppShell({
               key={tab.key}
               item={tab}
               active={tab.key === activeTab}
+              badgeCount={tab.key === 'cart' ? cartItemCount : 0}
               onPress={() => changeTab(tab.key)}
             />
           ))}

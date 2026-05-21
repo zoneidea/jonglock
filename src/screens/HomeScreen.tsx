@@ -88,10 +88,7 @@ function HomeScreen({user}: {user: MobileUser | null}) {
       {message ? <Text style={styles.messageText}>{message}</Text> : null}
       <View style={styles.promoList}>
         {loading && feedItems.length === 0 ? (
-          <>
-            <ApiLoadingState label="กำลังโหลดข่าวสารและโปรโมชั่น" />
-            <ApiLoadingState label="กำลังโหลดข่าวสารและโปรโมชั่น" />
-          </>
+          <ApiLoadingState label="กำลังโหลดข่าวสารและโปรโมชั่น" />
         ) : null}
         {feedItems.map((item) => (
           <PromoCard

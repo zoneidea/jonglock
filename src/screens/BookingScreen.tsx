@@ -78,10 +78,14 @@ function BookingScreen({
   user,
   onRequireAuth,
   onBottomTabHiddenChange,
+  onCartChanged,
+  onOpenCart,
 }: {
   user: MobileUser | null;
   onRequireAuth: () => void;
   onBottomTabHiddenChange?: (hidden: boolean) => void;
+  onCartChanged?: () => void;
+  onOpenCart?: () => void;
 }) {
   const [query, setQuery] = useState('');
   const [markets, setMarkets] = useState<Market[]>([]);
@@ -274,6 +278,16 @@ function BookingScreen({
           setBookingHold(null);
           setReservedBooth(null);
         }}
+        onConfirmed={() => {
+          setSelectedMarket(null);
+          setFloorPlanMarket(null);
+          setSelectedFloorPlan(null);
+          setSelectedBookingDates([]);
+          setBookingHold(null);
+          setReservedBooth(null);
+          onCartChanged?.();
+          onOpenCart?.();
+        }}
       />
     );
   }
@@ -375,10 +389,7 @@ function BookingScreen({
         </View>
         <View style={styles.marketList}>
           {loading && filteredMarkets.length === 0 ? (
-            <>
-              <ApiLoadingState label="กำลังโหลดรายการตลาด" />
-              <ApiLoadingState label="กำลังโหลดรายการตลาด" />
-            </>
+            <ApiLoadingState label="กำลังโหลดรายการตลาด" />
           ) : null}
           {filteredMarkets.map((market) => (
             <MarketListCard key={market.id} market={market} onPress={() => selectMarket(market)} />

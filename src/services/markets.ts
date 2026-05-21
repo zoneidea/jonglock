@@ -158,6 +158,16 @@ export type CartBooking = {
   accessories: MarketAccessory[];
 };
 
+export type BookingConfirmResult = {
+  bookingId: number;
+  publicId: string;
+  organizationId: number;
+  marketId: number;
+  status: string;
+  expiresAt?: string | null;
+  totalAmount: number;
+};
+
 type CachedValue<T> = {
   value: T;
   expiresAt: number;
@@ -410,6 +420,14 @@ export async function updateBookingSummary(
     couponCode,
   });
   return normalizeSummary(summary);
+}
+
+export async function confirmBooking(bookingId: number, user: BoothHoldUser) {
+  const result = await post<BookingConfirmResult>(`/public/bookings/${bookingId}/confirm`, {user});
+  return {
+    ...result,
+    totalAmount: Number(result.totalAmount || 0),
+  };
 }
 
 export async function getCartBookings(user: BoothHoldUser) {

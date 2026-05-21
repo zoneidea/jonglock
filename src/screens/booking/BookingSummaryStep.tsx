@@ -13,6 +13,7 @@ import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityI
 import AppDialog from '../../components/AppDialog';
 import ApiLoadingState from '../../components/ApiLoadingState';
 import {
+  confirmBooking,
   getMarketAccessories,
   updateBookingSummary,
   type BookingSummary,
@@ -32,6 +33,7 @@ function BookingSummaryStep({
   hold,
   user,
   onBack,
+  onConfirmed,
 }: {
   market: Market;
   floorPlan: FloorPlan;
@@ -39,6 +41,7 @@ function BookingSummaryStep({
   hold: BoothHoldResult;
   user: MobileUser | null;
   onBack: () => void;
+  onConfirmed?: () => void;
 }) {
   const [accessories, setAccessories] = useState<MarketAccessory[]>([]);
   const [quantities, setQuantities] = useState<Record<number, number>>({});
@@ -47,8 +50,11 @@ function BookingSummaryStep({
   const [summary, setSummary] = useState<BookingSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [calculating, setCalculating] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const [message, setMessage] = useState('');
   const [dialogVisible, setDialogVisible] = useState(false);
+
+  const actionDisabled = !summary || calculating || confirming;
 
   const selectedAccessories = useMemo(
     () => Object.entries(quantities)
@@ -140,6 +146,26 @@ function BookingSummaryStep({
     refreshSummary(code);
   }, [couponInput, refreshSummary]);
 
+  const confirmReservation = useCallback(async () => {
+    if (!user?.email) {
+      setMessage('กรุณาเข้าสู่ระบบก่อนยืนยันการจอง');
+      return;
+    }
+    if (!summary) {
+      return;
+    }
+    setConfirming(true);
+    setMessage('');
+    try {
+      await confirmBooking(hold.bookingId, {email: user.email, name: user.name});
+      setDialogVisible(true);
+    } catch (error) {
+      setMessage((error as Error).message || 'ยังไม่สามารถยืนยันการจองได้');
+    } finally {
+      setConfirming(false);
+    }
+  }, [hold.bookingId, summary, user]);
+
   return (
     <View style={styles.flex}>
       <ScrollView contentContainerStyle={styles.screenScroll} keyboardShouldPersistTaps="handled">
@@ -175,10 +201,7 @@ function BookingSummaryStep({
         {message ? <Text style={styles.messageText}>{message}</Text> : null}
 
         {loading ? (
-          <>
-            <ApiLoadingState label="กำลังโหลดสรุปรายการ" />
-            <ApiLoadingState label="กำลังโหลดบริการเสริม" />
-          </>
+          <ApiLoadingState label="กำลังโหลดสรุปรายการ" />
         ) : (
           <>
             <SectionTitle title="วันที่จอง" caption={`${summary?.items.length || hold.lockedDates.length} วัน`} />
@@ -241,21 +264,27 @@ function BookingSummaryStep({
       </ScrollView>
 
       <View style={styles.footerBar}>
-        <Pressable disabled={!summary || calculating} onPress={() => setDialogVisible(true)} style={styles.payButton}>
-          <Text style={styles.payButtonText}>ไปชำระเงิน</Text>
+        <Pressable
+          disabled={actionDisabled}
+          onPress={confirmReservation}
+          style={[styles.payButton, actionDisabled && styles.payButtonDisabled]}>
+          <Text style={styles.payButtonText}>{confirming ? 'กำลังยืนยัน...' : 'ยืนยันการจอง'}</Text>
           <MaterialCommunityIcons name="chevron-right" size={20} color={colors.white} />
         </Pressable>
       </View>
 
       <AppDialog
         visible={dialogVisible}
-        icon="credit-card-outline"
-        title="เตรียมไปขั้นตอนชำระเงิน"
-        message="ขั้นตอนถัดไปจะเชื่อมกับระบบชำระเงินของแอปฯ"
-        cancelLabel="ปิด"
-        confirmLabel="ตกลง"
+        icon="cart-check"
+        title="ยืนยันการจองสำเร็จ"
+        message="ระบบเพิ่มรายการนี้ไปที่ตะกร้าแล้ว กรุณาชำระเงินภายในเวลาที่กำหนด"
+        cancelLabel="อยู่หน้านี้"
+        confirmLabel="ไปตะกร้า"
         onCancel={() => setDialogVisible(false)}
-        onConfirm={() => setDialogVisible(false)}
+        onConfirm={() => {
+          setDialogVisible(false);
+          onConfirmed?.();
+        }}
       />
     </View>
   );
@@ -677,6 +706,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     ...shadow,
+  },
+  payButtonDisabled: {
+    opacity: 0.55,
   },
   payButtonText: {
     color: colors.white,

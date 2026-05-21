@@ -229,10 +229,7 @@ function BoothSelectionStep({
 
         <View style={styles.boothGrid}>
           {loading && booths.length === 0 ? (
-            <>
-              <ApiLoadingState label="กำลังโหลดบูธ" style={styles.boothLoadingCard} />
-              <ApiLoadingState label="กำลังโหลดบูธ" style={styles.boothLoadingCard} />
-            </>
+            <ApiLoadingState label="กำลังโหลดบูธ" style={styles.boothLoadingCard} />
           ) : null}
           {effectiveBooths.map((booth) => (
             <BoothTile

@@ -74,10 +74,7 @@ function FloorPlanSelectionStep({
 
         <View style={styles.planList}>
           {loading && floorPlans.length === 0 ? (
-            <>
-              <ApiLoadingState label="กำลังโหลดแผนผัง/โซน" />
-              <ApiLoadingState label="กำลังโหลดแผนผัง/โซน" />
-            </>
+            <ApiLoadingState label="กำลังโหลดแผนผัง/โซน" />
           ) : null}
           {floorPlans.map((floorPlan) => (
             <FloorPlanCard

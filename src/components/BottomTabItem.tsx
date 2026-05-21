@@ -8,10 +8,12 @@ import type {TabItem} from '../types/tabs';
 function BottomTabItem({
   item,
   active,
+  badgeCount = 0,
   onPress,
 }: {
   item: TabItem;
   active: boolean;
+  badgeCount?: number;
   onPress: () => void;
 }) {
   const progress = useRef(new Animated.Value(active ? 1 : 0)).current;
@@ -57,6 +59,11 @@ function BottomTabItem({
         <Animated.Text style={[styles.bottomTabText, {opacity: labelOpacity}]}>
           {item.label}
         </Animated.Text>
+        {badgeCount > 0 ? (
+          <View style={styles.badge}>
+            <Animated.Text style={styles.badgeText}>{badgeCount > 99 ? '99+' : badgeCount}</Animated.Text>
+          </View>
+        ) : null}
       </View>
     </Pressable>
   );
@@ -71,6 +78,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'flex-end',
     paddingBottom: 8,
+    position: 'relative',
   },
   iconBubble: {
     width: 48,
@@ -95,6 +103,26 @@ const styles = StyleSheet.create({
     color: colors.ink,
     fontSize: 9,
     fontWeight: '800',
+    lineHeight: 10,
+  },
+  badge: {
+    position: 'absolute',
+    top: 4,
+    right: 12,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#ef4444',
+    borderWidth: 2,
+    borderColor: colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  badgeText: {
+    color: colors.white,
+    fontSize: 9,
+    fontWeight: '900',
     lineHeight: 10,
   },
 });
