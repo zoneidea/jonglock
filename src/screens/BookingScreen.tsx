@@ -25,6 +25,7 @@ import {
 } from '../services/markets';
 import {colors, shadow} from '../theme/colors';
 import type {MobileUser} from '../types/user';
+import BookingDateSelectionStep from './booking/BookingDateSelectionStep';
 import BoothSelectionStep from './booking/BoothSelectionStep';
 import FloorPlanSelectionStep from './booking/FloorPlanSelectionStep';
 
@@ -42,6 +43,7 @@ function BookingScreen({
   const [selectedMarket, setSelectedMarket] = useState<Market | null>(null);
   const [floorPlanMarket, setFloorPlanMarket] = useState<Market | null>(null);
   const [selectedFloorPlan, setSelectedFloorPlan] = useState<FloorPlan | null>(null);
+  const [selectedBookingDates, setSelectedBookingDates] = useState<string[]>([]);
   const [marketDetailLoading, setMarketDetailLoading] = useState(false);
   const [previewImage, setPreviewImage] = useState('');
   const [scannerOpen, setScannerOpen] = useState(false);
@@ -138,12 +140,24 @@ function BookingScreen({
     },
   });
 
-  if (floorPlanMarket && selectedFloorPlan) {
+  if (floorPlanMarket && selectedFloorPlan && selectedBookingDates.length > 0) {
     return (
       <BoothSelectionStep
         market={floorPlanMarket}
         floorPlan={selectedFloorPlan}
+        selectedDates={selectedBookingDates}
+        onBack={() => setSelectedBookingDates([])}
+      />
+    );
+  }
+
+  if (floorPlanMarket && selectedFloorPlan) {
+    return (
+      <BookingDateSelectionStep
+        market={floorPlanMarket}
+        floorPlan={selectedFloorPlan}
         onBack={() => setSelectedFloorPlan(null)}
+        onConfirm={setSelectedBookingDates}
       />
     );
   }
@@ -153,7 +167,10 @@ function BookingScreen({
       <FloorPlanSelectionStep
         market={floorPlanMarket}
         onBack={() => setFloorPlanMarket(null)}
-        onSelectFloorPlan={setSelectedFloorPlan}
+        onSelectFloorPlan={(floorPlan) => {
+          setSelectedBookingDates([]);
+          setSelectedFloorPlan(floorPlan);
+        }}
       />
     );
   }

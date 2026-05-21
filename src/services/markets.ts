@@ -53,6 +53,10 @@ export type Booth = {
   grossPrice: number;
   status: string;
   availabilityStatus: BoothAvailabilityStatus;
+  availabilityDates?: BoothDateAvailability[];
+  availableDateCount?: number;
+  unavailableDateCount?: number;
+  selectedDateCount?: number;
 };
 
 export type BoothDateAvailability = {
@@ -109,6 +113,9 @@ function normalizeBooth(booth: Booth): Booth {
     ...booth,
     price: Number(booth.price || 0),
     grossPrice: Number(booth.grossPrice || booth.price || 0),
+    availableDateCount: Number(booth.availableDateCount || 0),
+    unavailableDateCount: Number(booth.unavailableDateCount || 0),
+    selectedDateCount: Number(booth.selectedDateCount || 0),
   };
 }
 
@@ -153,6 +160,11 @@ export async function getMarketFloorPlans(marketId: number) {
 
 export async function getFloorPlanBooths(floorPlanId: number, date?: string) {
   const booths = await request<Booth[]>(`/public/floor-plans/${floorPlanId}/booths`, {date});
+  return booths.map(normalizeBooth);
+}
+
+export async function getFloorPlanBoothAvailability(floorPlanId: number, dates: string[]) {
+  const booths = await post<Booth[]>(`/public/floor-plans/${floorPlanId}/booths/availability`, {dates});
   return booths.map(normalizeBooth);
 }
 
