@@ -610,7 +610,7 @@ function ProfileScreen({
 
 function formatMoney(value: number) {
   return new Intl.NumberFormat('th-TH', {
-    minimumFractionDigits: 0,
+    minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(value || 0);
 }
