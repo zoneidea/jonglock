@@ -2,9 +2,10 @@ import React, {useCallback, useEffect, useState} from 'react';
 import {Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View} from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
+import AppDialog from '../components/AppDialog';
 import ApiLoadingState from '../components/ApiLoadingState';
 import PlaceholderPanel from '../components/PlaceholderPanel';
-import {getCartBookings, type CartBooking} from '../services/markets';
+import {cancelCartBooking, getCartBookings, type CartBooking} from '../services/markets';
 import {colors, shadow} from '../theme/colors';
 import {useTheme} from '../theme/theme';
 import type {MobileUser} from '../types/user';
@@ -21,6 +22,8 @@ function CartScreen({
   const [selectedBookingIds, setSelectedBookingIds] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [cancelTarget, setCancelTarget] = useState<CartBooking | null>(null);
+  const [cancellingBookingId, setCancellingBookingId] = useState<number | null>(null);
   const [message, setMessage] = useState('');
 
   const loadCart = useCallback(async () => {
@@ -76,6 +79,24 @@ function CartScreen({
 
   const selectedCount = selectedBookingIds.length;
   const allSelected = bookings.length > 0 && selectedCount === bookings.length;
+
+  const handleCancelBooking = useCallback(async () => {
+    if (!cancelTarget || !user?.email) {
+      return;
+    }
+    setCancellingBookingId(cancelTarget.bookingId);
+    setMessage('');
+    try {
+      await cancelCartBooking(cancelTarget.bookingId, {email: user.email, name: user.name});
+      setCancelTarget(null);
+      setMessage('ยกเลิกรายการนี้แล้ว');
+      await loadCart();
+    } catch (error) {
+      setMessage((error as Error).message || 'ยังไม่สามารถยกเลิกรายการได้');
+    } finally {
+      setCancellingBookingId(null);
+    }
+  }, [cancelTarget, loadCart, user?.email, user?.name]);
 
   if (!user) {
     return (
@@ -139,9 +160,26 @@ function CartScreen({
             booking={booking}
             selected={selectedBookingIds.includes(booking.bookingId)}
             onToggleSelect={() => toggleBookingSelection(booking.bookingId)}
+            onCancel={() => setCancelTarget(booking)}
+            cancelling={cancellingBookingId === booking.bookingId}
           />
         ))}
       </View>
+
+      <AppDialog
+        visible={Boolean(cancelTarget)}
+        icon="trash-can-outline"
+        title="ยกเลิกรายการในตะกร้า"
+        message={cancelTarget ? `ต้องการยกเลิก ${cancelTarget.publicId} ใช่หรือไม่ รายการนี้จะถูกบันทึกเป็นสถานะยกเลิกของลูกค้า` : ''}
+        cancelLabel="ไม่ยกเลิก"
+        confirmLabel={cancellingBookingId ? 'กำลังยกเลิก...' : 'ยืนยันยกเลิก'}
+        onCancel={() => {
+          if (!cancellingBookingId) {
+            setCancelTarget(null);
+          }
+        }}
+        onConfirm={handleCancelBooking}
+      />
     </ScrollView>
   );
 }
@@ -150,10 +188,14 @@ function CartBookingCard({
   booking,
   selected,
   onToggleSelect,
+  onCancel,
+  cancelling,
 }: {
   booking: CartBooking;
   selected: boolean;
   onToggleSelect: () => void;
+  onCancel: () => void;
+  cancelling: boolean;
 }) {
   return (
     <Pressable onPress={onToggleSelect} style={[styles.bookingCard, selected && styles.bookingCardSelected]}>
@@ -177,8 +219,13 @@ function CartBookingCard({
           <Text style={styles.bookingCode}>{booking.publicId}</Text>
           <Text style={styles.expiresText}>{`หมดเวลา ${formatShortDateTime(booking.expiresAt)}`}</Text>
         </View>
-        <View style={styles.statusPill}>
-          <Text style={styles.statusText}>รอชำระ</Text>
+        <View style={styles.cardActions}>
+          <View style={styles.statusPill}>
+            <Text style={styles.statusText}>รอชำระ</Text>
+          </View>
+          <Pressable onPress={onCancel} disabled={cancelling} style={[styles.cancelButton, cancelling && styles.cancelButtonDisabled]}>
+            <MaterialCommunityIcons name="trash-can-outline" size={16} color={colors.danger} />
+          </Pressable>
         </View>
       </View>
 
@@ -385,10 +432,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
   },
+  cardActions: {
+    alignItems: 'flex-end',
+    gap: 8,
+  },
   statusText: {
     color: '#9a6500',
     fontSize: 11,
     fontWeight: '900',
+  },
+  cancelButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#f3b9c6',
+    backgroundColor: '#fff5f7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelButtonDisabled: {
+    opacity: 0.5,
   },
   itemList: {
     marginTop: 14,

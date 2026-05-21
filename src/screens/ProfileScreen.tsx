@@ -1041,6 +1041,8 @@ function mapBookingStatus(status: string) {
       return 'รอตรวจสอบ';
     case 'pending_payment':
       return 'รอชำระ';
+    case 'cancelled':
+      return 'ยกเลิก';
     case 'expired':
       return 'หมดอายุ';
     default:
@@ -1062,6 +1064,10 @@ function statusPillStyles(status: string, resolvedTheme: 'light' | 'dark') {
       return {
         backgroundColor: resolvedTheme === 'dark' ? '#391a23' : '#ffe8ee',
       };
+    case 'cancelled':
+      return {
+        backgroundColor: resolvedTheme === 'dark' ? '#35262a' : '#f3ecef',
+      };
     default:
       return {
         backgroundColor: resolvedTheme === 'dark' ? '#1e3344' : colors.soft,
@@ -1079,6 +1085,8 @@ function statusTextStyles(
     case 'payment_processing':
       return {color: '#cc8a00'};
     case 'expired':
+      return {color: palette.danger};
+    case 'cancelled':
       return {color: palette.danger};
     default:
       return {color: palette.accentDark};

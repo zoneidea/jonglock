@@ -187,6 +187,15 @@ export type BookingConfirmResult = {
   totalAmount: number;
 };
 
+export type BookingCancelResult = {
+  bookingId: number;
+  publicId: string;
+  organizationId: number;
+  marketId: number;
+  status: string;
+  totalAmount: number;
+};
+
 type CachedValue<T> = {
   value: T;
   expiresAt: number;
@@ -463,6 +472,14 @@ export async function confirmBooking(bookingId: number, user: BoothHoldUser) {
 export async function getCartBookings(user: BoothHoldUser) {
   const bookings = await post<CartBooking[]>('/public/bookings/cart', {user});
   return bookings.map(normalizeCartBooking);
+}
+
+export async function cancelCartBooking(bookingId: number, user: BoothHoldUser) {
+  const result = await post<BookingCancelResult>(`/public/bookings/${bookingId}/cancel`, {user});
+  return {
+    ...result,
+    totalAmount: Number(result.totalAmount || 0),
+  };
 }
 
 export async function getBookingHistory(user: BoothHoldUser) {
