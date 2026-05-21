@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import auth from '@react-native-firebase/auth';
 import {GoogleSignin} from '@react-native-google-signin/google-signin';
 import {NavigationContainer} from '@react-navigation/native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
@@ -43,6 +44,11 @@ function App(): React.JSX.Element {
       await GoogleSignin.signOut();
     } catch {
       // Google native config is optional in this UI-first MVP.
+    }
+    try {
+      await auth().signOut();
+    } catch {
+      // Firebase Auth session may not exist.
     }
     setUser(null);
   }, []);

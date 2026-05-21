@@ -5,6 +5,7 @@ import {
   isSuccessResponse,
   statusCodes,
 } from '@react-native-google-signin/google-signin';
+import auth, {type FirebaseAuthTypes} from '@react-native-firebase/auth';
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {
   Image,
@@ -26,6 +27,14 @@ import ApiLoadingState from '../components/ApiLoadingState';
 import GoogleIcon from '../components/GoogleIcon';
 import LabeledInput from '../components/LabeledInput';
 import {getBookingHistory, type BookingHistoryRecord} from '../services/markets';
+import {
+  changePublicProfilePassword,
+  getPublicProfile,
+  updatePublicProfileAddress,
+  uploadPublicProfileAvatar,
+  verifyPublicProfilePhone,
+  type PublicProfile,
+} from '../services/profile';
 import {
   getAmphures,
   getProvinces,
@@ -68,6 +77,7 @@ function ProfileScreen({
   const [activeTab, setActiveTab] = useState<ProfileTab>('account');
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
+  const [currentPassword, setCurrentPassword] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [address, setAddress] = useState('');
@@ -86,8 +96,25 @@ function ProfileScreen({
   const [historyItems, setHistoryItems] = useState<BookingHistoryRecord[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyMessage, setHistoryMessage] = useState('');
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [savingAddress, setSavingAddress] = useState(false);
+  const [savingPassword, setSavingPassword] = useState(false);
+  const [sendingOtp, setSendingOtp] = useState(false);
+  const [verifyingOtp, setVerifyingOtp] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [profileLocationIds, setProfileLocationIds] = useState<{
+    provinceId: number | null;
+    amphureId: number | null;
+    subdistrictId: number | null;
+  }>({
+    provinceId: null,
+    amphureId: null,
+    subdistrictId: null,
+  });
+  const [phoneConfirmation, setPhoneConfirmation] = useState<FirebaseAuthTypes.ConfirmationResult | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [message, setMessage] = useState('');
+  const [messageTone, setMessageTone] = useState<'error' | 'success'>('error');
   const {themeMode, setThemeMode, palette, resolvedTheme} = useTheme();
   const deleteButtonTone = useMemo(
     () => ({
@@ -106,6 +133,11 @@ function ProfileScreen({
       .slice(0, 2)
       .toUpperCase();
   }, [user]);
+
+  const userIdentity = useMemo(
+    () => (user?.email ? {email: user.email, name: user.name} : null),
+    [user?.email, user?.name],
+  );
 
   const loadProvinces = useCallback(async () => {
     setLocationLoading(true);
@@ -149,6 +181,74 @@ function ProfileScreen({
     }
   }, [activeTab, loadProvinces, provinces.length]);
 
+  const applyProfile = useCallback((profile: PublicProfile) => {
+    setPhone(profile.phone || '');
+    setAddress(profile.address || '');
+    setPdpaMarketing(profile.pdpaMarketingAccepted);
+    setPdpaTerms(profile.pdpaTermsAccepted);
+    setNotification(profile.notificationEnabled);
+    setProfileLocationIds({
+      provinceId: profile.provinceId ?? null,
+      amphureId: profile.amphureId ?? null,
+      subdistrictId: profile.subdistrictId ?? null,
+    });
+    setOpenLocationPicker(null);
+
+    if (!user) {
+      return;
+    }
+
+    const nextUser: MobileUser = {
+      ...user,
+      name: profile.name || user.name,
+      avatar: profile.avatarUrl || user.avatar,
+      phone: profile.phone || '',
+      phoneVerifiedAt: profile.phoneVerifiedAt || null,
+      address: profile.address || '',
+      provinceId: profile.provinceId ?? null,
+      amphureId: profile.amphureId ?? null,
+      subdistrictId: profile.subdistrictId ?? null,
+      pdpaTermsAccepted: profile.pdpaTermsAccepted,
+      pdpaMarketingAccepted: profile.pdpaMarketingAccepted,
+      notificationEnabled: profile.notificationEnabled,
+      firebaseUid: profile.firebaseUid || '',
+    };
+
+    if (
+      nextUser.name !== user.name
+      || nextUser.avatar !== user.avatar
+      || nextUser.phone !== user.phone
+      || nextUser.phoneVerifiedAt !== user.phoneVerifiedAt
+      || nextUser.address !== user.address
+      || nextUser.provinceId !== user.provinceId
+      || nextUser.amphureId !== user.amphureId
+      || nextUser.subdistrictId !== user.subdistrictId
+      || nextUser.pdpaTermsAccepted !== user.pdpaTermsAccepted
+      || nextUser.pdpaMarketingAccepted !== user.pdpaMarketingAccepted
+      || nextUser.notificationEnabled !== user.notificationEnabled
+      || nextUser.firebaseUid !== user.firebaseUid
+    ) {
+      onUserChange(nextUser);
+    }
+  }, [onUserChange, user]);
+
+  const loadProfile = useCallback(async () => {
+    if (!userIdentity) {
+      return;
+    }
+    setProfileLoading(true);
+    setMessage('');
+    try {
+      const profile = await getPublicProfile(userIdentity);
+      applyProfile(profile);
+    } catch (error) {
+      setMessage((error as Error).message || 'โหลดข้อมูลโปรไฟล์ไม่สำเร็จ');
+      setMessageTone('error');
+    } finally {
+      setProfileLoading(false);
+    }
+  }, [applyProfile, userIdentity]);
+
   const loadHistory = useCallback(async () => {
     if (!user?.email) {
       setHistoryItems([]);
@@ -171,9 +271,46 @@ function ProfileScreen({
     }
   }, [activeTab, historyItems.length, loadHistory]);
 
+  useEffect(() => {
+    if (userIdentity) {
+      loadProfile();
+    }
+  }, [loadProfile, userIdentity]);
+
+  useEffect(() => {
+    if (activeTab !== 'address' || provinces.length === 0 || !profileLocationIds.provinceId) {
+      return;
+    }
+    const province = provinces.find((item) => item.id === profileLocationIds.provinceId) || null;
+    setSelectedProvince((current) => (current?.id === province?.id ? current : province));
+    if (province && amphures.length === 0) {
+      loadAmphures(province.id);
+    }
+  }, [activeTab, amphures.length, loadAmphures, profileLocationIds.provinceId, provinces]);
+
+  useEffect(() => {
+    if (activeTab !== 'address' || amphures.length === 0 || !profileLocationIds.amphureId) {
+      return;
+    }
+    const amphure = amphures.find((item) => item.id === profileLocationIds.amphureId) || null;
+    setSelectedAmphure((current) => (current?.id === amphure?.id ? current : amphure));
+    if (amphure && subdistricts.length === 0) {
+      loadSubdistricts(amphure.id);
+    }
+  }, [activeTab, amphures, loadSubdistricts, profileLocationIds.amphureId, subdistricts.length]);
+
+  useEffect(() => {
+    if (activeTab !== 'address' || subdistricts.length === 0 || !profileLocationIds.subdistrictId) {
+      return;
+    }
+    const subdistrict = subdistricts.find((item) => item.id === profileLocationIds.subdistrictId) || null;
+    setSelectedSubdistrict((current) => (current?.id === subdistrict?.id ? current : subdistrict));
+  }, [activeTab, profileLocationIds.subdistrictId, subdistricts]);
+
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
+      await loadProfile();
       if (activeTab === 'address') {
         await loadProvinces();
         if (selectedProvince?.id) {
@@ -189,10 +326,10 @@ function ProfileScreen({
     } finally {
       setRefreshing(false);
     }
-  }, [activeTab, loadAmphures, loadHistory, loadProvinces, loadSubdistricts, selectedAmphure, selectedProvince]);
+  }, [activeTab, loadAmphures, loadHistory, loadProfile, loadProvinces, loadSubdistricts, selectedAmphure, selectedProvince]);
 
   async function changeAvatar() {
-    if (!user) {
+    if (!user || !userIdentity) {
       return;
     }
     const result = await launchImageLibrary({
@@ -203,9 +340,26 @@ function ProfileScreen({
     if (result.didCancel) {
       return;
     }
-    const uri = result.assets?.[0]?.uri;
-    if (uri) {
-      onUserChange({...user, avatar: uri});
+    const asset = result.assets?.[0];
+    if (!asset?.uri) {
+      return;
+    }
+    setUploadingAvatar(true);
+    setMessage('');
+    try {
+      const profile = await uploadPublicProfileAvatar(userIdentity, {
+        uri: asset.uri,
+        name: asset.fileName || 'profile.jpg',
+        type: asset.type || 'image/jpeg',
+      });
+      applyProfile(profile);
+      setMessage('อัปเดตรูปโปรไฟล์แล้ว');
+      setMessageTone('success');
+    } catch (error) {
+      setMessage((error as Error).message || 'อัปโหลดรูปโปรไฟล์ไม่สำเร็จ');
+      setMessageTone('error');
+    } finally {
+      setUploadingAvatar(false);
     }
   }
 
@@ -218,10 +372,12 @@ function ProfileScreen({
       const result = await GoogleSignin.signIn();
       if (isCancelledResponse(result)) {
         setMessage('ยกเลิกการเข้าสู่ระบบด้วย Gmail');
+        setMessageTone('error');
         return;
       }
       if (!isSuccessResponse(result)) {
         setMessage('ยังไม่สามารถเข้าสู่ระบบด้วย Gmail ได้');
+        setMessageTone('error');
         return;
       }
       const googleUser = result.data.user;
@@ -235,23 +391,164 @@ function ProfileScreen({
         return;
       }
       setMessage('ไม่พบข้อมูล Gmail สำหรับเข้าสู่ระบบ');
+      setMessageTone('error');
     } catch (error) {
       const code = isErrorWithCode(error) ? String(error.code) : '';
       if (code === statusCodes.SIGN_IN_CANCELLED) {
         setMessage('ยกเลิกการเข้าสู่ระบบด้วย Gmail');
+        setMessageTone('error');
       } else if (code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
         setMessage('Google Play Services ยังไม่พร้อมใช้งาน');
+        setMessageTone('error');
       } else if (code === '10' || code === 'DEVELOPER_ERROR') {
         setMessage('ตั้งค่า Google Sign-In ยังไม่ครบ กรุณาตรวจสอบ SHA-1/SHA-256 ใน Firebase');
+        setMessageTone('error');
       } else {
         setMessage('ยังไม่สามารถเข้าสู่ระบบด้วย Gmail ได้');
+        setMessageTone('error');
       }
     }
   }
 
+  const sendOtp = useCallback(async () => {
+    if (!phone.trim()) {
+      setMessage('กรุณากรอกเบอร์มือถือก่อนส่ง OTP');
+      setMessageTone('error');
+      return;
+    }
+    setSendingOtp(true);
+    setMessage('');
+    try {
+      const confirmation = await auth().signInWithPhoneNumber(phone.trim());
+      setPhoneConfirmation(confirmation);
+      setMessage('ส่ง OTP แล้ว กรุณากรอกรหัสเพื่อยืนยันเบอร์มือถือ');
+      setMessageTone('success');
+    } catch (error) {
+      setMessage((error as Error).message || 'ส่ง OTP ไม่สำเร็จ');
+      setMessageTone('error');
+    } finally {
+      setSendingOtp(false);
+    }
+  }, [phone]);
+
+  const verifyOtpCode = useCallback(async () => {
+    if (!phoneConfirmation) {
+      setMessage('กรุณาส่ง OTP ก่อน');
+      setMessageTone('error');
+      return;
+    }
+    if (!otp.trim()) {
+      setMessage('กรุณากรอกรหัส OTP');
+      setMessageTone('error');
+      return;
+    }
+    if (!userIdentity) {
+      setMessage('กรุณาเข้าสู่ระบบก่อนยืนยันเบอร์มือถือ');
+      setMessageTone('error');
+      return;
+    }
+    setVerifyingOtp(true);
+    setMessage('');
+    try {
+      const credential = await phoneConfirmation.confirm(otp.trim());
+      if (!credential?.user) {
+        throw new Error('ไม่พบข้อมูลผู้ใช้จาก Firebase หลังยืนยัน OTP');
+      }
+      const idToken = await credential.user.getIdToken();
+      const profile = await verifyPublicProfilePhone(userIdentity, idToken);
+      applyProfile(profile);
+      setPhone(profile.phone || phone);
+      setOtp('');
+      setPhoneConfirmation(null);
+      setMessage('ยืนยันเบอร์มือถือสำเร็จ');
+      setMessageTone('success');
+      await auth().signOut().catch(() => undefined);
+    } catch (error) {
+      setMessage((error as Error).message || 'ยืนยัน OTP ไม่สำเร็จ');
+      setMessageTone('error');
+    } finally {
+      setVerifyingOtp(false);
+    }
+  }, [applyProfile, otp, phone, phoneConfirmation, userIdentity]);
+
+  const savePassword = useCallback(async () => {
+    if (!userIdentity) {
+      setMessage('กรุณาเข้าสู่ระบบก่อนเปลี่ยนรหัสผ่าน');
+      setMessageTone('error');
+      return;
+    }
+    if (!password || !confirmPassword) {
+      setMessage('กรุณากรอกรหัสผ่านใหม่ให้ครบ');
+      setMessageTone('error');
+      return;
+    }
+    if (password !== confirmPassword) {
+      setMessage('ยืนยันรหัสผ่านไม่ตรงกัน');
+      setMessageTone('error');
+      return;
+    }
+    setSavingPassword(true);
+    setMessage('');
+    try {
+      await changePublicProfilePassword(userIdentity, {
+        currentPassword,
+        newPassword: password,
+      });
+      setCurrentPassword('');
+      setPassword('');
+      setConfirmPassword('');
+      setMessage('อัปเดตรหัสผ่านแล้ว');
+      setMessageTone('success');
+    } catch (error) {
+      setMessage((error as Error).message || 'เปลี่ยนรหัสผ่านไม่สำเร็จ');
+      setMessageTone('error');
+    } finally {
+      setSavingPassword(false);
+    }
+  }, [confirmPassword, currentPassword, password, userIdentity]);
+
+  const saveAddress = useCallback(async () => {
+    if (!userIdentity) {
+      setMessage('กรุณาเข้าสู่ระบบก่อนบันทึกที่อยู่');
+      setMessageTone('error');
+      return;
+    }
+    setSavingAddress(true);
+    setMessage('');
+    try {
+      const profile = await updatePublicProfileAddress(userIdentity, {
+        address,
+        provinceId: selectedProvince?.id ?? null,
+        amphureId: selectedAmphure?.id ?? null,
+        subdistrictId: selectedSubdistrict?.id ?? null,
+        pdpaTermsAccepted: pdpaTerms,
+        pdpaMarketingAccepted: pdpaMarketing,
+        notificationEnabled: notification,
+      });
+      applyProfile(profile);
+      setMessage('บันทึกข้อมูลที่อยู่และ PDPA แล้ว');
+      setMessageTone('success');
+    } catch (error) {
+      setMessage((error as Error).message || 'บันทึกข้อมูลที่อยู่ไม่สำเร็จ');
+      setMessageTone('error');
+    } finally {
+      setSavingAddress(false);
+    }
+  }, [
+    address,
+    applyProfile,
+    notification,
+    pdpaMarketing,
+    pdpaTerms,
+    selectedAmphure?.id,
+    selectedProvince?.id,
+    selectedSubdistrict?.id,
+    userIdentity,
+  ]);
+
   function renderAvatar(size = 104) {
     return (
-      <Pressable onPress={changeAvatar} disabled={!user} style={styles.avatarWrap}>
+      <Pressable onPress={changeAvatar} disabled={!user || uploadingAvatar} style={styles.avatarWrap}>
         {user?.avatar ? (
           <Image
             source={{uri: user.avatar}}
@@ -266,7 +563,7 @@ function ProfileScreen({
         )}
         {user ? (
           <View style={[styles.avatarEdit, {backgroundColor: palette.accent, borderColor: palette.surface}]}>
-            <MaterialCommunityIcons name="camera-outline" size={17} color={palette.inverseText} />
+            <MaterialCommunityIcons name={uploadingAvatar ? 'loading' : 'camera-outline'} size={17} color={palette.inverseText} />
           </View>
         ) : null}
       </Pressable>
@@ -294,7 +591,11 @@ function ProfileScreen({
               <GoogleIcon />
               <Text style={[styles.gmailButtonText, {color: palette.text}]}>ดำเนินการต่อด้วย Gmail</Text>
             </Pressable>
-            {message ? <Text style={[styles.messageText, {color: palette.danger}]}>{message}</Text> : null}
+            {message ? (
+              <Text style={[styles.messageText, {color: messageTone === 'success' ? palette.accentDark : palette.danger}]}>
+                {message}
+              </Text>
+            ) : null}
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -323,10 +624,29 @@ function ProfileScreen({
               keyboardType="number-pad"
             />
           </View>
-          <Pressable style={[styles.secondaryButton, {backgroundColor: palette.text}]}>
-            <Text style={[styles.secondaryButtonText, {color: palette.inverseText}]}>ส่ง OTP</Text>
+          <Pressable
+            onPress={phoneConfirmation ? verifyOtpCode : sendOtp}
+            disabled={sendingOtp || verifyingOtp}
+            style={[
+              styles.secondaryButton,
+              {backgroundColor: palette.text},
+              (sendingOtp || verifyingOtp) && styles.secondaryButtonDisabled,
+            ]}>
+            <Text style={[styles.secondaryButtonText, {color: palette.inverseText}]}>
+              {sendingOtp ? 'กำลังส่ง...' : verifyingOtp ? 'กำลังยืนยัน...' : phoneConfirmation ? 'ยืนยัน OTP' : 'ส่ง OTP'}
+            </Text>
           </Pressable>
         </View>
+        <Text style={[styles.helperText, {color: user?.phoneVerifiedAt ? palette.accentDark : palette.muted}]}>
+          {user?.phoneVerifiedAt ? `ยืนยันเบอร์แล้ว ${formatShortDate(user.phoneVerifiedAt)}` : 'ยังไม่ได้ยืนยันเบอร์มือถือ'}
+        </Text>
+        <LabeledInput
+          label="รหัสผ่านปัจจุบัน"
+          value={currentPassword}
+          onChangeText={setCurrentPassword}
+          placeholder="กรอกรหัสผ่านปัจจุบันถ้ามี"
+          secureTextEntry
+        />
         <LabeledInput
           label="ตั้งรหัสผ่าน"
           value={password}
@@ -349,8 +669,13 @@ function ProfileScreen({
             </View>
           ))}
         </View>
-        <Pressable style={[styles.saveButton, {backgroundColor: palette.accent}]}>
-          <Text style={[styles.saveButtonText, {color: palette.inverseText}]}>บันทึกข้อมูลบัญชี</Text>
+        <Pressable
+          onPress={savePassword}
+          disabled={savingPassword}
+          style={[styles.saveButton, {backgroundColor: palette.accent}, savingPassword && styles.saveButtonDisabled]}>
+          <Text style={[styles.saveButtonText, {color: palette.inverseText}]}>
+            {savingPassword ? 'กำลังบันทึก...' : 'บันทึกข้อมูลบัญชี'}
+          </Text>
         </Pressable>
         <Pressable
           style={[
@@ -368,6 +693,7 @@ function ProfileScreen({
     return (
       <View style={styles.panel}>
         <Text style={[styles.panelTitle, {color: palette.text}]}>ข้อมูลที่อยู่</Text>
+        {profileLoading ? <ApiLoadingState label="กำลังโหลดข้อมูลโปรไฟล์" variant="inline" /> : null}
         <LabeledInput
           label="ที่อยู่"
           value={address}
@@ -393,6 +719,11 @@ function ProfileScreen({
             setSelectedProvince(item);
             setSelectedAmphure(null);
             setSelectedSubdistrict(null);
+            setProfileLocationIds({
+              provinceId: item.id,
+              amphureId: null,
+              subdistrictId: null,
+            });
             setAmphures([]);
             setSubdistricts([]);
             setOpenLocationPicker(null);
@@ -420,6 +751,11 @@ function ProfileScreen({
           onSelect={(item) => {
             setSelectedAmphure(item);
             setSelectedSubdistrict(null);
+            setProfileLocationIds((current) => ({
+              ...current,
+              amphureId: item.id,
+              subdistrictId: null,
+            }));
             setSubdistricts([]);
             setOpenLocationPicker(null);
             loadSubdistricts(item.id);
@@ -445,6 +781,10 @@ function ProfileScreen({
           }}
           onSelect={(item) => {
             setSelectedSubdistrict(item);
+            setProfileLocationIds((current) => ({
+              ...current,
+              subdistrictId: item.id,
+            }));
             setOpenLocationPicker(null);
           }}
         />
@@ -471,8 +811,13 @@ function ProfileScreen({
           <Text style={[styles.linkButtonText, {color: palette.accentDark}]}>อ่านรายละเอียด PDPA</Text>
           <MaterialCommunityIcons name="open-in-new" size={16} color={palette.accentDark} />
         </Pressable>
-        <Pressable style={[styles.saveButton, {backgroundColor: palette.accent}]}>
-          <Text style={[styles.saveButtonText, {color: palette.inverseText}]}>บันทึกที่อยู่</Text>
+        <Pressable
+          onPress={saveAddress}
+          disabled={savingAddress}
+          style={[styles.saveButton, {backgroundColor: palette.accent}, savingAddress && styles.saveButtonDisabled]}>
+          <Text style={[styles.saveButtonText, {color: palette.inverseText}]}>
+            {savingAddress ? 'กำลังบันทึก...' : 'บันทึกที่อยู่'}
+          </Text>
         </Pressable>
       </View>
     );
@@ -558,7 +903,7 @@ function ProfileScreen({
     <ScrollView
       contentContainerStyle={[styles.screenScroll, {backgroundColor: palette.background}]}
       refreshControl={
-        activeTab === 'address' || activeTab === 'history'
+        activeTab === 'account' || activeTab === 'address' || activeTab === 'history'
           ? <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={palette.accent} />
           : undefined
       }>
@@ -599,6 +944,12 @@ function ProfileScreen({
           </Pressable>
         ))}
       </View>
+
+      {message ? (
+        <Text style={[styles.messageText, {color: messageTone === 'success' ? palette.accentDark : palette.danger}]}>
+          {message}
+        </Text>
+      ) : null}
 
       {activeTab === 'account' && renderAccountTab()}
       {activeTab === 'address' && renderAddressTab()}
@@ -1056,6 +1407,15 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '900',
   },
+  secondaryButtonDisabled: {
+    opacity: 0.55,
+  },
+  helperText: {
+    marginTop: -2,
+    marginBottom: 12,
+    fontSize: 12,
+    fontWeight: '800',
+  },
   policyBox: {
     padding: 14,
     borderRadius: 18,
@@ -1086,6 +1446,9 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontSize: 16,
     fontWeight: '900',
+  },
+  saveButtonDisabled: {
+    opacity: 0.6,
   },
   deleteButton: {
     marginTop: 12,
