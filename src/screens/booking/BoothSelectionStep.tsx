@@ -17,6 +17,7 @@ import {
   getFloorPlanBoothAvailability,
   holdBoothDates,
   type Booth,
+  type BoothHoldResult,
   type BoothAvailabilityStatus,
   type FloorPlan,
   type Market,
@@ -44,6 +45,7 @@ function BoothSelectionStep({
   onSelectMarket,
   onSelectFloorPlan,
   onChangeDates,
+  onReserved,
 }: {
   market: Market;
   markets: Market[];
@@ -55,6 +57,7 @@ function BoothSelectionStep({
   onSelectMarket: (market: Market) => void;
   onSelectFloorPlan: (floorPlan: FloorPlan) => void;
   onChangeDates: () => void;
+  onReserved: (hold: BoothHoldResult, booth: Booth) => void;
 }) {
   const {width} = useWindowDimensions();
   const columns = 6;
@@ -159,15 +162,10 @@ function BoothSelectionStep({
       clearBoothAvailabilityCache();
       setSelectedBooth(null);
       await loadBooths();
-      const skippedText = holdResult.unavailableDates.length
-        ? ` ระบบตัดวันที่ไม่ว่างออก ${holdResult.unavailableDates.length} วัน`
-        : '';
-      setDialog({
-        visible: true,
-        icon: realtimeSaved ? 'check-circle-outline' : 'database-check-outline',
-        title: 'จองบูธไว้แล้ว',
-        message: `ระบบล็อกบูธ ${boothDisplayName(booth)} จำนวน ${holdResult.lockedDates.length} วัน เลขที่ ${holdResult.publicId}${skippedText}${realtimeSaved ? '' : ' แต่ realtime lock ยังบันทึกไม่สำเร็จ ระบบจะยึดข้อมูลจากฐานข้อมูลหลัก'}`,
-      });
+      if (!realtimeSaved) {
+        setMessage('บันทึก realtime lock ไม่สำเร็จ แต่ฐานข้อมูลหลักล็อกบูธไว้แล้ว');
+      }
+      onReserved(holdResult, booth);
     } catch {
       clearBoothAvailabilityCache();
       setSelectedBooth(null);
@@ -188,6 +186,7 @@ function BoothSelectionStep({
     loadBooths,
     ownerId,
     ownerLabel,
+    onReserved,
     user,
   ]);
 

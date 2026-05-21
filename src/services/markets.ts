@@ -90,6 +90,55 @@ export type BoothHoldUser = {
   name?: string;
 };
 
+export type MarketAccessory = {
+  id: number;
+  name: string;
+  imageUrl: string;
+  price: number;
+  grossPrice: number;
+  stockQuantity: number;
+  quantity?: number;
+  lineTotal?: number;
+};
+
+export type BookingSummaryAccessoryInput = {
+  accessoryId: number;
+  quantity: number;
+};
+
+export type BookingSummary = {
+  bookingId: number;
+  publicId: string;
+  status: string;
+  marketId: number;
+  expiresAt?: string | null;
+  boothSubtotal: number;
+  accessorySubtotal: number;
+  subtotalAmount: number;
+  discountAmount: number;
+  vatAmount: number;
+  totalAmount: number;
+  vatEnabled: boolean;
+  vatRate: number;
+  coupon: {
+    id: number;
+    code: string;
+    name: string;
+    discountType: 'amount' | 'percent';
+    discountValue: number;
+    discountAmount: number;
+  } | null;
+  items: Array<{
+    id: number;
+    boothId: number;
+    boothCode: string;
+    boothName: string;
+    bookingDate: string;
+    unitPrice: number;
+  }>;
+  accessories: MarketAccessory[];
+};
+
 type CachedValue<T> = {
   value: T;
   expiresAt: number;
@@ -175,10 +224,40 @@ function normalizeBooth(booth: Booth): Booth {
   };
 }
 
+function normalizeAccessory(accessory: MarketAccessory): MarketAccessory {
+  return {
+    ...accessory,
+    imageUrl: normalizeUrl(accessory.imageUrl),
+    price: Number(accessory.price || 0),
+    grossPrice: Number(accessory.grossPrice || accessory.price || 0),
+    stockQuantity: Number(accessory.stockQuantity || 0),
+    quantity: Number(accessory.quantity || 0),
+    lineTotal: Number(accessory.lineTotal || 0),
+  };
+}
+
+function normalizeSummary(summary: BookingSummary): BookingSummary {
+  return {
+    ...summary,
+    boothSubtotal: Number(summary.boothSubtotal || 0),
+    accessorySubtotal: Number(summary.accessorySubtotal || 0),
+    subtotalAmount: Number(summary.subtotalAmount || 0),
+    discountAmount: Number(summary.discountAmount || 0),
+    vatAmount: Number(summary.vatAmount || 0),
+    totalAmount: Number(summary.totalAmount || 0),
+    vatRate: Number(summary.vatRate || 0),
+    items: (summary.items || []).map((item) => ({
+      ...item,
+      unitPrice: Number(item.unitPrice || 0),
+    })),
+    accessories: (summary.accessories || []).map(normalizeAccessory),
+  };
+}
+
 async function request<T>(path: string, params?: QueryParams): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}${buildQuery(params)}`);
   if (!response.ok) {
-    throw new Error(`Market API failed with status ${response.status}`);
+    throw new Error(await readErrorMessage(response));
   }
 
   const payload = (await response.json()) as ApiResponse<T>;
@@ -192,11 +271,20 @@ async function post<T>(path: string, body: object): Promise<T> {
     body: JSON.stringify(body),
   });
   if (!response.ok) {
-    throw new Error(`Market API failed with status ${response.status}`);
+    throw new Error(await readErrorMessage(response));
   }
 
   const payload = (await response.json()) as ApiResponse<T>;
   return payload.data;
+}
+
+async function readErrorMessage(response: Response) {
+  try {
+    const payload = (await response.json()) as {message?: string};
+    return payload.message || `Market API failed with status ${response.status}`;
+  } catch {
+    return `Market API failed with status ${response.status}`;
+  }
 }
 
 export async function getMarkets(params: {q?: string} = {}) {
@@ -234,6 +322,11 @@ export async function getMarketFloorPlans(marketId: number) {
   return normalized;
 }
 
+export async function getMarketAccessories(marketId: number) {
+  const accessories = await request<MarketAccessory[]>(`/public/markets/${marketId}/accessories`);
+  return accessories.map(normalizeAccessory);
+}
+
 export async function getFloorPlanBooths(floorPlanId: number, date?: string) {
   const booths = await request<Booth[]>(`/public/floor-plans/${floorPlanId}/booths`, {date});
   return booths.map(normalizeBooth);
@@ -267,4 +360,18 @@ export async function checkBoothAvailability(boothId: number, dates: string[]) {
 
 export async function holdBoothDates(boothId: number, dates: string[], user: BoothHoldUser) {
   return post<BoothHoldResult>(`/public/booths/${boothId}/hold`, {dates, user});
+}
+
+export async function updateBookingSummary(
+  bookingId: number,
+  user: BoothHoldUser,
+  accessories: BookingSummaryAccessoryInput[],
+  couponCode = '',
+) {
+  const summary = await post<BookingSummary>(`/public/bookings/${bookingId}/summary`, {
+    user,
+    accessories,
+    couponCode,
+  });
+  return normalizeSummary(summary);
 }

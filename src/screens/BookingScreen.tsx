@@ -22,12 +22,15 @@ import {
   getMarketFloorPlans,
   getMarkets,
   warmMarketFloorPlans,
+  type Booth,
+  type BoothHoldResult,
   type FloorPlan,
   type Market,
 } from '../services/markets';
 import {colors, shadow} from '../theme/colors';
 import type {MobileUser} from '../types/user';
 import BookingDateSelectionStep from './booking/BookingDateSelectionStep';
+import BookingSummaryStep from './booking/BookingSummaryStep';
 import BoothSelectionStep from './booking/BoothSelectionStep';
 import FloorPlanSelectionStep from './booking/FloorPlanSelectionStep';
 
@@ -85,6 +88,8 @@ function BookingScreen({
   const [floorPlans, setFloorPlans] = useState<FloorPlan[]>([]);
   const [selectedFloorPlan, setSelectedFloorPlan] = useState<FloorPlan | null>(null);
   const [selectedBookingDates, setSelectedBookingDates] = useState<string[]>([]);
+  const [bookingHold, setBookingHold] = useState<BoothHoldResult | null>(null);
+  const [reservedBooth, setReservedBooth] = useState<Booth | null>(null);
   const [marketDetailLoading, setMarketDetailLoading] = useState(false);
   const [previewImage, setPreviewImage] = useState('');
   const [scannerOpen, setScannerOpen] = useState(false);
@@ -145,6 +150,8 @@ function BookingScreen({
     setFloorPlanMarket(market);
     setSelectedFloorPlan(null);
     setSelectedBookingDates([]);
+    setBookingHold(null);
+    setReservedBooth(null);
     setFloorPlans([]);
     try {
       const [latest, plans] = await Promise.all([
@@ -162,6 +169,8 @@ function BookingScreen({
 
   const selectBookingFloorPlan = useCallback((floorPlan: FloorPlan) => {
     setSelectedBookingDates([]);
+    setBookingHold(null);
+    setReservedBooth(null);
     setSelectedFloorPlan(floorPlan);
   }, []);
 
@@ -169,6 +178,8 @@ function BookingScreen({
     setSelectedMarket(null);
     setFloorPlanMarket(market);
     setSelectedFloorPlan(null);
+    setBookingHold(null);
+    setReservedBooth(null);
     setFloorPlans([]);
     try {
       const [latest, plans] = await Promise.all([
@@ -188,6 +199,8 @@ function BookingScreen({
 
   const selectBoothFloorPlan = useCallback((floorPlan: FloorPlan) => {
     setSelectedFloorPlan(floorPlan);
+    setBookingHold(null);
+    setReservedBooth(null);
     if (!floorPlanContainsDates(floorPlan, selectedBookingDates)) {
       setSelectedBookingDates([]);
     }
@@ -237,6 +250,22 @@ function BookingScreen({
     },
   });
 
+  if (floorPlanMarket && selectedFloorPlan && bookingHold && reservedBooth) {
+    return (
+      <BookingSummaryStep
+        market={floorPlanMarket}
+        floorPlan={selectedFloorPlan}
+        booth={reservedBooth}
+        hold={bookingHold}
+        user={user}
+        onBack={() => {
+          setBookingHold(null);
+          setReservedBooth(null);
+        }}
+      />
+    );
+  }
+
   if (floorPlanMarket && selectedFloorPlan && selectedBookingDates.length > 0) {
     return (
       <BoothSelectionStep
@@ -249,7 +278,15 @@ function BookingScreen({
         onBack={() => setSelectedBookingDates([])}
         onSelectMarket={selectBoothMarket}
         onSelectFloorPlan={selectBoothFloorPlan}
-        onChangeDates={() => setSelectedBookingDates([])}
+        onChangeDates={() => {
+          setBookingHold(null);
+          setReservedBooth(null);
+          setSelectedBookingDates([]);
+        }}
+        onReserved={(hold, booth) => {
+          setBookingHold(hold);
+          setReservedBooth(booth);
+        }}
       />
     );
   }
