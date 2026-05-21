@@ -273,19 +273,17 @@ function BookingSummaryStep({
                 <Text style={styles.grandTotalValue}>{formatMoney(summary?.totalAmount || hold.totalAmount)} บาท</Text>
               </View>
             </View>
+
+            <Pressable
+              disabled={actionDisabled}
+              onPress={confirmReservation}
+              style={[styles.payButton, actionDisabled && styles.payButtonDisabled]}>
+              <Text style={styles.payButtonText}>{confirming ? 'กำลังยืนยัน...' : 'ยืนยันการจอง'}</Text>
+              <MaterialCommunityIcons name="chevron-right" size={20} color={colors.white} />
+            </Pressable>
           </>
         )}
       </ScrollView>
-
-      <View style={styles.footerBar}>
-        <Pressable
-          disabled={actionDisabled}
-          onPress={confirmReservation}
-          style={[styles.payButton, actionDisabled && styles.payButtonDisabled]}>
-          <Text style={styles.payButtonText}>{confirming ? 'กำลังยืนยัน...' : 'ยืนยันการจอง'}</Text>
-          <MaterialCommunityIcons name="chevron-right" size={20} color={colors.white} />
-        </Pressable>
-      </View>
 
       <AppDialog
         visible={dialogVisible}
@@ -400,7 +398,7 @@ const styles = StyleSheet.create({
   },
   screenScroll: {
     padding: 22,
-    paddingBottom: 142,
+    paddingBottom: 48,
   },
   headerRow: {
     flexDirection: 'row',
@@ -705,13 +703,8 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
   },
-  footerBar: {
-    position: 'absolute',
-    left: 22,
-    right: 22,
-    bottom: 22,
-  },
   payButton: {
+    marginTop: 18,
     height: 54,
     borderRadius: 20,
     backgroundColor: colors.teal,
