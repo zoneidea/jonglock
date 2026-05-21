@@ -48,6 +48,7 @@ import {useTheme} from '../theme/theme';
 import type {MobileUser} from '../types/user';
 
 type ProfileTab = 'account' | 'address' | 'history' | 'settings';
+type HistoryFilter = 'all' | 'success' | 'cancelled' | 'expired';
 
 const profileTabs: Array<{key: ProfileTab; label: string; icon: string}> = [
   {key: 'account', label: 'Account', icon: 'account-outline'},
@@ -61,6 +62,13 @@ const passwordPolicy = [
   'อักขระพิเศษอย่างน้อย 1 ตัว',
   'ตัวเลขอย่างน้อย 1 ตัว',
   'ความยาวไม่น้อย 10 ตัว',
+];
+
+const historyFilterOptions: Array<{key: HistoryFilter; label: string}> = [
+  {key: 'all', label: 'ทั้งหมด'},
+  {key: 'success', label: 'สำเร็จ'},
+  {key: 'cancelled', label: 'ยกเลิก'},
+  {key: 'expired', label: 'หมดอายุ'},
 ];
 
 function ProfileScreen({
@@ -94,6 +102,7 @@ function ProfileScreen({
   const [pdpaTerms, setPdpaTerms] = useState(true);
   const [notification, setNotification] = useState(true);
   const [historyItems, setHistoryItems] = useState<BookingHistoryRecord[]>([]);
+  const [historyFilter, setHistoryFilter] = useState<HistoryFilter>('all');
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyMessage, setHistoryMessage] = useState('');
   const [profileLoading, setProfileLoading] = useState(false);
@@ -133,6 +142,19 @@ function ProfileScreen({
       .slice(0, 2)
       .toUpperCase();
   }, [user]);
+
+  const filteredHistoryItems = useMemo(() => {
+    if (historyFilter === 'all') {
+      return historyItems;
+    }
+    if (historyFilter === 'success') {
+      return historyItems.filter((item) => item.status === 'paid');
+    }
+    if (historyFilter === 'cancelled') {
+      return historyItems.filter((item) => item.status === 'cancelled');
+    }
+    return historyItems.filter((item) => item.status === 'expired');
+  }, [historyFilter, historyItems]);
 
   const userIdentity = useMemo(
     () => (user?.email ? {email: user.email, name: user.name} : null),
@@ -827,12 +849,32 @@ function ProfileScreen({
     return (
       <View style={styles.panel}>
         <Text style={[styles.panelTitle, {color: palette.text}]}>ประวัติการจอง</Text>
+        <View style={[styles.historyFilterRow, {backgroundColor: palette.surfaceMuted}]}>
+          {historyFilterOptions.map((option) => (
+            <Pressable
+              key={option.key}
+              onPress={() => setHistoryFilter(option.key)}
+              style={[
+                styles.historyFilterButton,
+                historyFilter === option.key && {backgroundColor: palette.surface},
+              ]}>
+              <Text
+                style={[
+                  styles.historyFilterText,
+                  {color: palette.muted},
+                  historyFilter === option.key && {color: palette.text},
+                ]}>
+                {option.label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
         {historyLoading ? <ApiLoadingState label="กำลังโหลดประวัติการจอง" /> : null}
         {historyMessage ? <Text style={[styles.locationMessage, {color: palette.danger}]}>{historyMessage}</Text> : null}
-        {!historyLoading && historyItems.length === 0 ? (
-          <Text style={[styles.optionStateText, {color: palette.muted}]}>ยังไม่มีประวัติการจอง</Text>
+        {!historyLoading && filteredHistoryItems.length === 0 ? (
+          <Text style={[styles.optionStateText, {color: palette.muted}]}>ไม่พบรายการตามตัวกรองนี้</Text>
         ) : null}
-        {historyItems.map((item) => (
+        {filteredHistoryItems.map((item) => (
           <View key={item.publicId} style={[styles.historyCard, {borderColor: palette.border, backgroundColor: palette.surface}]}>
             <View style={styles.historyCopy}>
               <Text style={[styles.historyId, {color: palette.text}]}>{item.publicId}</Text>
@@ -1574,6 +1616,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: 12,
+  },
+  historyFilterRow: {
+    marginBottom: 14,
+    padding: 4,
+    borderRadius: 18,
+    flexDirection: 'row',
+    gap: 6,
+  },
+  historyFilterButton: {
+    flex: 1,
+    minHeight: 36,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 8,
+  },
+  historyFilterText: {
+    fontSize: 12,
+    fontWeight: '900',
   },
   historyCopy: {
     flex: 1,
