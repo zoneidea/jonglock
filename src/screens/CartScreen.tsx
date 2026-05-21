@@ -34,7 +34,7 @@ function CartScreen({
       setBookings(nextBookings);
       onCountChange?.(nextBookings.length);
     } catch (error) {
-      setMessage((error as Error).message || 'ยังไม่สามารถโหลดตระกร้าได้');
+      setMessage((error as Error).message || 'ยังไม่สามารถโหลดตะกร้าได้');
     } finally {
       setLoading(false);
     }
@@ -48,7 +48,7 @@ function CartScreen({
     return (
       <ScrollView contentContainerStyle={styles.screenScroll}>
         <PlaceholderPanel
-          title="ตระกร้า"
+          title="ตะกร้า"
           text="กรุณาเข้าสู่ระบบด้วย Gmail เพื่อดูรายการจองที่รอชำระเงิน"
         />
       </ScrollView>
@@ -59,7 +59,7 @@ function CartScreen({
     <ScrollView contentContainerStyle={styles.screenScroll}>
       <View style={styles.headerRow}>
         <View>
-          <Text style={styles.title}>ตระกร้า</Text>
+          <Text style={styles.title}>ตะกร้า</Text>
           <Text style={styles.subtitle}>รายการจองที่รอชำระเงิน</Text>
         </View>
         <Pressable onPress={loadCart} style={styles.refreshButton}>
@@ -70,7 +70,7 @@ function CartScreen({
       {message ? <Text style={styles.messageText}>{message}</Text> : null}
 
       {loading ? (
-        <ApiLoadingState label="กำลังโหลดตระกร้า" />
+        <ApiLoadingState label="กำลังโหลดตะกร้า" />
       ) : null}
 
       {!loading && bookings.length === 0 ? (
