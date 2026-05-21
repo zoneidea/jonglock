@@ -153,6 +153,51 @@ export async function acquireBoothTempLocks({
   return docRefs.map(({date, ref}) => ({date, docId: ref.id, expiresAtMs}));
 }
 
+export async function saveBoothTempLocks({
+  organizationId,
+  marketId,
+  floorPlanId,
+  boothId,
+  dates,
+  ownerId,
+  ownerLabel,
+  expiresAtMs,
+}: {
+  organizationId: number;
+  marketId: number;
+  floorPlanId: number;
+  boothId: number;
+  dates: string[];
+  ownerId: string;
+  ownerLabel: string;
+  expiresAtMs: number;
+}) {
+  const db = firestore();
+  const nowMs = Date.now();
+  const batch = db.batch();
+  const docRefs = dates.map((date) => ({
+    date,
+    ref: db.collection(TEMP_LOCK_COLLECTION).doc(tempLockDocId(organizationId, boothId, date)),
+  }));
+
+  docRefs.forEach(({date, ref}) => {
+    batch.set(ref, {
+      organizationId,
+      marketId,
+      floorPlanId,
+      boothId,
+      date,
+      ownerId,
+      ownerLabel,
+      expiresAtMs,
+      updatedAtMs: nowMs,
+    });
+  });
+  await batch.commit();
+
+  return docRefs.map(({date, ref}) => ({date, docId: ref.id, expiresAtMs}));
+}
+
 export async function releaseBoothTempLocks(docIds: string[]) {
   if (!docIds.length) {
     return;
@@ -165,4 +210,3 @@ export async function releaseBoothTempLocks(docIds: string[]) {
 }
 
 export const BOOTH_TEMP_LOCK_TTL_SECONDS = Math.floor(TEMP_LOCK_TTL_MS / 1000);
-

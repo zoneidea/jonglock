@@ -69,6 +69,27 @@ export type BoothAvailabilityResult = {
   dates: BoothDateAvailability[];
 } | null;
 
+export type BoothHoldResult = {
+  bookingId: number;
+  publicId: string;
+  organizationId: number;
+  marketId: number;
+  floorPlanId: number;
+  boothId: number;
+  lockedDates: string[];
+  unavailableDates: string[];
+  expiresAt?: string | null;
+  subtotalAmount: number;
+  discountAmount: number;
+  vatAmount: number;
+  totalAmount: number;
+};
+
+export type BoothHoldUser = {
+  email: string;
+  name?: string;
+};
+
 type CachedValue<T> = {
   value: T;
   expiresAt: number;
@@ -230,6 +251,10 @@ export async function getFloorPlanBoothAvailability(floorPlanId: number, dates: 
   return normalized;
 }
 
+export function clearBoothAvailabilityCache() {
+  boothAvailabilityCache.clear();
+}
+
 export async function checkBoothAvailability(boothId: number, dates: string[]) {
   const result = await post<BoothAvailabilityResult>(`/public/booths/${boothId}/availability`, {dates});
   return result
@@ -238,4 +263,8 @@ export async function checkBoothAvailability(boothId: number, dates: string[]) {
         dates: result.dates,
       }
     : null;
+}
+
+export async function holdBoothDates(boothId: number, dates: string[], user: BoothHoldUser) {
+  return post<BoothHoldResult>(`/public/booths/${boothId}/hold`, {dates, user});
 }

@@ -10,19 +10,21 @@ import {
 } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
+import AppDialog from '../../components/AppDialog';
 import ApiLoadingState from '../../components/ApiLoadingState';
 import {
+  clearBoothAvailabilityCache,
   getFloorPlanBoothAvailability,
+  holdBoothDates,
   type Booth,
   type BoothAvailabilityStatus,
   type FloorPlan,
   type Market,
 } from '../../services/markets';
 import {
-  acquireBoothTempLocks,
   availabilityStatusWithTempLock,
   BOOTH_TEMP_LOCK_TTL_SECONDS,
-  releaseBoothTempLocks,
+  saveBoothTempLocks,
   subscribeFloorPlanTempLocks,
   tempLockKey,
   type BoothTempLockMap,
@@ -62,7 +64,8 @@ function BoothSelectionStep({
   const [message, setMessage] = useState('');
   const [selectedBooth, setSelectedBooth] = useState<Booth | null>(null);
   const [tempLocks, setTempLocks] = useState<BoothTempLockMap>(new Map());
-  const [activeLockDocIds, setActiveLockDocIds] = useState<string[]>([]);
+  const [bookingInProgress, setBookingInProgress] = useState(false);
+  const [dialog, setDialog] = useState({visible: false, title: '', message: '', icon: 'information-outline'});
   const [marketModalOpen, setMarketModalOpen] = useState(false);
   const [floorPlanModalOpen, setFloorPlanModalOpen] = useState(false);
   const ownerId = user?.email || user?.name || 'anonymous-mobile-user';
@@ -96,65 +99,96 @@ function BoothSelectionStep({
     });
   }, [floorPlan.id, floorPlan.marketId, floorPlan.organizationId, selectedDates]);
 
-  useEffect(() => {
-    return () => {
-      releaseBoothTempLocks(activeLockDocIds).catch(() => undefined);
-    };
-  }, [activeLockDocIds]);
-
   const effectiveBooths = useMemo(
     () => booths.map((booth) => applyTempLocksToBooth(booth, selectedDates, tempLocks, ownerId)),
     [booths, ownerId, selectedDates, tempLocks],
   );
 
   const closeSelectedBooth = useCallback(() => {
-    const docIds = activeLockDocIds;
-    setActiveLockDocIds([]);
     setSelectedBooth(null);
-    releaseBoothTempLocks(docIds).catch(() => undefined);
-  }, [activeLockDocIds]);
+  }, []);
 
-  const handleBoothPress = useCallback(async (booth: Booth) => {
+  const handleBoothPress = useCallback((booth: Booth) => {
     setMessage('');
-    if (booth.availabilityStatus !== 'available') {
-      setSelectedBooth(booth);
+    setSelectedBooth(booth);
+  }, []);
+
+  const handleReserveBooth = useCallback(async (booth: Booth, availableDates: string[]) => {
+    if (!user?.email) {
+      setDialog({
+        visible: true,
+        icon: 'account-lock-outline',
+        title: 'กรุณาเข้าสู่ระบบ',
+        message: 'ต้องเข้าสู่ระบบด้วย Gmail ก่อนจองบูธ',
+      });
+      return;
+    }
+    if (!availableDates.length) {
+      setDialog({
+        visible: true,
+        icon: 'calendar-alert',
+        title: 'ไม่มีวันที่ว่าง',
+        message: 'วันที่เลือกไม่ว่างแล้ว กรุณาเลือกวันหรือบูธใหม่',
+      });
       return;
     }
 
+    setBookingInProgress(true);
     try {
-      if (activeLockDocIds.length) {
-        await releaseBoothTempLocks(activeLockDocIds);
-        setActiveLockDocIds([]);
-      }
-      const lockResult = await acquireBoothTempLocks({
-        organizationId: floorPlan.organizationId,
-        marketId: floorPlan.marketId,
-        floorPlanId: floorPlan.id,
-        boothId: booth.id,
-        dates: selectedDates,
-        ownerId,
-        ownerLabel,
+      const holdResult = await holdBoothDates(booth.id, availableDates, {
+        email: user.email,
+        name: user.name,
       });
-      setActiveLockDocIds(lockResult.map((lock) => lock.docId));
-      setSelectedBooth(booth);
-    } catch (error) {
-      if ((error as Error).message === 'TEMP_LOCK_CONFLICT') {
-        setMessage('บูธนี้มีผู้ใช้งานกำลังเลือกอยู่ กรุณาเลือกบูธอื่นหรือรอสักครู่');
-        loadBooths();
-        return;
+      const expiresAtMs = getLockExpiryMs(holdResult.expiresAt);
+      let realtimeSaved = true;
+      try {
+        await saveBoothTempLocks({
+          organizationId: floorPlan.organizationId,
+          marketId: floorPlan.marketId,
+          floorPlanId: floorPlan.id,
+          boothId: booth.id,
+          dates: holdResult.lockedDates,
+          ownerId,
+          ownerLabel,
+          expiresAtMs,
+        });
+      } catch {
+        realtimeSaved = false;
       }
-      setMessage('ยังไม่สามารถล็อกบูธแบบเรียลไทม์ได้ ระบบจะตรวจสอบซ้ำตอนยืนยันจอง');
-      setSelectedBooth(booth);
+
+      clearBoothAvailabilityCache();
+      setSelectedBooth(null);
+      await loadBooths();
+      const skippedText = holdResult.unavailableDates.length
+        ? ` ระบบตัดวันที่ไม่ว่างออก ${holdResult.unavailableDates.length} วัน`
+        : '';
+      setDialog({
+        visible: true,
+        icon: realtimeSaved ? 'check-circle-outline' : 'database-check-outline',
+        title: 'จองบูธไว้แล้ว',
+        message: `ระบบล็อกบูธ ${boothDisplayName(booth)} จำนวน ${holdResult.lockedDates.length} วัน เลขที่ ${holdResult.publicId}${skippedText}${realtimeSaved ? '' : ' แต่ realtime lock ยังบันทึกไม่สำเร็จ ระบบจะยึดข้อมูลจากฐานข้อมูลหลัก'}`,
+      });
+    } catch {
+      clearBoothAvailabilityCache();
+      setSelectedBooth(null);
+      await loadBooths();
+      setDialog({
+        visible: true,
+        icon: 'alert-circle-outline',
+        title: 'บูธไม่ว่างแล้ว',
+        message: 'มีผู้ใช้งานจองบูธหรือวันที่นี้ไปก่อน ระบบอัปเดตสถานะล่าสุดให้แล้ว กรุณาเลือกวันที่หรือบูธใหม่',
+      });
+    } finally {
+      setBookingInProgress(false);
     }
   }, [
-    activeLockDocIds,
     floorPlan.id,
     floorPlan.marketId,
     floorPlan.organizationId,
     loadBooths,
     ownerId,
     ownerLabel,
-    selectedDates,
+    user,
   ]);
 
   return (
@@ -216,7 +250,19 @@ function BoothSelectionStep({
       <BoothDetailSheet
         booth={selectedBooth}
         selectedDates={selectedDates}
+        bookingInProgress={bookingInProgress}
         onClose={closeSelectedBooth}
+        onBook={handleReserveBooth}
+      />
+      <AppDialog
+        visible={dialog.visible}
+        icon={dialog.icon}
+        title={dialog.title}
+        message={dialog.message}
+        cancelLabel="ปิด"
+        confirmLabel="ตกลง"
+        onCancel={() => setDialog((current) => ({...current, visible: false}))}
+        onConfirm={() => setDialog((current) => ({...current, visible: false}))}
       />
       <BookingSelectionModal
         open={marketModalOpen}
@@ -319,11 +365,15 @@ function LegendDot({color, label}: {color: string; label: string}) {
 function BoothDetailSheet({
   booth,
   selectedDates,
+  bookingInProgress,
   onClose,
+  onBook,
 }: {
   booth: Booth | null;
   selectedDates: string[];
+  bookingInProgress: boolean;
   onClose: () => void;
+  onBook: (booth: Booth, availableDates: string[]) => void;
 }) {
   if (!booth) {
     return null;
@@ -377,6 +427,28 @@ function BoothDetailSheet({
               );
             })}
           </ScrollView>
+
+          <Pressable
+            disabled={bookingInProgress || availableDates.length === 0}
+            onPress={() => onBook(booth, availableDates.map((item) => item.date))}
+            style={[
+              styles.bookButton,
+              (bookingInProgress || availableDates.length === 0) && styles.bookButtonDisabled,
+            ]}>
+            <MaterialCommunityIcons name="calendar-check" size={20} color={colors.white} />
+            <Text style={styles.bookButtonText}>
+              {bookingInProgress
+                ? 'กำลังจอง...'
+                : availableDates.length === selectedDates.length
+                  ? 'จองบูธนี้'
+                  : `จองเฉพาะวันที่ว่าง ${availableDates.length} วัน`}
+            </Text>
+          </Pressable>
+          {unavailableDates.length ? (
+            <Text style={styles.bookHintText}>
+              ระบบจะตัดวันที่ไม่ว่างออกอัตโนมัติเมื่อกดจอง
+            </Text>
+          ) : null}
         </Pressable>
       </Pressable>
     </Modal>
@@ -505,6 +577,14 @@ function formatMoney(value: number) {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
   }).format(value || 0);
+}
+
+function getLockExpiryMs(expiresAt?: string | null) {
+  const parsed = expiresAt ? new Date(expiresAt).getTime() : NaN;
+  if (Number.isFinite(parsed)) {
+    return parsed;
+  }
+  return Date.now() + 10 * 60 * 1000;
 }
 
 function EmptyCard({text}: {text: string}) {
@@ -758,6 +838,33 @@ const styles = StyleSheet.create({
   },
   dateListContent: {
     gap: 8,
+  },
+  bookButton: {
+    marginTop: 16,
+    height: 52,
+    borderRadius: 18,
+    backgroundColor: colors.teal,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    ...shadow,
+  },
+  bookButtonDisabled: {
+    opacity: 0.52,
+  },
+  bookButtonText: {
+    color: colors.white,
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  bookHintText: {
+    marginTop: 10,
+    color: colors.muted,
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: '800',
+    textAlign: 'center',
   },
   dateRow: {
     minHeight: 42,
