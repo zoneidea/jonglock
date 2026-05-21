@@ -20,6 +20,7 @@ import ApiLoadingState from '../components/ApiLoadingState';
 import {
   getMarket,
   getMarkets,
+  warmMarketFloorPlans,
   type FloorPlan,
   type Market,
 } from '../services/markets';
@@ -85,7 +86,10 @@ function BookingScreen({
     setSelectedMarket(market);
     setMarketDetailLoading(true);
     try {
-      const latest = await getMarket(market.id);
+      const [latest] = await Promise.all([
+        getMarket(market.id),
+        warmMarketFloorPlans(market.id),
+      ]);
       if (latest) {
         setSelectedMarket(latest);
       }
@@ -147,6 +151,16 @@ function BookingScreen({
         floorPlan={selectedFloorPlan}
         selectedDates={selectedBookingDates}
         onBack={() => setSelectedBookingDates([])}
+        onChangeMarket={() => {
+          setFloorPlanMarket(null);
+          setSelectedFloorPlan(null);
+          setSelectedBookingDates([]);
+        }}
+        onChangeFloorPlan={() => {
+          setSelectedFloorPlan(null);
+          setSelectedBookingDates([]);
+        }}
+        onChangeDates={() => setSelectedBookingDates([])}
       />
     );
   }
@@ -157,6 +171,15 @@ function BookingScreen({
         market={floorPlanMarket}
         floorPlan={selectedFloorPlan}
         onBack={() => setSelectedFloorPlan(null)}
+        onChangeMarket={() => {
+          setFloorPlanMarket(null);
+          setSelectedFloorPlan(null);
+          setSelectedBookingDates([]);
+        }}
+        onChangeFloorPlan={() => {
+          setSelectedFloorPlan(null);
+          setSelectedBookingDates([]);
+        }}
         onConfirm={setSelectedBookingDates}
       />
     );
@@ -167,6 +190,11 @@ function BookingScreen({
       <FloorPlanSelectionStep
         market={floorPlanMarket}
         onBack={() => setFloorPlanMarket(null)}
+        onChangeMarket={() => {
+          setFloorPlanMarket(null);
+          setSelectedFloorPlan(null);
+          setSelectedBookingDates([]);
+        }}
         onSelectFloorPlan={(floorPlan) => {
           setSelectedBookingDates([]);
           setSelectedFloorPlan(floorPlan);

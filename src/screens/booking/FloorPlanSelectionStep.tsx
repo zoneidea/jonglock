@@ -10,10 +10,12 @@ import {colors, shadow} from '../../theme/colors';
 function FloorPlanSelectionStep({
   market,
   onBack,
+  onChangeMarket,
   onSelectFloorPlan,
 }: {
   market: Market;
   onBack: () => void;
+  onChangeMarket: () => void;
   onSelectFloorPlan: (floorPlan: FloorPlan) => void;
 }) {
   const [floorPlans, setFloorPlans] = useState<FloorPlan[]>([]);
@@ -57,6 +59,10 @@ function FloorPlanSelectionStep({
           </View>
         </View>
 
+        <View style={styles.shortcutRow}>
+          <ShortcutButton icon="store-search-outline" label="เปลี่ยนตลาด" onPress={onChangeMarket} />
+        </View>
+
         <Text style={styles.planHelpText}>เลือกโซนที่ต้องการ ก่อนเข้าสู่ขั้นตอนการเลือกบูธ</Text>
 
         {message ? <Text style={styles.messageText}>{message}</Text> : null}
@@ -81,6 +87,23 @@ function FloorPlanSelectionStep({
         </View>
       </ScrollView>
     </View>
+  );
+}
+
+function ShortcutButton({
+  icon,
+  label,
+  onPress,
+}: {
+  icon: string;
+  label: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable onPress={onPress} style={styles.shortcutButton}>
+      <MaterialCommunityIcons name={icon} size={16} color={colors.tealDark} />
+      <Text style={styles.shortcutText}>{label}</Text>
+    </Pressable>
   );
 }
 
@@ -247,6 +270,28 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
     fontWeight: '800',
+  },
+  shortcutRow: {
+    marginTop: 12,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  shortcutButton: {
+    minHeight: 34,
+    borderRadius: 999,
+    backgroundColor: '#effbf8',
+    borderWidth: 1,
+    borderColor: '#c8eee7',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+  },
+  shortcutText: {
+    color: colors.tealDark,
+    fontSize: 12,
+    fontWeight: '900',
   },
   planHelpText: {
     marginTop: 16,

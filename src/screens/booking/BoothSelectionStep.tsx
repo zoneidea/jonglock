@@ -25,11 +25,17 @@ function BoothSelectionStep({
   floorPlan,
   selectedDates,
   onBack,
+  onChangeMarket,
+  onChangeFloorPlan,
+  onChangeDates,
 }: {
   market: Market;
   floorPlan: FloorPlan;
   selectedDates: string[];
   onBack: () => void;
+  onChangeMarket: () => void;
+  onChangeFloorPlan: () => void;
+  onChangeDates: () => void;
 }) {
   const {width} = useWindowDimensions();
   const columns = 6;
@@ -78,6 +84,12 @@ function BoothSelectionStep({
           </View>
         </View>
 
+        <View style={styles.shortcutRow}>
+          <ShortcutButton icon="store-search-outline" label="เปลี่ยนตลาด" onPress={onChangeMarket} />
+          <ShortcutButton icon="map-marker-path" label="เปลี่ยนโซน" onPress={onChangeFloorPlan} />
+          <ShortcutButton icon="calendar-edit" label="เปลี่ยนวันที่" onPress={onChangeDates} />
+        </View>
+
         <View style={styles.boothLegendRow}>
           <LegendDot color="#14b879" label="ว่างทุกวัน" />
           <LegendDot color="#f5b93f" label="ว่างบางวัน" />
@@ -111,6 +123,23 @@ function BoothSelectionStep({
         onClose={() => setSelectedBooth(null)}
       />
     </View>
+  );
+}
+
+function ShortcutButton({
+  icon,
+  label,
+  onPress,
+}: {
+  icon: string;
+  label: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable onPress={onPress} style={styles.shortcutButton}>
+      <MaterialCommunityIcons name={icon} size={16} color={colors.tealDark} />
+      <Text style={styles.shortcutText}>{label}</Text>
+    </Pressable>
   );
 }
 
@@ -389,6 +418,28 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
     fontWeight: '800',
+  },
+  shortcutRow: {
+    marginTop: 12,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  shortcutButton: {
+    minHeight: 34,
+    borderRadius: 999,
+    backgroundColor: '#effbf8',
+    borderWidth: 1,
+    borderColor: '#c8eee7',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+  },
+  shortcutText: {
+    color: colors.tealDark,
+    fontSize: 12,
+    fontWeight: '900',
   },
   boothHeaderCard: {
     minHeight: 82,
