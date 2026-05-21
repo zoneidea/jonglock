@@ -2,6 +2,7 @@ import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {
   Image,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -49,6 +50,7 @@ function BookingSummaryStep({
   const [appliedCouponCode, setAppliedCouponCode] = useState('');
   const [summary, setSummary] = useState<BookingSummary | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [calculating, setCalculating] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [message, setMessage] = useState('');
@@ -166,9 +168,21 @@ function BookingSummaryStep({
     }
   }, [hold.bookingId, summary, user]);
 
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await refreshSummary(appliedCouponCode);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [appliedCouponCode, refreshSummary]);
+
   return (
     <View style={styles.flex}>
-      <ScrollView contentContainerStyle={styles.screenScroll} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={styles.screenScroll}
+        keyboardShouldPersistTaps="handled"
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.teal} />}>
         <View style={styles.headerRow}>
           <Pressable onPress={onBack} style={styles.backButton}>
             <MaterialCommunityIcons name="chevron-left" size={24} color={colors.ink} />

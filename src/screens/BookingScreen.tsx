@@ -4,6 +4,7 @@ import {
   Image,
   Modal,
   Pressable,
+  RefreshControl,
   ScrollView,
   Switch,
   StyleSheet,
@@ -101,6 +102,7 @@ function BookingScreen({
   const [scannerOpen, setScannerOpen] = useState(false);
   const [scannerLocked, setScannerLocked] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [message, setMessage] = useState('');
   const device = useCameraDevice('back');
   const {hasPermission, requestPermission} = useCameraPermission();
@@ -131,6 +133,15 @@ function BookingScreen({
 
   useEffect(() => {
     loadMarkets();
+  }, [loadMarkets]);
+
+  const handleRefreshMarkets = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await loadMarkets();
+    } finally {
+      setRefreshing(false);
+    }
   }, [loadMarkets]);
 
   const selectMarket = useCallback(async (market: Market) => {
@@ -350,6 +361,17 @@ function BookingScreen({
         market={selectedMarket}
         user={user}
         loading={marketDetailLoading}
+        onRefresh={async () => {
+          setMarketDetailLoading(true);
+          try {
+            const latest = await getMarket(selectedMarket.id);
+            if (latest) {
+              setSelectedMarket(latest);
+            }
+          } finally {
+            setMarketDetailLoading(false);
+          }
+        }}
         onRequireAuth={onRequireAuth}
         onBack={() => setSelectedMarket(null)}
         onContinue={() => selectBookingMarket(selectedMarket)}
@@ -362,7 +384,10 @@ function BookingScreen({
 
   return (
     <View style={styles.flex}>
-      <ScrollView contentContainerStyle={styles.screenScroll} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={styles.screenScroll}
+        keyboardShouldPersistTaps="handled"
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefreshMarkets} tintColor={colors.teal} />}>
         <View style={styles.searchRow}>
           <View style={styles.searchBox}>
             <MaterialCommunityIcons name="magnify" size={22} color={colors.muted} />
@@ -447,12 +472,14 @@ function MarketDetailScreen({
   previewImage,
   onClosePreview,
   loading,
+  onRefresh,
   onRequireAuth,
   onContinue,
 }: {
   market: Market;
   user: MobileUser | null;
   loading?: boolean;
+  onRefresh: () => Promise<void>;
   onRequireAuth: () => void;
   onBack: () => void;
   onContinue: () => void;
@@ -465,6 +492,7 @@ function MarketDetailScreen({
   const [authPromptVisible, setAuthPromptVisible] = useState(false);
   const [doNotShowAgain, setDoNotShowAgain] = useState(false);
   const [skipTerms, setSkipTerms] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -527,9 +555,20 @@ function MarketDetailScreen({
     onContinue();
   }, [doNotShowAgain, market.id, onContinue]);
 
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await onRefresh();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [onRefresh]);
+
   return (
     <View style={styles.flex}>
-      <ScrollView contentContainerStyle={styles.screenScroll}>
+      <ScrollView
+        contentContainerStyle={styles.screenScroll}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.teal} />}>
         <View style={styles.detailHeaderRow}>
           <Pressable onPress={onBack} style={styles.backButton}>
             <MaterialCommunityIcons name="chevron-left" size={24} color={colors.ink} />

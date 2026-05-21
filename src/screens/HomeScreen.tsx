@@ -1,5 +1,5 @@
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
-import {Image, ScrollView, StyleSheet, Text, View} from 'react-native';
+import {Image, RefreshControl, ScrollView, StyleSheet, Text, View} from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 
 import ApiLoadingState from '../components/ApiLoadingState';
@@ -27,6 +27,7 @@ function HomeScreen({user}: {user: MobileUser | null}) {
   const [items, setItems] = useState<Announcement[]>([]);
   const [banners, setBanners] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [message, setMessage] = useState('');
 
   const loadAnnouncements = useCallback(async () => {
@@ -51,6 +52,15 @@ function HomeScreen({user}: {user: MobileUser | null}) {
     loadAnnouncements();
   }, [loadAnnouncements]);
 
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await loadAnnouncements();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [loadAnnouncements]);
+
   const feedItems = useMemo(
     () => items.map((item) => ({...item, relativeTime: formatRelativeTime(item.createdAt || item.startDate || '')})),
     [items],
@@ -59,7 +69,9 @@ function HomeScreen({user}: {user: MobileUser | null}) {
   const bannerItems = useMemo(() => (banners.length ? banners : [MOCK_HOME_BANNER]), [banners]);
 
   return (
-    <ScrollView contentContainerStyle={styles.homeScroll}>
+    <ScrollView
+      contentContainerStyle={styles.homeScroll}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.teal} />}>
       <View style={styles.homeTopbar}>
         <View>
           <Text style={styles.homeHello}>สวัสดี</Text>

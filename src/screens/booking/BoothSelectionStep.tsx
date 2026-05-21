@@ -2,6 +2,7 @@ import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {
   Modal,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -64,6 +65,7 @@ function BoothSelectionStep({
   const tileSize = useMemo(() => getBoothTileSize(width, columns), [columns, width]);
   const [booths, setBooths] = useState<Booth[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [message, setMessage] = useState('');
   const [selectedBooth, setSelectedBooth] = useState<Booth | null>(null);
   const [tempLocks, setTempLocks] = useState<BoothTempLockMap>(new Map());
@@ -90,6 +92,15 @@ function BoothSelectionStep({
 
   useEffect(() => {
     loadBooths();
+  }, [loadBooths]);
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await loadBooths();
+    } finally {
+      setRefreshing(false);
+    }
   }, [loadBooths]);
 
   useEffect(() => {
@@ -192,7 +203,9 @@ function BoothSelectionStep({
 
   return (
     <View style={styles.flex}>
-      <ScrollView contentContainerStyle={styles.screenScroll}>
+      <ScrollView
+        contentContainerStyle={styles.screenScroll}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.teal} />}>
         <View style={styles.detailHeaderRow}>
           <Pressable onPress={onBack} style={styles.backButton}>
             <MaterialCommunityIcons name="chevron-left" size={24} color={colors.ink} />

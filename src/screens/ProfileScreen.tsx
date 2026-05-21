@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Switch,
@@ -81,6 +82,7 @@ function ProfileScreen({
   const [pdpaTerms, setPdpaTerms] = useState(true);
   const [notification, setNotification] = useState(true);
   const [themeMode, setThemeMode] = useState<'auto' | 'light' | 'dark'>('auto');
+  const [refreshing, setRefreshing] = useState(false);
   const [message, setMessage] = useState('');
 
   const initials = useMemo(() => {
@@ -134,6 +136,24 @@ function ProfileScreen({
       loadProvinces();
     }
   }, [activeTab, loadProvinces, provinces.length]);
+
+  const handleRefresh = useCallback(async () => {
+    if (activeTab !== 'address') {
+      return;
+    }
+    setRefreshing(true);
+    try {
+      await loadProvinces();
+      if (selectedProvince?.id) {
+        await loadAmphures(selectedProvince.id);
+      }
+      if (selectedAmphure?.id) {
+        await loadSubdistricts(selectedAmphure.id);
+      }
+    } finally {
+      setRefreshing(false);
+    }
+  }, [activeTab, loadAmphures, loadProvinces, loadSubdistricts, selectedAmphure, selectedProvince]);
 
   async function changeAvatar() {
     if (!user) {
@@ -481,7 +501,13 @@ function ProfileScreen({
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.screenScroll}>
+    <ScrollView
+      contentContainerStyle={styles.screenScroll}
+      refreshControl={
+        activeTab === 'address'
+          ? <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.teal} />
+          : undefined
+      }>
       <View style={styles.profileHero}>
         <Pressable onPress={onLogout} style={styles.logoutButton}>
           <MaterialCommunityIcons name="logout" size={20} color={colors.danger} />

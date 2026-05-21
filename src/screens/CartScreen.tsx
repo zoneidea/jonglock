@@ -1,5 +1,5 @@
 import React, {useCallback, useEffect, useState} from 'react';
-import {Image, Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
+import {Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View} from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import ApiLoadingState from '../components/ApiLoadingState';
@@ -17,6 +17,7 @@ function CartScreen({
 }) {
   const [bookings, setBookings] = useState<CartBooking[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [message, setMessage] = useState('');
 
   const loadCart = useCallback(async () => {
@@ -44,9 +45,20 @@ function CartScreen({
     loadCart();
   }, [loadCart]);
 
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await loadCart();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [loadCart]);
+
   if (!user) {
     return (
-      <ScrollView contentContainerStyle={styles.screenScroll}>
+      <ScrollView
+        contentContainerStyle={styles.screenScroll}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.teal} />}>
         <PlaceholderPanel
           title="ตะกร้า"
           text="กรุณาเข้าสู่ระบบด้วย Gmail เพื่อดูรายการจองที่รอชำระเงิน"
@@ -56,13 +68,15 @@ function CartScreen({
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.screenScroll}>
+    <ScrollView
+      contentContainerStyle={styles.screenScroll}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.teal} />}>
       <View style={styles.headerRow}>
         <View>
           <Text style={styles.title}>ตะกร้า</Text>
           <Text style={styles.subtitle}>รายการจองที่รอชำระเงิน</Text>
         </View>
-        <Pressable onPress={loadCart} style={styles.refreshButton}>
+        <Pressable onPress={handleRefresh} style={styles.refreshButton}>
           <MaterialCommunityIcons name="refresh" size={20} color={colors.tealDark} />
         </Pressable>
       </View>

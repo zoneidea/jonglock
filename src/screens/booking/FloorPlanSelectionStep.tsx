@@ -1,5 +1,5 @@
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
-import {Image, Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
+import {Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View} from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
@@ -23,6 +23,7 @@ function FloorPlanSelectionStep({
 }) {
   const [floorPlans, setFloorPlans] = useState<FloorPlan[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [message, setMessage] = useState('');
   const [marketModalOpen, setMarketModalOpen] = useState(false);
   const marketItems = useMemo(() => markets.map(marketToSelectionItem), [markets]);
@@ -43,9 +44,20 @@ function FloorPlanSelectionStep({
     loadFloorPlans();
   }, [loadFloorPlans]);
 
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await loadFloorPlans();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [loadFloorPlans]);
+
   return (
     <View style={styles.flex}>
-      <ScrollView contentContainerStyle={styles.screenScroll}>
+      <ScrollView
+        contentContainerStyle={styles.screenScroll}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.teal} />}>
         <View style={styles.detailHeaderRow}>
           <Pressable onPress={onBack} style={styles.backButton}>
             <MaterialCommunityIcons name="chevron-left" size={24} color={colors.ink} />
