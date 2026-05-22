@@ -48,7 +48,7 @@ import {useTheme} from '../theme/theme';
 import type {MobileUser} from '../types/user';
 
 type ProfileTab = 'account' | 'address' | 'history' | 'settings';
-type HistoryFilter = 'all' | 'success' | 'cancelled' | 'expired';
+type HistoryFilter = 'all' | 'processing' | 'success' | 'cancelled' | 'expired';
 
 const profileTabs: Array<{key: ProfileTab; label: string; icon: string}> = [
   {key: 'account', label: 'Account', icon: 'account-outline'},
@@ -66,6 +66,7 @@ const passwordPolicy = [
 
 const historyFilterOptions: Array<{key: HistoryFilter; label: string}> = [
   {key: 'all', label: 'ทั้งหมด'},
+  {key: 'processing', label: 'รอตรวจสอบ'},
   {key: 'success', label: 'สำเร็จ'},
   {key: 'cancelled', label: 'ยกเลิก'},
   {key: 'expired', label: 'หมดอายุ'},
@@ -149,6 +150,9 @@ function ProfileScreen({
     }
     if (historyFilter === 'success') {
       return historyItems.filter((item) => resolveBookingHistoryStatus(item.status) === 'paid');
+    }
+    if (historyFilter === 'processing') {
+      return historyItems.filter((item) => resolveBookingHistoryStatus(item.status) === 'payment_processing');
     }
     if (historyFilter === 'cancelled') {
       return historyItems.filter((item) => resolveBookingHistoryStatus(item.status) === 'cancelled');
