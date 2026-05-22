@@ -1,4 +1,4 @@
-import React, {useCallback, useEffect, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {Image, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View} from 'react-native';
 import {launchImageLibrary} from 'react-native-image-picker';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -32,7 +32,8 @@ function CartScreen({
   const [refreshing, setRefreshing] = useState(false);
   const [cancelTarget, setCancelTarget] = useState<CartBooking | null>(null);
   const [cancellingBookingId, setCancellingBookingId] = useState<number | null>(null);
-  const [paymentTarget, setPaymentTarget] = useState<CartBooking | null>(null);
+  const [checkoutMode, setCheckoutMode] = useState(false);
+  const [paymentBookings, setPaymentBookings] = useState<CartBooking[]>([]);
   const [paymentInfo, setPaymentInfo] = useState<BookingPaymentInfo | null>(null);
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [proofImage, setProofImage] = useState<{uri: string; name?: string; type?: string} | null>(null);
@@ -94,6 +95,14 @@ function CartScreen({
 
   const selectedCount = selectedBookingIds.length;
   const allSelected = bookings.length > 0 && selectedCount === bookings.length;
+  const selectedBookings = useMemo(
+    () => bookings.filter((booking) => selectedBookingIds.includes(booking.bookingId)),
+    [bookings, selectedBookingIds],
+  );
+  const selectedTotal = useMemo(
+    () => selectedBookings.reduce((total, booking) => total + Number(booking.totalAmount || 0), 0),
+    [selectedBookings],
+  );
 
   const handleCancelBooking = useCallback(async () => {
     if (!cancelTarget || !user?.email) {
@@ -113,11 +122,36 @@ function CartScreen({
     }
   }, [cancelTarget, loadCart, user?.email, user?.name]);
 
-  const openPayment = useCallback(async (booking: CartBooking) => {
+  const proceedToCheckout = useCallback(() => {
+    if (!selectedBookings.length) {
+      setMessage('กรุณาเลือกรายการที่ต้องการชำระเงิน');
+      return;
+    }
+    const organizationId = selectedBookings[0]?.organizationId;
+    const hasMixedOrganization = selectedBookings.some((booking) => booking.organizationId !== organizationId);
+    if (hasMixedOrganization) {
+      setMessage('กรุณาเลือกรายการจากองค์กรเดียวกันเท่านั้น เพื่อให้ใช้บัญชีรับเงินเดียวกัน');
+      return;
+    }
+    setMessage('');
+    setCheckoutMode(true);
+  }, [selectedBookings]);
+
+  const openPayment = useCallback(async (targetBookings: CartBooking[]) => {
     if (!user?.email) {
       return;
     }
-    setPaymentTarget(booking);
+    const firstBooking = targetBookings[0];
+    if (!firstBooking) {
+      setMessage('กรุณาเลือกรายการที่ต้องการชำระเงิน');
+      return;
+    }
+    const organizationId = firstBooking.organizationId;
+    if (targetBookings.some((booking) => booking.organizationId !== organizationId)) {
+      setMessage('กรุณาเลือกรายการจากองค์กรเดียวกันเท่านั้น เพื่อให้ใช้บัญชีรับเงินเดียวกัน');
+      return;
+    }
+    setPaymentBookings(targetBookings);
     setPaymentInfo(null);
     setProofImage(null);
     setProviderReference('');
@@ -125,13 +159,16 @@ function CartScreen({
     setPaymentLoading(true);
     setMessage('');
     try {
-      const info = await getBookingPaymentInfo(booking.bookingId, {email: user.email, name: user.name});
+      const paymentInfos = await Promise.all(
+        targetBookings.map((booking) => getBookingPaymentInfo(booking.bookingId, {email: user.email, name: user.name})),
+      );
+      const info = paymentInfos[0] || null;
       setPaymentInfo(info);
-      setProviderReference(info.payment?.providerReference || '');
-      setPayerNote(info.payment?.payerNote || '');
+      setProviderReference(paymentInfos.find((item) => item.payment?.providerReference)?.payment?.providerReference || '');
+      setPayerNote(paymentInfos.find((item) => item.payment?.payerNote)?.payment?.payerNote || '');
     } catch (error) {
       setMessage((error as Error).message || 'ยังไม่สามารถโหลดข้อมูลชำระเงินได้');
-      setPaymentTarget(null);
+      setPaymentBookings([]);
     } finally {
       setPaymentLoading(false);
     }
@@ -141,7 +178,7 @@ function CartScreen({
     if (uploadingProof) {
       return;
     }
-    setPaymentTarget(null);
+    setPaymentBookings([]);
     setPaymentInfo(null);
     setProofImage(null);
     setProviderReference('');
@@ -170,7 +207,7 @@ function CartScreen({
   }, []);
 
   const submitProof = useCallback(async () => {
-    if (!paymentTarget || !user?.email) {
+    if (!paymentBookings.length || !user?.email) {
       return;
     }
     if (!proofImage) {
@@ -180,13 +217,17 @@ function CartScreen({
     setUploadingProof(true);
     setMessage('');
     try {
-      await uploadBookingPaymentProof(
-        paymentTarget.bookingId,
-        {email: user.email, name: user.name},
-        proofImage,
-        {providerReference, payerNote},
-      );
+      for (const booking of paymentBookings) {
+        await uploadBookingPaymentProof(
+          booking.bookingId,
+          {email: user.email, name: user.name},
+          proofImage,
+          {providerReference, payerNote},
+        );
+      }
       closePayment();
+      setCheckoutMode(false);
+      setSelectedBookingIds([]);
       setMessage('ส่งหลักฐานการชำระเงินแล้ว กรุณารอการตรวจสอบ');
       await loadCart();
     } catch (error) {
@@ -194,7 +235,7 @@ function CartScreen({
     } finally {
       setUploadingProof(false);
     }
-  }, [closePayment, loadCart, payerNote, paymentTarget, proofImage, providerReference, user]);
+  }, [closePayment, loadCart, payerNote, paymentBookings, proofImage, providerReference, user]);
 
   if (!user) {
     return (
@@ -215,13 +256,50 @@ function CartScreen({
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={palette.accent} />}>
       <View style={styles.headerRow}>
         <View>
-          <Text style={[styles.title, {color: palette.text}]}>ตะกร้า</Text>
-          <Text style={[styles.subtitle, {color: palette.muted}]}>รายการจองที่รอชำระเงิน</Text>
+          <Text style={[styles.title, {color: palette.text}]}>{checkoutMode ? 'สรุปชำระเงิน' : 'ตะกร้า'}</Text>
+          <Text style={[styles.subtitle, {color: palette.muted}]}>
+            {checkoutMode ? 'ตรวจสอบรายการก่อนยืนยันการชำระเงิน' : 'รายการจองที่รอชำระเงิน'}
+          </Text>
         </View>
-        <Pressable onPress={handleRefresh} style={[styles.refreshButton, {backgroundColor: palette.surface, borderColor: palette.border}]}>
-          <MaterialCommunityIcons name="refresh" size={20} color={palette.accentDark} />
-        </Pressable>
+        {checkoutMode ? (
+          <Pressable onPress={() => setCheckoutMode(false)} style={[styles.refreshButton, {backgroundColor: palette.surface, borderColor: palette.border}]}>
+            <MaterialCommunityIcons name="chevron-left" size={22} color={palette.accentDark} />
+          </Pressable>
+        ) : (
+          <Pressable onPress={handleRefresh} style={[styles.refreshButton, {backgroundColor: palette.surface, borderColor: palette.border}]}>
+            <MaterialCommunityIcons name="refresh" size={20} color={palette.accentDark} />
+          </Pressable>
+        )}
       </View>
+
+      {checkoutMode ? (
+        <>
+          {message ? <Text style={[styles.messageText, {color: palette.danger}]}>{message}</Text> : null}
+          <CheckoutSummary
+            bookings={selectedBookings}
+            totalAmount={selectedTotal}
+            onBack={() => setCheckoutMode(false)}
+            onConfirm={() => openPayment(selectedBookings)}
+          />
+          <PaymentProofModal
+            visible={paymentBookings.length > 0}
+            bookings={paymentBookings}
+            paymentInfo={paymentInfo}
+            totalAmount={selectedTotal}
+            loading={paymentLoading}
+            proofImage={proofImage}
+            providerReference={providerReference}
+            payerNote={payerNote}
+            uploading={uploadingProof}
+            onClose={closePayment}
+            onChooseImage={chooseProofImage}
+            onChangeProviderReference={setProviderReference}
+            onChangePayerNote={setPayerNote}
+            onSubmit={submitProof}
+          />
+        </>
+      ) : (
+        <>
 
       {!loading && bookings.length > 0 ? (
         <View style={styles.selectionBar}>
@@ -235,6 +313,16 @@ function CartScreen({
           </Pressable>
           <Text style={[styles.selectionCountText, {color: palette.muted}]}>{`เลือกแล้ว ${selectedCount} รายการ`}</Text>
         </View>
+      ) : null}
+
+      {!loading && selectedCount > 0 ? (
+        <Pressable onPress={proceedToCheckout} style={styles.checkoutButton}>
+          <View>
+            <Text style={styles.checkoutButtonText}>ดำเนินการชำระเงิน</Text>
+            <Text style={styles.checkoutButtonSubtext}>{`${selectedCount} รายการ • ${formatMoney(selectedTotal)} บาท`}</Text>
+          </View>
+          <MaterialCommunityIcons name="chevron-right" size={22} color={colors.white} />
+        </Pressable>
       ) : null}
 
       {message ? <Text style={[styles.messageText, {color: palette.danger}]}>{message}</Text> : null}
@@ -259,7 +347,6 @@ function CartScreen({
             selected={selectedBookingIds.includes(booking.bookingId)}
             onToggleSelect={() => toggleBookingSelection(booking.bookingId)}
             onCancel={() => setCancelTarget(booking)}
-            onPay={() => openPayment(booking)}
             cancelling={cancellingBookingId === booking.bookingId}
           />
         ))}
@@ -280,21 +367,8 @@ function CartScreen({
         onConfirm={handleCancelBooking}
       />
 
-      <PaymentProofModal
-        visible={Boolean(paymentTarget)}
-        booking={paymentTarget}
-        paymentInfo={paymentInfo}
-        loading={paymentLoading}
-        proofImage={proofImage}
-        providerReference={providerReference}
-        payerNote={payerNote}
-        uploading={uploadingProof}
-        onClose={closePayment}
-        onChooseImage={chooseProofImage}
-        onChangeProviderReference={setProviderReference}
-        onChangePayerNote={setPayerNote}
-        onSubmit={submitProof}
-      />
+        </>
+      )}
     </ScrollView>
   );
 }
@@ -304,14 +378,12 @@ function CartBookingCard({
   selected,
   onToggleSelect,
   onCancel,
-  onPay,
   cancelling,
 }: {
   booking: CartBooking;
   selected: boolean;
   onToggleSelect: () => void;
   onCancel: () => void;
-  onPay: () => void;
   cancelling: boolean;
 }) {
   const isProcessing = booking.status === 'payment_processing';
@@ -371,18 +443,70 @@ function CartBookingCard({
         <Text style={styles.totalLabel}>ยอดชำระ</Text>
         <Text style={styles.totalValue}>{formatMoney(booking.totalAmount)} บาท</Text>
       </View>
-      <Pressable onPress={onPay} style={styles.payButton}>
-        <MaterialCommunityIcons name={isProcessing ? 'cloud-upload-outline' : 'qrcode-scan'} size={18} color={colors.white} />
-        <Text style={styles.payButtonText}>{isProcessing ? 'อัปโหลดสลิปอีกครั้ง' : 'ชำระเงิน / อัปโหลดสลิป'}</Text>
-      </Pressable>
     </Pressable>
+  );
+}
+
+function CheckoutSummary({
+  bookings,
+  totalAmount,
+  onBack,
+  onConfirm,
+}: {
+  bookings: CartBooking[];
+  totalAmount: number;
+  onBack: () => void;
+  onConfirm: () => void;
+}) {
+  if (!bookings.length) {
+    return (
+      <View style={styles.emptyCard}>
+        <Text style={styles.emptyTitle}>ยังไม่ได้เลือกรายการ</Text>
+        <Text style={styles.emptyText}>กลับไปเลือกไอเท็มในตะกร้าก่อนดำเนินการชำระเงิน</Text>
+        <Pressable onPress={onBack} style={styles.summaryBackButton}>
+          <Text style={styles.summaryBackButtonText}>กลับไปตะกร้า</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.summaryWrap}>
+      <View style={styles.summaryCard}>
+        <Text style={styles.sectionTitle}>รายการที่ต้องการชำระเงิน</Text>
+        <View style={styles.summaryList}>
+          {bookings.map((booking) => (
+            <View key={booking.bookingId} style={styles.summaryItem}>
+              <View style={styles.summaryItemMain}>
+                <Text style={styles.summaryMarketName}>{booking.marketName}</Text>
+                <Text style={styles.summaryBookingCode}>{booking.publicId}</Text>
+                <Text style={styles.summaryItemMeta}>
+                  {`${booking.items.length} วัน/รายการ • หมดเวลา ${formatShortDateTime(booking.expiresAt)}`}
+                </Text>
+              </View>
+              <Text style={styles.summaryItemAmount}>{formatMoney(booking.totalAmount)}</Text>
+            </View>
+          ))}
+        </View>
+        <View style={styles.summaryDivider} />
+        <View style={styles.summaryTotalRow}>
+          <Text style={styles.summaryTotalLabel}>ยอดเงินรวม</Text>
+          <Text style={styles.summaryTotalValue}>{formatMoney(totalAmount)} บาท</Text>
+        </View>
+      </View>
+      <Pressable onPress={onConfirm} style={styles.confirmPaymentButton}>
+        <MaterialCommunityIcons name="check-circle-outline" size={20} color={colors.white} />
+        <Text style={styles.confirmPaymentText}>ยืนยันชำระเงิน</Text>
+      </Pressable>
+    </View>
   );
 }
 
 function PaymentProofModal({
   visible,
-  booking,
+  bookings,
   paymentInfo,
+  totalAmount,
   loading,
   proofImage,
   providerReference,
@@ -395,8 +519,9 @@ function PaymentProofModal({
   onSubmit,
 }: {
   visible: boolean;
-  booking: CartBooking | null;
+  bookings: CartBooking[];
   paymentInfo: BookingPaymentInfo | null;
+  totalAmount: number;
   loading: boolean;
   proofImage: {uri: string; name?: string; type?: string} | null;
   providerReference: string;
@@ -410,6 +535,7 @@ function PaymentProofModal({
 }) {
   const method = paymentInfo?.paymentMethod;
   const hasPaymentMethod = Boolean(method?.promptpayId || method?.bankAccountNo);
+  const firstBooking = bookings[0] || null;
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -418,7 +544,9 @@ function PaymentProofModal({
           <View style={styles.modalHeader}>
             <View>
               <Text style={styles.modalTitle}>ชำระเงิน</Text>
-              <Text style={styles.modalSubtitle}>{booking?.publicId || paymentInfo?.publicId || '-'}</Text>
+              <Text style={styles.modalSubtitle}>
+                {bookings.length > 1 ? `${bookings.length} รายการ` : firstBooking?.publicId || paymentInfo?.publicId || '-'}
+              </Text>
             </View>
             <Pressable onPress={onClose} disabled={uploading} style={styles.modalCloseButton}>
               <MaterialCommunityIcons name="close" size={22} color={colors.ink} />
@@ -431,8 +559,8 @@ function PaymentProofModal({
             <ScrollView style={styles.paymentScroll} contentContainerStyle={styles.paymentScrollContent}>
               <View style={styles.amountBox}>
                 <Text style={styles.amountLabel}>ยอดที่ต้องชำระ</Text>
-                <Text style={styles.amountValue}>{formatMoney(paymentInfo?.amount || booking?.totalAmount || 0)} บาท</Text>
-                <Text style={styles.amountHint}>{`หมดเวลา ${formatShortDateTime(paymentInfo?.expiresAt || booking?.expiresAt)}`}</Text>
+                <Text style={styles.amountValue}>{formatMoney(totalAmount || paymentInfo?.amount || firstBooking?.totalAmount || 0)} บาท</Text>
+                <Text style={styles.amountHint}>{`หมดเวลา ${formatShortDateTime(paymentInfo?.expiresAt || firstBooking?.expiresAt)}`}</Text>
               </View>
 
               <View style={styles.methodBox}>
@@ -604,6 +732,30 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '900',
   },
+  checkoutButton: {
+    minHeight: 58,
+    marginBottom: 12,
+    borderRadius: 20,
+    backgroundColor: colors.teal,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    ...shadow,
+  },
+  checkoutButtonText: {
+    color: colors.white,
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  checkoutButtonSubtext: {
+    marginTop: 2,
+    color: 'rgba(255,255,255,0.78)',
+    fontSize: 12,
+    fontWeight: '800',
+  },
   bookingList: {
     gap: 12,
   },
@@ -758,6 +910,105 @@ const styles = StyleSheet.create({
   totalValue: {
     color: colors.tealDark,
     fontSize: 20,
+    fontWeight: '900',
+  },
+  summaryWrap: {
+    gap: 12,
+  },
+  summaryCard: {
+    borderRadius: 24,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 16,
+    ...shadow,
+  },
+  summaryList: {
+    gap: 10,
+  },
+  summaryItem: {
+    minHeight: 66,
+    borderRadius: 18,
+    backgroundColor: colors.soft,
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  summaryItemMain: {
+    flex: 1,
+  },
+  summaryMarketName: {
+    color: colors.ink,
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  summaryBookingCode: {
+    marginTop: 2,
+    color: colors.tealDark,
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  summaryItemMeta: {
+    marginTop: 3,
+    color: colors.muted,
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  summaryItemAmount: {
+    color: colors.ink,
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  summaryDivider: {
+    height: 1,
+    backgroundColor: '#edf3f7',
+    marginVertical: 14,
+  },
+  summaryTotalRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  summaryTotalLabel: {
+    color: colors.ink,
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  summaryTotalValue: {
+    color: colors.tealDark,
+    fontSize: 24,
+    fontWeight: '900',
+  },
+  confirmPaymentButton: {
+    height: 52,
+    borderRadius: 18,
+    backgroundColor: colors.teal,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    ...shadow,
+  },
+  confirmPaymentText: {
+    color: colors.white,
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  summaryBackButton: {
+    marginTop: 16,
+    height: 44,
+    borderRadius: 16,
+    backgroundColor: colors.teal,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+  },
+  summaryBackButtonText: {
+    color: colors.white,
+    fontSize: 13,
     fontWeight: '900',
   },
   payButton: {
