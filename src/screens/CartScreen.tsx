@@ -1,5 +1,5 @@
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
-import {Image, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View} from 'react-native';
+import {Image, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View} from 'react-native';
 import {launchImageLibrary} from 'react-native-image-picker';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
@@ -37,8 +37,6 @@ function CartScreen({
   const [paymentInfo, setPaymentInfo] = useState<BookingPaymentInfo | null>(null);
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [proofImage, setProofImage] = useState<{uri: string; name?: string; type?: string} | null>(null);
-  const [providerReference, setProviderReference] = useState('');
-  const [payerNote, setPayerNote] = useState('');
   const [uploadingProof, setUploadingProof] = useState(false);
   const [message, setMessage] = useState('');
 
@@ -154,8 +152,6 @@ function CartScreen({
     setPaymentBookings(targetBookings);
     setPaymentInfo(null);
     setProofImage(null);
-    setProviderReference('');
-    setPayerNote('');
     setPaymentLoading(true);
     setMessage('');
     try {
@@ -164,8 +160,6 @@ function CartScreen({
       );
       const info = paymentInfos[0] || null;
       setPaymentInfo(info);
-      setProviderReference(paymentInfos.find((item) => item.payment?.providerReference)?.payment?.providerReference || '');
-      setPayerNote(paymentInfos.find((item) => item.payment?.payerNote)?.payment?.payerNote || '');
     } catch (error) {
       setMessage((error as Error).message || 'ยังไม่สามารถโหลดข้อมูลชำระเงินได้');
       setPaymentBookings([]);
@@ -181,8 +175,6 @@ function CartScreen({
     setPaymentBookings([]);
     setPaymentInfo(null);
     setProofImage(null);
-    setProviderReference('');
-    setPayerNote('');
   }, [uploadingProof]);
 
   const chooseProofImage = useCallback(async () => {
@@ -222,7 +214,6 @@ function CartScreen({
           booking.bookingId,
           {email: user.email, name: user.name},
           proofImage,
-          {providerReference, payerNote},
         );
       }
       closePayment();
@@ -235,7 +226,7 @@ function CartScreen({
     } finally {
       setUploadingProof(false);
     }
-  }, [closePayment, loadCart, payerNote, paymentBookings, proofImage, providerReference, user]);
+  }, [closePayment, loadCart, paymentBookings, proofImage, user]);
 
   if (!user) {
     return (
@@ -288,13 +279,9 @@ function CartScreen({
             totalAmount={selectedTotal}
             loading={paymentLoading}
             proofImage={proofImage}
-            providerReference={providerReference}
-            payerNote={payerNote}
             uploading={uploadingProof}
             onClose={closePayment}
             onChooseImage={chooseProofImage}
-            onChangeProviderReference={setProviderReference}
-            onChangePayerNote={setPayerNote}
             onSubmit={submitProof}
           />
         </>
@@ -509,13 +496,9 @@ function PaymentProofModal({
   totalAmount,
   loading,
   proofImage,
-  providerReference,
-  payerNote,
   uploading,
   onClose,
   onChooseImage,
-  onChangeProviderReference,
-  onChangePayerNote,
   onSubmit,
 }: {
   visible: boolean;
@@ -524,17 +507,13 @@ function PaymentProofModal({
   totalAmount: number;
   loading: boolean;
   proofImage: {uri: string; name?: string; type?: string} | null;
-  providerReference: string;
-  payerNote: string;
   uploading: boolean;
   onClose: () => void;
   onChooseImage: () => void;
-  onChangeProviderReference: (value: string) => void;
-  onChangePayerNote: (value: string) => void;
   onSubmit: () => void;
 }) {
   const method = paymentInfo?.paymentMethod;
-  const hasPaymentMethod = Boolean(method?.promptpayId || method?.bankAccountNo);
+  const hasPaymentMethod = Boolean(method?.qrCodeImageUrl || method?.promptpayId || method?.bankAccountNo);
   const firstBooking = bookings[0] || null;
 
   return (
@@ -567,6 +546,12 @@ function PaymentProofModal({
                 <Text style={styles.sectionTitle}>บัญชีรับเงิน</Text>
                 {hasPaymentMethod ? (
                   <>
+                    {method?.qrCodeImageUrl ? (
+                      <View style={styles.qrCodeBox}>
+                        <Image source={{uri: method.qrCodeImageUrl}} style={styles.qrCodeImage} resizeMode="contain" />
+                        <Text style={styles.qrCodeCaption}>สแกน QR Code เพื่อชำระเงิน</Text>
+                      </View>
+                    ) : null}
                     {method?.promptpayId ? <InfoRow label="PromptPay" value={method.promptpayId} /> : null}
                     {method?.bankName ? <InfoRow label="ธนาคาร" value={method.bankName} /> : null}
                     {method?.bankAccountName ? <InfoRow label="ชื่อบัญชี" value={method.bankAccountName} /> : null}
@@ -577,22 +562,6 @@ function PaymentProofModal({
                   <Text style={styles.noMethodText}>ตลาดยังไม่ได้ตั้งค่าบัญชีรับเงิน กรุณาติดต่อเจ้าหน้าที่ตลาด</Text>
                 )}
               </View>
-
-              <TextInput
-                value={providerReference}
-                onChangeText={onChangeProviderReference}
-                placeholder="เลขอ้างอิง / เลขรายการโอน (ถ้ามี)"
-                placeholderTextColor={colors.muted}
-                style={styles.paymentInput}
-              />
-              <TextInput
-                value={payerNote}
-                onChangeText={onChangePayerNote}
-                placeholder="หมายเหตุเพิ่มเติม (ถ้ามี)"
-                placeholderTextColor={colors.muted}
-                multiline
-                style={[styles.paymentInput, styles.paymentTextarea]}
-              />
 
               <Pressable onPress={onChooseImage} style={styles.proofPicker}>
                 {proofImage ? (
@@ -1136,27 +1105,32 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     fontWeight: '800',
   },
+  qrCodeBox: {
+    alignItems: 'center',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#d7efe9',
+    backgroundColor: '#f6fffc',
+    marginBottom: 12,
+    padding: 12,
+  },
+  qrCodeImage: {
+    width: 190,
+    height: 190,
+    borderRadius: 14,
+    backgroundColor: colors.white,
+  },
+  qrCodeCaption: {
+    marginTop: 8,
+    color: colors.tealDark,
+    fontSize: 12,
+    fontWeight: '900',
+  },
   noMethodText: {
     color: colors.danger,
     fontSize: 13,
     lineHeight: 20,
     fontWeight: '800',
-  },
-  paymentInput: {
-    minHeight: 46,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.white,
-    paddingHorizontal: 14,
-    color: colors.ink,
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  paymentTextarea: {
-    minHeight: 82,
-    paddingTop: 12,
-    textAlignVertical: 'top',
   },
   proofPicker: {
     minHeight: 150,

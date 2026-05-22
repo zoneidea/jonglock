@@ -220,6 +220,7 @@ export type BookingPaymentInfo = {
     bankName: string;
     bankAccountName: string;
     bankAccountNo: string;
+    qrCodeImageUrl: string;
     instructions: string;
   };
 };
@@ -531,6 +532,10 @@ export async function getBookingPaymentInfo(bookingId: number, user: BoothHoldUs
   return {
     ...result,
     amount: Number(result.amount || 0),
+    paymentMethod: {
+      ...result.paymentMethod,
+      qrCodeImageUrl: normalizeUrl(result.paymentMethod?.qrCodeImageUrl || ''),
+    },
   };
 }
 
