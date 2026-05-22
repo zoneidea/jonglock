@@ -1,11 +1,19 @@
 import React, {useCallback, useEffect, useState} from 'react';
-import {Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View} from 'react-native';
+import {Image, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View} from 'react-native';
+import {launchImageLibrary} from 'react-native-image-picker';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import AppDialog from '../components/AppDialog';
 import ApiLoadingState from '../components/ApiLoadingState';
 import PlaceholderPanel from '../components/PlaceholderPanel';
-import {cancelCartBooking, getCartBookings, type CartBooking} from '../services/markets';
+import {
+  cancelCartBooking,
+  getBookingPaymentInfo,
+  getCartBookings,
+  type BookingPaymentInfo,
+  type CartBooking,
+  uploadBookingPaymentProof,
+} from '../services/markets';
 import {colors, shadow} from '../theme/colors';
 import {useTheme} from '../theme/theme';
 import type {MobileUser} from '../types/user';
@@ -24,6 +32,13 @@ function CartScreen({
   const [refreshing, setRefreshing] = useState(false);
   const [cancelTarget, setCancelTarget] = useState<CartBooking | null>(null);
   const [cancellingBookingId, setCancellingBookingId] = useState<number | null>(null);
+  const [paymentTarget, setPaymentTarget] = useState<CartBooking | null>(null);
+  const [paymentInfo, setPaymentInfo] = useState<BookingPaymentInfo | null>(null);
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const [proofImage, setProofImage] = useState<{uri: string; name?: string; type?: string} | null>(null);
+  const [providerReference, setProviderReference] = useState('');
+  const [payerNote, setPayerNote] = useState('');
+  const [uploadingProof, setUploadingProof] = useState(false);
   const [message, setMessage] = useState('');
 
   const loadCart = useCallback(async () => {
@@ -98,6 +113,89 @@ function CartScreen({
     }
   }, [cancelTarget, loadCart, user?.email, user?.name]);
 
+  const openPayment = useCallback(async (booking: CartBooking) => {
+    if (!user?.email) {
+      return;
+    }
+    setPaymentTarget(booking);
+    setPaymentInfo(null);
+    setProofImage(null);
+    setProviderReference('');
+    setPayerNote('');
+    setPaymentLoading(true);
+    setMessage('');
+    try {
+      const info = await getBookingPaymentInfo(booking.bookingId, {email: user.email, name: user.name});
+      setPaymentInfo(info);
+      setProviderReference(info.payment?.providerReference || '');
+      setPayerNote(info.payment?.payerNote || '');
+    } catch (error) {
+      setMessage((error as Error).message || 'ยังไม่สามารถโหลดข้อมูลชำระเงินได้');
+      setPaymentTarget(null);
+    } finally {
+      setPaymentLoading(false);
+    }
+  }, [user]);
+
+  const closePayment = useCallback(() => {
+    if (uploadingProof) {
+      return;
+    }
+    setPaymentTarget(null);
+    setPaymentInfo(null);
+    setProofImage(null);
+    setProviderReference('');
+    setPayerNote('');
+  }, [uploadingProof]);
+
+  const chooseProofImage = useCallback(async () => {
+    const result = await launchImageLibrary({
+      mediaType: 'photo',
+      selectionLimit: 1,
+      quality: 0.9,
+    });
+    if (result.didCancel) {
+      return;
+    }
+    const asset = result.assets?.[0];
+    if (!asset?.uri) {
+      setMessage('ไม่พบไฟล์รูปภาพที่เลือก');
+      return;
+    }
+    setProofImage({
+      uri: asset.uri,
+      name: asset.fileName || 'payment-proof.jpg',
+      type: asset.type || 'image/jpeg',
+    });
+  }, []);
+
+  const submitProof = useCallback(async () => {
+    if (!paymentTarget || !user?.email) {
+      return;
+    }
+    if (!proofImage) {
+      setMessage('กรุณาเลือกรูปสลิปก่อนอัปโหลด');
+      return;
+    }
+    setUploadingProof(true);
+    setMessage('');
+    try {
+      await uploadBookingPaymentProof(
+        paymentTarget.bookingId,
+        {email: user.email, name: user.name},
+        proofImage,
+        {providerReference, payerNote},
+      );
+      closePayment();
+      setMessage('ส่งหลักฐานการชำระเงินแล้ว กรุณารอการตรวจสอบ');
+      await loadCart();
+    } catch (error) {
+      setMessage((error as Error).message || 'ยังไม่สามารถอัปโหลดหลักฐานได้');
+    } finally {
+      setUploadingProof(false);
+    }
+  }, [closePayment, loadCart, payerNote, paymentTarget, proofImage, providerReference, user]);
+
   if (!user) {
     return (
       <ScrollView
@@ -161,6 +259,7 @@ function CartScreen({
             selected={selectedBookingIds.includes(booking.bookingId)}
             onToggleSelect={() => toggleBookingSelection(booking.bookingId)}
             onCancel={() => setCancelTarget(booking)}
+            onPay={() => openPayment(booking)}
             cancelling={cancellingBookingId === booking.bookingId}
           />
         ))}
@@ -180,6 +279,22 @@ function CartScreen({
         }}
         onConfirm={handleCancelBooking}
       />
+
+      <PaymentProofModal
+        visible={Boolean(paymentTarget)}
+        booking={paymentTarget}
+        paymentInfo={paymentInfo}
+        loading={paymentLoading}
+        proofImage={proofImage}
+        providerReference={providerReference}
+        payerNote={payerNote}
+        uploading={uploadingProof}
+        onClose={closePayment}
+        onChooseImage={chooseProofImage}
+        onChangeProviderReference={setProviderReference}
+        onChangePayerNote={setPayerNote}
+        onSubmit={submitProof}
+      />
     </ScrollView>
   );
 }
@@ -189,14 +304,17 @@ function CartBookingCard({
   selected,
   onToggleSelect,
   onCancel,
+  onPay,
   cancelling,
 }: {
   booking: CartBooking;
   selected: boolean;
   onToggleSelect: () => void;
   onCancel: () => void;
+  onPay: () => void;
   cancelling: boolean;
 }) {
+  const isProcessing = booking.status === 'payment_processing';
   return (
     <Pressable onPress={onToggleSelect} style={[styles.bookingCard, selected && styles.bookingCardSelected]}>
       <View style={styles.cardTopRow}>
@@ -220,8 +338,10 @@ function CartBookingCard({
           <Text style={styles.expiresText}>{`หมดเวลา ${formatShortDateTime(booking.expiresAt)}`}</Text>
         </View>
         <View style={styles.cardActions}>
-          <View style={styles.statusPill}>
-            <Text style={styles.statusText}>รอชำระ</Text>
+          <View style={[styles.statusPill, isProcessing && styles.statusPillProcessing]}>
+            <Text style={[styles.statusText, isProcessing && styles.statusTextProcessing]}>
+              {isProcessing ? 'รอตรวจสลิป' : 'รอชำระ'}
+            </Text>
           </View>
           <Pressable onPress={onCancel} disabled={cancelling} style={[styles.cancelButton, cancelling && styles.cancelButtonDisabled]}>
             <MaterialCommunityIcons name="trash-can-outline" size={16} color={colors.danger} />
@@ -251,7 +371,133 @@ function CartBookingCard({
         <Text style={styles.totalLabel}>ยอดชำระ</Text>
         <Text style={styles.totalValue}>{formatMoney(booking.totalAmount)} บาท</Text>
       </View>
+      <Pressable onPress={onPay} style={styles.payButton}>
+        <MaterialCommunityIcons name={isProcessing ? 'cloud-upload-outline' : 'qrcode-scan'} size={18} color={colors.white} />
+        <Text style={styles.payButtonText}>{isProcessing ? 'อัปโหลดสลิปอีกครั้ง' : 'ชำระเงิน / อัปโหลดสลิป'}</Text>
+      </Pressable>
     </Pressable>
+  );
+}
+
+function PaymentProofModal({
+  visible,
+  booking,
+  paymentInfo,
+  loading,
+  proofImage,
+  providerReference,
+  payerNote,
+  uploading,
+  onClose,
+  onChooseImage,
+  onChangeProviderReference,
+  onChangePayerNote,
+  onSubmit,
+}: {
+  visible: boolean;
+  booking: CartBooking | null;
+  paymentInfo: BookingPaymentInfo | null;
+  loading: boolean;
+  proofImage: {uri: string; name?: string; type?: string} | null;
+  providerReference: string;
+  payerNote: string;
+  uploading: boolean;
+  onClose: () => void;
+  onChooseImage: () => void;
+  onChangeProviderReference: (value: string) => void;
+  onChangePayerNote: (value: string) => void;
+  onSubmit: () => void;
+}) {
+  const method = paymentInfo?.paymentMethod;
+  const hasPaymentMethod = Boolean(method?.promptpayId || method?.bankAccountNo);
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={styles.modalBackdrop}>
+        <View style={styles.paymentModal}>
+          <View style={styles.modalHeader}>
+            <View>
+              <Text style={styles.modalTitle}>ชำระเงิน</Text>
+              <Text style={styles.modalSubtitle}>{booking?.publicId || paymentInfo?.publicId || '-'}</Text>
+            </View>
+            <Pressable onPress={onClose} disabled={uploading} style={styles.modalCloseButton}>
+              <MaterialCommunityIcons name="close" size={22} color={colors.ink} />
+            </Pressable>
+          </View>
+
+          {loading ? (
+            <ApiLoadingState label="กำลังโหลดข้อมูลชำระเงิน" />
+          ) : (
+            <ScrollView style={styles.paymentScroll} contentContainerStyle={styles.paymentScrollContent}>
+              <View style={styles.amountBox}>
+                <Text style={styles.amountLabel}>ยอดที่ต้องชำระ</Text>
+                <Text style={styles.amountValue}>{formatMoney(paymentInfo?.amount || booking?.totalAmount || 0)} บาท</Text>
+                <Text style={styles.amountHint}>{`หมดเวลา ${formatShortDateTime(paymentInfo?.expiresAt || booking?.expiresAt)}`}</Text>
+              </View>
+
+              <View style={styles.methodBox}>
+                <Text style={styles.sectionTitle}>บัญชีรับเงิน</Text>
+                {hasPaymentMethod ? (
+                  <>
+                    {method?.promptpayId ? <InfoRow label="PromptPay" value={method.promptpayId} /> : null}
+                    {method?.bankName ? <InfoRow label="ธนาคาร" value={method.bankName} /> : null}
+                    {method?.bankAccountName ? <InfoRow label="ชื่อบัญชี" value={method.bankAccountName} /> : null}
+                    {method?.bankAccountNo ? <InfoRow label="เลขบัญชี" value={method.bankAccountNo} /> : null}
+                    {method?.instructions ? <Text style={styles.instructionText}>{method.instructions}</Text> : null}
+                  </>
+                ) : (
+                  <Text style={styles.noMethodText}>ตลาดยังไม่ได้ตั้งค่าบัญชีรับเงิน กรุณาติดต่อเจ้าหน้าที่ตลาด</Text>
+                )}
+              </View>
+
+              <TextInput
+                value={providerReference}
+                onChangeText={onChangeProviderReference}
+                placeholder="เลขอ้างอิง / เลขรายการโอน (ถ้ามี)"
+                placeholderTextColor={colors.muted}
+                style={styles.paymentInput}
+              />
+              <TextInput
+                value={payerNote}
+                onChangeText={onChangePayerNote}
+                placeholder="หมายเหตุเพิ่มเติม (ถ้ามี)"
+                placeholderTextColor={colors.muted}
+                multiline
+                style={[styles.paymentInput, styles.paymentTextarea]}
+              />
+
+              <Pressable onPress={onChooseImage} style={styles.proofPicker}>
+                {proofImage ? (
+                  <Image source={{uri: proofImage.uri}} style={styles.proofPreview} />
+                ) : (
+                  <View style={styles.proofPlaceholder}>
+                    <MaterialCommunityIcons name="image-plus" size={28} color={colors.tealDark} />
+                    <Text style={styles.proofPlaceholderText}>เลือกรูปสลิป</Text>
+                  </View>
+                )}
+              </Pressable>
+
+              <Pressable
+                onPress={onSubmit}
+                disabled={uploading || !proofImage || !hasPaymentMethod}
+                style={[styles.submitProofButton, (uploading || !proofImage || !hasPaymentMethod) && styles.submitProofButtonDisabled]}>
+                <MaterialCommunityIcons name="cloud-upload-outline" size={19} color={colors.white} />
+                <Text style={styles.submitProofText}>{uploading ? 'กำลังอัปโหลด...' : 'ส่งหลักฐานการชำระเงิน'}</Text>
+              </Pressable>
+            </ScrollView>
+          )}
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+function InfoRow({label, value}: {label: string; value: string}) {
+  return (
+    <View style={styles.infoRow}>
+      <Text style={styles.infoLabel}>{label}</Text>
+      <Text style={styles.infoValue}>{value}</Text>
+    </View>
   );
 }
 
@@ -432,6 +678,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
   },
+  statusPillProcessing: {
+    backgroundColor: '#e7f4ff',
+  },
   cardActions: {
     alignItems: 'flex-end',
     gap: 8,
@@ -440,6 +689,9 @@ const styles = StyleSheet.create({
     color: '#9a6500',
     fontSize: 11,
     fontWeight: '900',
+  },
+  statusTextProcessing: {
+    color: '#136aa8',
   },
   cancelButton: {
     width: 34,
@@ -506,6 +758,194 @@ const styles = StyleSheet.create({
   totalValue: {
     color: colors.tealDark,
     fontSize: 20,
+    fontWeight: '900',
+  },
+  payButton: {
+    marginTop: 12,
+    height: 46,
+    borderRadius: 16,
+    backgroundColor: colors.teal,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  payButtonText: {
+    color: colors.white,
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(8, 20, 31, 0.45)',
+    justifyContent: 'flex-end',
+  },
+  paymentModal: {
+    maxHeight: '88%',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    backgroundColor: colors.white,
+    paddingTop: 18,
+    paddingHorizontal: 18,
+    paddingBottom: 24,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginBottom: 14,
+  },
+  modalTitle: {
+    color: colors.ink,
+    fontSize: 22,
+    fontWeight: '900',
+  },
+  modalSubtitle: {
+    marginTop: 2,
+    color: colors.tealDark,
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  modalCloseButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    backgroundColor: colors.soft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  paymentScroll: {
+    maxHeight: '100%',
+  },
+  paymentScrollContent: {
+    paddingBottom: 8,
+    gap: 12,
+  },
+  amountBox: {
+    borderRadius: 20,
+    backgroundColor: '#ecfbf8',
+    borderWidth: 1,
+    borderColor: '#c7eee7',
+    padding: 16,
+  },
+  amountLabel: {
+    color: colors.tealDark,
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  amountValue: {
+    marginTop: 4,
+    color: colors.ink,
+    fontSize: 28,
+    fontWeight: '900',
+  },
+  amountHint: {
+    marginTop: 4,
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  methodBox: {
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.white,
+    padding: 14,
+  },
+  sectionTitle: {
+    color: colors.ink,
+    fontSize: 14,
+    fontWeight: '900',
+    marginBottom: 8,
+  },
+  infoRow: {
+    minHeight: 30,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 14,
+  },
+  infoLabel: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  infoValue: {
+    flex: 1,
+    color: colors.ink,
+    fontSize: 13,
+    fontWeight: '900',
+    textAlign: 'right',
+  },
+  instructionText: {
+    marginTop: 8,
+    color: colors.muted,
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: '800',
+  },
+  noMethodText: {
+    color: colors.danger,
+    fontSize: 13,
+    lineHeight: 20,
+    fontWeight: '800',
+  },
+  paymentInput: {
+    minHeight: 46,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.white,
+    paddingHorizontal: 14,
+    color: colors.ink,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  paymentTextarea: {
+    minHeight: 82,
+    paddingTop: 12,
+    textAlignVertical: 'top',
+  },
+  proofPicker: {
+    minHeight: 150,
+    overflow: 'hidden',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.soft,
+  },
+  proofPreview: {
+    width: '100%',
+    height: 190,
+    resizeMode: 'cover',
+  },
+  proofPlaceholder: {
+    minHeight: 150,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  proofPlaceholderText: {
+    color: colors.tealDark,
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  submitProofButton: {
+    height: 50,
+    borderRadius: 17,
+    backgroundColor: colors.teal,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  submitProofButtonDisabled: {
+    opacity: 0.45,
+  },
+  submitProofText: {
+    color: colors.white,
+    fontSize: 14,
     fontWeight: '900',
   },
   emptyCard: {

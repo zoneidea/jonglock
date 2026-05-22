@@ -196,6 +196,50 @@ export type BookingCancelResult = {
   totalAmount: number;
 };
 
+export type BookingPaymentInfo = {
+  bookingId: number;
+  publicId: string;
+  organizationId: number;
+  marketId: number;
+  marketName: string;
+  status: string;
+  expiresAt?: string | null;
+  amount: number;
+  payment: {
+    id: number;
+    publicId: string;
+    status: string;
+    providerReference: string;
+    proofImageUrl: string;
+    proofUploadedAt?: string | null;
+    payerNote: string;
+  } | null;
+  paymentMethod: {
+    organizationName: string;
+    promptpayId: string;
+    bankName: string;
+    bankAccountName: string;
+    bankAccountNo: string;
+    instructions: string;
+  };
+};
+
+export type BookingPaymentProofResult = {
+  bookingId: number;
+  publicId: string;
+  organizationId: number;
+  marketId: number;
+  status: string;
+  payment: {
+    id: number;
+    publicId: string;
+    status: string;
+    amount: number;
+    proofImageUrl: string;
+    proofUploadedAt?: string | null;
+  };
+};
+
 type CachedValue<T> = {
   value: T;
   expiresAt: number;
@@ -479,6 +523,55 @@ export async function cancelCartBooking(bookingId: number, user: BoothHoldUser) 
   return {
     ...result,
     totalAmount: Number(result.totalAmount || 0),
+  };
+}
+
+export async function getBookingPaymentInfo(bookingId: number, user: BoothHoldUser) {
+  const result = await post<BookingPaymentInfo>(`/public/bookings/${bookingId}/payment-info`, {user});
+  return {
+    ...result,
+    amount: Number(result.amount || 0),
+  };
+}
+
+export async function uploadBookingPaymentProof(
+  bookingId: number,
+  user: BoothHoldUser,
+  file: {uri: string; name?: string; type?: string},
+  details: {providerReference?: string; payerNote?: string} = {},
+) {
+  const formData = new FormData();
+  formData.append('email', user.email);
+  if (user.name) {
+    formData.append('name', user.name);
+  }
+  if (details.providerReference) {
+    formData.append('providerReference', details.providerReference);
+  }
+  if (details.payerNote) {
+    formData.append('payerNote', details.payerNote);
+  }
+  formData.append('proofImage', {
+    uri: file.uri,
+    name: file.name || 'payment-proof.jpg',
+    type: file.type || 'image/jpeg',
+  } as never);
+
+  const response = await fetch(`${API_BASE_URL}/public/bookings/${bookingId}/payment-proof`, {
+    method: 'POST',
+    body: formData,
+  });
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+
+  const payload = (await response.json()) as ApiResponse<BookingPaymentProofResult>;
+  return {
+    ...payload.data,
+    payment: {
+      ...payload.data.payment,
+      amount: Number(payload.data.payment?.amount || 0),
+    },
   };
 }
 
