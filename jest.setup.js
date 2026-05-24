@@ -40,6 +40,21 @@ jest.mock('@react-native-firebase/app', () => ({
   },
 }));
 
+jest.mock('@react-native-firebase/auth', () => {
+  const auth = jest.fn(() => ({
+    signOut: jest.fn(() => Promise.resolve()),
+    currentUser: null,
+  }));
+  auth.PhoneAuthProvider = {
+    credential: jest.fn(() => ({})),
+  };
+  return {
+    __esModule: true,
+    default: auth,
+    FirebaseAuthTypes: {},
+  };
+});
+
 jest.mock('@react-native-firebase/firestore', () => {
   const collection = {
     doc: jest.fn(() => ({
@@ -81,6 +96,18 @@ jest.mock('react-native-vector-icons/MaterialCommunityIcons', () => {
 
 jest.mock('react-native-image-picker', () => ({
   launchImageLibrary: jest.fn(() => Promise.resolve({didCancel: true})),
+}));
+
+jest.mock('@react-native-camera-roll/camera-roll', () => ({
+  CameraRoll: {
+    save: jest.fn(() => Promise.resolve('mock-photo-id')),
+  },
+}));
+
+jest.mock('react-native-fs', () => ({
+  CachesDirectoryPath: '/tmp',
+  downloadFile: jest.fn(() => ({promise: Promise.resolve({statusCode: 200})})),
+  unlink: jest.fn(() => Promise.resolve()),
 }));
 
 jest.mock('react-native-vision-camera', () => {
