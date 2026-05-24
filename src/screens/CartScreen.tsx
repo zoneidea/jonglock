@@ -1,5 +1,7 @@
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
-import {Image, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View} from 'react-native';
+import {Alert, Image, Modal, PermissionsAndroid, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View} from 'react-native';
+import {CameraRoll} from '@react-native-camera-roll/camera-roll';
+import RNFS from 'react-native-fs';
 import {launchImageLibrary} from 'react-native-image-picker';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
@@ -17,6 +19,49 @@ import {
 import {colors, shadow} from '../theme/colors';
 import {useTheme} from '../theme/theme';
 import type {MobileUser} from '../types/user';
+
+async function ensureQrSavePermission() {
+  if (Platform.OS !== 'android') {
+    return true;
+  }
+  const androidVersion = typeof Platform.Version === 'number' ? Platform.Version : Number(Platform.Version);
+  if (androidVersion >= 29) {
+    return true;
+  }
+  const permission = PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE;
+  const current = await PermissionsAndroid.check(permission);
+  if (current) {
+    return true;
+  }
+  const result = await PermissionsAndroid.request(permission, {
+    title: 'อนุญาตให้บันทึกรูปภาพ',
+    message: 'Jonglock ต้องการบันทึก QR Code ลงในคลังรูปภาพของเครื่อง',
+    buttonPositive: 'อนุญาต',
+    buttonNegative: 'ยกเลิก',
+  });
+  return result === PermissionsAndroid.RESULTS.GRANTED;
+}
+
+function resolveImageExtension(imageUrl: string) {
+  const pathname = imageUrl.split('?')[0] || '';
+  const extension = pathname.match(/\\.([a-zA-Z0-9]+)$/)?.[1]?.toLowerCase();
+  return ['jpg', 'jpeg', 'png', 'webp'].includes(extension || '') ? extension : 'jpg';
+}
+
+async function saveRemoteQrToGallery(imageUrl: string) {
+  const allowed = await ensureQrSavePermission();
+  if (!allowed) {
+    throw new Error('ไม่สามารถบันทึกได้ เนื่องจากไม่ได้รับสิทธิ์เข้าถึงคลังรูปภาพ');
+  }
+  const extension = resolveImageExtension(imageUrl);
+  const localPath = `${RNFS.CachesDirectoryPath}/jonglock-payment-qr-${Date.now()}.${extension}`;
+  await RNFS.downloadFile({fromUrl: imageUrl, toFile: localPath}).promise;
+  try {
+    await CameraRoll.save(`file://${localPath}`, {type: 'photo'});
+  } finally {
+    RNFS.unlink(localPath).catch(() => {});
+  }
+}
 
 function CartScreen({
   user,
@@ -38,6 +83,8 @@ function CartScreen({
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [proofImage, setProofImage] = useState<{uri: string; name?: string; type?: string} | null>(null);
   const [uploadingProof, setUploadingProof] = useState(false);
+  const [savingQrCode, setSavingQrCode] = useState(false);
+  const [nowMs, setNowMs] = useState(() => Date.now());
   const [message, setMessage] = useState('');
 
   const loadCart = useCallback(async () => {
@@ -51,7 +98,10 @@ function CartScreen({
     setLoading(true);
     setMessage('');
     try {
-      const nextBookings = await getCartBookings({email: user.email, name: user.name});
+      const loadedAtMs = Date.now();
+      const nextBookings = (await getCartBookings({email: user.email, name: user.name})).filter(
+        (booking) => !isBookingExpired(booking, loadedAtMs),
+      );
       setBookings(nextBookings);
       setSelectedBookingIds((current) =>
         current.filter((bookingId) => nextBookings.some((booking) => booking.bookingId === bookingId)),
@@ -67,6 +117,40 @@ function CartScreen({
   useEffect(() => {
     loadCart();
   }, [loadCart]);
+
+  useEffect(() => {
+    if (!user?.email || !bookings.length || paymentBookings.length > 0) {
+      return undefined;
+    }
+
+    const timer = setInterval(() => {
+      setNowMs(Date.now());
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [bookings.length, paymentBookings.length, user?.email]);
+
+  useEffect(() => {
+    if (!bookings.length || paymentBookings.length > 0) {
+      return;
+    }
+
+    const expiredBookingIds = bookings
+      .filter((booking) => isBookingExpired(booking, nowMs))
+      .map((booking) => booking.bookingId);
+
+    if (!expiredBookingIds.length) {
+      return;
+    }
+
+    setBookings((current) => current.filter((booking) => !expiredBookingIds.includes(booking.bookingId)));
+    setSelectedBookingIds((current) => current.filter((bookingId) => !expiredBookingIds.includes(bookingId)));
+    setMessage('มีรายการหมดเวลาถูกนำออกจากตะกร้าแล้ว');
+  }, [bookings, nowMs, paymentBookings.length]);
+
+  useEffect(() => {
+    onCountChange?.(bookings.length);
+  }, [bookings.length, onCountChange]);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -228,6 +312,22 @@ function CartScreen({
     }
   }, [closePayment, loadCart, paymentBookings, proofImage, user]);
 
+  const savePaymentQrCode = useCallback(async () => {
+    const qrCodeImageUrl = paymentInfo?.paymentMethod?.qrCodeImageUrl;
+    if (!qrCodeImageUrl || savingQrCode) {
+      return;
+    }
+    setSavingQrCode(true);
+    try {
+      await saveRemoteQrToGallery(qrCodeImageUrl);
+      Alert.alert('บันทึก QR Code แล้ว', 'บันทึกรูป QR Code ลงในคลังรูปภาพเรียบร้อย');
+    } catch (error) {
+      Alert.alert('บันทึก QR Code ไม่สำเร็จ', (error as Error).message || 'กรุณาลองใหม่อีกครั้ง');
+    } finally {
+      setSavingQrCode(false);
+    }
+  }, [paymentInfo?.paymentMethod?.qrCodeImageUrl, savingQrCode]);
+
   if (!user) {
     return (
       <ScrollView
@@ -269,6 +369,7 @@ function CartScreen({
           <CheckoutSummary
             bookings={selectedBookings}
             totalAmount={selectedTotal}
+            nowMs={nowMs}
             onBack={() => setCheckoutMode(false)}
             onConfirm={() => openPayment(selectedBookings)}
           />
@@ -280,8 +381,10 @@ function CartScreen({
             loading={paymentLoading}
             proofImage={proofImage}
             uploading={uploadingProof}
+            savingQrCode={savingQrCode}
             onClose={closePayment}
             onChooseImage={chooseProofImage}
+            onSaveQrCode={savePaymentQrCode}
             onSubmit={submitProof}
           />
         </>
@@ -335,6 +438,7 @@ function CartScreen({
             onToggleSelect={() => toggleBookingSelection(booking.bookingId)}
             onCancel={() => setCancelTarget(booking)}
             cancelling={cancellingBookingId === booking.bookingId}
+            nowMs={nowMs}
           />
         ))}
       </View>
@@ -366,14 +470,17 @@ function CartBookingCard({
   onToggleSelect,
   onCancel,
   cancelling,
+  nowMs,
 }: {
   booking: CartBooking;
   selected: boolean;
   onToggleSelect: () => void;
   onCancel: () => void;
   cancelling: boolean;
+  nowMs: number;
 }) {
   const isProcessing = booking.status === 'payment_processing';
+  const countdownText = formatBookingCountdown(booking, nowMs);
   return (
     <Pressable onPress={onToggleSelect} style={[styles.bookingCard, selected && styles.bookingCardSelected]}>
       <View style={styles.cardTopRow}>
@@ -394,7 +501,9 @@ function CartBookingCard({
         <View style={styles.cardTitleWrap}>
           <Text style={styles.marketName} numberOfLines={1}>{booking.marketName}</Text>
           <Text style={styles.bookingCode}>{booking.publicId}</Text>
-          <Text style={styles.expiresText}>{`หมดเวลา ${formatShortDateTime(booking.expiresAt)}`}</Text>
+          <Text style={[styles.expiresText, countdownText.isUrgent && styles.expiresTextUrgent]}>
+            {countdownText.text}
+          </Text>
         </View>
         <View style={styles.cardActions}>
           <View style={[styles.statusPill, isProcessing && styles.statusPillProcessing]}>
@@ -437,11 +546,13 @@ function CartBookingCard({
 function CheckoutSummary({
   bookings,
   totalAmount,
+  nowMs,
   onBack,
   onConfirm,
 }: {
   bookings: CartBooking[];
   totalAmount: number;
+  nowMs: number;
   onBack: () => void;
   onConfirm: () => void;
 }) {
@@ -467,9 +578,7 @@ function CheckoutSummary({
               <View style={styles.summaryItemMain}>
                 <Text style={styles.summaryMarketName}>{booking.marketName}</Text>
                 <Text style={styles.summaryBookingCode}>{booking.publicId}</Text>
-                <Text style={styles.summaryItemMeta}>
-                  {`${booking.items.length} วัน/รายการ • หมดเวลา ${formatShortDateTime(booking.expiresAt)}`}
-                </Text>
+                <Text style={styles.summaryItemMeta}>{`${booking.items.length} วัน/รายการ • ${formatBookingCountdown(booking, nowMs).text}`}</Text>
               </View>
               <Text style={styles.summaryItemAmount}>{formatMoney(booking.totalAmount)}</Text>
             </View>
@@ -497,8 +606,10 @@ function PaymentProofModal({
   loading,
   proofImage,
   uploading,
+  savingQrCode,
   onClose,
   onChooseImage,
+  onSaveQrCode,
   onSubmit,
 }: {
   visible: boolean;
@@ -508,8 +619,10 @@ function PaymentProofModal({
   loading: boolean;
   proofImage: {uri: string; name?: string; type?: string} | null;
   uploading: boolean;
+  savingQrCode: boolean;
   onClose: () => void;
   onChooseImage: () => void;
+  onSaveQrCode: () => void;
   onSubmit: () => void;
 }) {
   const method = paymentInfo?.paymentMethod;
@@ -550,6 +663,13 @@ function PaymentProofModal({
                       <View style={styles.qrCodeBox}>
                         <Image source={{uri: method.qrCodeImageUrl}} style={styles.qrCodeImage} resizeMode="contain" />
                         <Text style={styles.qrCodeCaption}>สแกน QR Code เพื่อชำระเงิน</Text>
+                        <Pressable
+                          onPress={onSaveQrCode}
+                          disabled={savingQrCode}
+                          style={[styles.qrSaveButton, savingQrCode && styles.qrSaveButtonDisabled]}>
+                          <MaterialCommunityIcons name="content-save-outline" size={16} color={colors.white} />
+                          <Text style={styles.qrSaveButtonText}>{savingQrCode ? 'กำลังบันทึก...' : 'บันทึก QR Code'}</Text>
+                        </Pressable>
                       </View>
                     ) : null}
                     {method?.promptpayId ? <InfoRow label="PromptPay" value={method.promptpayId} /> : null}
@@ -623,6 +743,40 @@ function formatShortDateTime(value?: string | null) {
     hour: '2-digit',
     minute: '2-digit',
   }).format(date);
+}
+
+function getBookingExpiryMs(booking: CartBooking) {
+  if (booking.status === 'payment_processing' || !booking.expiresAt) {
+    return null;
+  }
+  const expiresAtMs = new Date(booking.expiresAt).getTime();
+  return Number.isNaN(expiresAtMs) ? null : expiresAtMs;
+}
+
+function isBookingExpired(booking: CartBooking, nowMs: number) {
+  const expiresAtMs = getBookingExpiryMs(booking);
+  return expiresAtMs !== null && expiresAtMs <= nowMs;
+}
+
+function formatBookingCountdown(booking: CartBooking, nowMs: number) {
+  const expiresAtMs = getBookingExpiryMs(booking);
+  if (expiresAtMs === null) {
+    return {
+      text: `หมดเวลา ${formatShortDateTime(booking.expiresAt)}`,
+      isUrgent: false,
+    };
+  }
+
+  const remainingMs = Math.max(0, expiresAtMs - nowMs);
+  const totalSeconds = Math.floor(remainingMs / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  const countdown = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+
+  return {
+    text: totalSeconds > 0 ? `เหลือเวลา ${countdown}` : 'หมดเวลาแล้ว',
+    isUrgent: totalSeconds <= 60,
+  };
 }
 
 function formatMoney(value: number) {
@@ -792,6 +946,9 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontSize: 11,
     fontWeight: '800',
+  },
+  expiresTextUrgent: {
+    color: colors.danger,
   },
   statusPill: {
     borderRadius: 999,
@@ -1124,6 +1281,25 @@ const styles = StyleSheet.create({
     marginTop: 8,
     color: colors.tealDark,
     fontSize: 12,
+    fontWeight: '900',
+  },
+  qrSaveButton: {
+    marginTop: 12,
+    minHeight: 40,
+    borderRadius: 14,
+    backgroundColor: colors.teal,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    paddingHorizontal: 16,
+  },
+  qrSaveButtonDisabled: {
+    opacity: 0.65,
+  },
+  qrSaveButtonText: {
+    color: colors.white,
+    fontSize: 13,
     fontWeight: '900',
   },
   noMethodText: {
