@@ -25,6 +25,8 @@ import {STORAGE_USER_KEY} from '../constants/storage';
 import {colors, shadow} from '../theme/colors';
 import type {MobileUser} from '../types/user';
 
+const POWERED_BY_TEXT = 'Powered by zone-idea innovation co.,ltd.';
+
 function AuthScreen({onAuthenticated}: {onAuthenticated: (user: MobileUser) => void}) {
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [name, setName] = useState('');
@@ -176,6 +178,7 @@ function AuthScreen({onAuthenticated}: {onAuthenticated: (user: MobileUser) => v
               </Text>
             </Pressable>
           </View>
+          <Text style={styles.poweredByText}>{POWERED_BY_TEXT}</Text>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -239,6 +242,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     ...shadow,
+  },
+  poweredByText: {
+    marginTop: 22,
+    color: colors.muted,
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+    textAlign: 'center',
+    textTransform: 'uppercase',
   },
   segment: {
     flexDirection: 'row',

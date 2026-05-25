@@ -1,5 +1,5 @@
 import React, {useCallback, useRef, useState} from 'react';
-import {Animated, SafeAreaView, StatusBar, StyleSheet, View} from 'react-native';
+import {Animated, SafeAreaView, StatusBar, StyleSheet, Text, View} from 'react-native';
 
 import BottomTabItem from '../components/BottomTabItem';
 import {getCartBookings} from '../services/markets';
@@ -11,6 +11,8 @@ import BookingScreen from './BookingScreen';
 import CartScreen from './CartScreen';
 import HomeScreen from './HomeScreen';
 import ProfileScreen from './ProfileScreen';
+
+const POWERED_BY_TEXT = 'Powered by zone-idea innovation co.,ltd.';
 
 function AppShell({
   user,
@@ -100,17 +102,20 @@ function AppShell({
         {renderTabContent()}
       </Animated.View>
       {!(activeTab === 'booking' && bookingTabHidden) ? (
-        <View style={[styles.bottomBar, {backgroundColor: palette.surface, borderColor: palette.border}]}>
-          {tabs.map((tab) => (
-            <BottomTabItem
-              key={tab.key}
-              item={tab}
-              active={tab.key === activeTab}
-              badgeCount={tab.key === 'cart' ? cartItemCount : 0}
-              onPress={() => changeTab(tab.key)}
-            />
-          ))}
-        </View>
+        <>
+          <View style={[styles.bottomBar, {backgroundColor: palette.surface, borderColor: palette.border}]}>
+            {tabs.map((tab) => (
+              <BottomTabItem
+                key={tab.key}
+                item={tab}
+                active={tab.key === activeTab}
+                badgeCount={tab.key === 'cart' ? cartItemCount : 0}
+                onPress={() => changeTab(tab.key)}
+              />
+            ))}
+          </View>
+          <Text style={[styles.poweredByText, {color: palette.muted}]}>{POWERED_BY_TEXT}</Text>
+        </>
       ) : null}
     </SafeAreaView>
   );
@@ -145,6 +150,19 @@ const styles = StyleSheet.create({
     shadowRadius: 24,
     zIndex: 20,
     elevation: 20,
+  },
+  poweredByText: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 4,
+    color: colors.muted,
+    fontSize: 8,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+    textAlign: 'center',
+    textTransform: 'uppercase',
+    zIndex: 19,
   },
 });
 
