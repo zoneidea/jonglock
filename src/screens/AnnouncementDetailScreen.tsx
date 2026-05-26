@@ -70,13 +70,13 @@ function AnnouncementDetailScreen({
           </LinearGradient>
         </View>
 
-        <View style={[styles.detailCard, {backgroundColor: palette.surface, borderColor: palette.border}]}>
+        <View style={styles.detailContent}>
           <View style={styles.detailMetaRow}>
-            <View style={styles.detailMetaItem}>
+            <View style={[styles.detailMetaItem, {backgroundColor: palette.surfaceMuted || '#f5f9fc'}]}>
               <Text style={[styles.metaLabel, {color: palette.muted}]}>เผยแพร่</Text>
               <Text style={[styles.metaValue, {color: palette.text}]}>{fullDate || '-'}</Text>
             </View>
-            <View style={styles.detailMetaItem}>
+            <View style={[styles.detailMetaItem, {backgroundColor: palette.surfaceMuted || '#f5f9fc'}]}>
               <Text style={[styles.metaLabel, {color: palette.muted}]}>อัปเดต</Text>
               <Text style={[styles.metaValue, {color: palette.text}]}>{relativeTime}</Text>
             </View>
@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   heroCard: {
-    height: 340,
+    height: 260,
     borderRadius: 30,
     overflow: 'hidden',
     borderWidth: 1,
@@ -175,8 +175,8 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    padding: 22,
-    minHeight: 150,
+    padding: 20,
+    minHeight: 118,
     justifyContent: 'flex-end',
   },
   metaRow: {
@@ -204,18 +204,14 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   heroTitle: {
-    marginTop: 12,
+    marginTop: 10,
     color: colors.white,
-    fontSize: 28,
-    lineHeight: 35,
+    fontSize: 24,
+    lineHeight: 30,
     fontWeight: '900',
   },
-  detailCard: {
+  detailContent: {
     marginTop: 16,
-    borderRadius: 26,
-    borderWidth: 1,
-    padding: 20,
-    ...shadow,
   },
   detailMetaRow: {
     flexDirection: 'row',
