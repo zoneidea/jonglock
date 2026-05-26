@@ -19,11 +19,13 @@ function AppShell({
   onLogout,
   onAuthenticated,
   onUserChange,
+  onOpenAuditPortal,
 }: {
   user: MobileUser | null;
   onLogout: () => void;
   onAuthenticated: (user: MobileUser) => void;
   onUserChange: (user: MobileUser) => void;
+  onOpenAuditPortal: () => void;
 }) {
   const [activeTab, setActiveTab] = useState<TabKey>('home');
   const [renderedTab, setRenderedTab] = useState<TabKey>('home');
@@ -96,6 +98,7 @@ function AppShell({
         onLogout={onLogout}
         onAuthenticated={onAuthenticated}
         onUserChange={onUserChange}
+        onOpenAuditPortal={onOpenAuditPortal}
       />
     );
   }

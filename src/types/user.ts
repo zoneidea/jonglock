@@ -14,3 +14,10 @@ export type MobileUser = {
   notificationEnabled?: boolean;
   firebaseUid?: string;
 };
+
+export type AuditUser = {
+  name: string;
+  email: string;
+  staffCode: string;
+  role: 'audit';
+};

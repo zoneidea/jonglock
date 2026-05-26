@@ -78,11 +78,13 @@ function ProfileScreen({
   onLogout,
   onAuthenticated,
   onUserChange,
+  onOpenAuditPortal,
 }: {
   user: MobileUser | null;
   onLogout: () => void;
   onAuthenticated: (user: MobileUser) => void;
   onUserChange: (user: MobileUser) => void;
+  onOpenAuditPortal: () => void;
 }) {
   const [activeTab, setActiveTab] = useState<ProfileTab>('account');
   const [phone, setPhone] = useState('');
@@ -617,6 +619,10 @@ function ProfileScreen({
             <Pressable onPress={continueWithGmail} style={[styles.gmailButton, {backgroundColor: palette.surface, borderColor: palette.border}]}>
               <GoogleIcon />
               <Text style={[styles.gmailButtonText, {color: palette.text}]}>ดำเนินการต่อด้วย Gmail</Text>
+            </Pressable>
+            <Pressable onPress={onOpenAuditPortal} style={styles.auditPortalLink}>
+              <MaterialCommunityIcons name="shield-search-outline" size={16} color={palette.accentDark} />
+              <Text style={[styles.auditPortalLinkText, {color: palette.accentDark}]}>สำหรับเจ้าหน้าที่ตรวจตลาด</Text>
             </Pressable>
             {message ? (
               <Text style={[styles.messageText, {color: messageTone === 'success' ? palette.accentDark : palette.danger}]}>
@@ -1290,6 +1296,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     ...shadow,
+  },
+  auditPortalLink: {
+    marginTop: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  auditPortalLinkText: {
+    fontSize: 13,
+    fontWeight: '800',
   },
   gmailButton: {
     height: 58,
