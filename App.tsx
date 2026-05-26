@@ -32,6 +32,7 @@ function App(): React.JSX.Element {
         }
         if (auditValue) {
           setAuditUser(JSON.parse(auditValue));
+          setActiveExperience('audit');
         }
       })
       .catch(() => undefined);

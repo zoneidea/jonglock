@@ -20,6 +20,14 @@ type AuditLoginResponse = {
   };
 };
 
+type AuditSummaryResponse = {
+  bookingDate: string;
+  totalJobs: number;
+  pendingJobs: number;
+  violationJobs: number;
+  totalFineAmount: number;
+};
+
 async function readErrorMessage(response: Response) {
   try {
     const payload = (await response.json()) as {message?: string};
@@ -58,4 +66,25 @@ export async function loginAudit(payload: {
     organizationName: result.data.user.organizationName,
     marketIds: result.data.user.marketIds,
   };
+}
+
+export async function fetchAuditSummary({
+  token,
+  date,
+}: {
+  token: string;
+  date: string;
+}): Promise<AuditSummaryResponse> {
+  const response = await fetch(`${API_BASE_URL}/mobile/audit/summary?date=${encodeURIComponent(date)}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+
+  const result = (await response.json()) as ApiResponse<AuditSummaryResponse>;
+  return result.data;
 }
