@@ -231,9 +231,8 @@ function CheckinDetail({
           <InfoRow label="วันที่ชำระเงิน" value={formatDateTime(item.paidAt)} />
           <InfoRow label="วันที่ Check-in" value={item.checkedInAt ? formatDateTime(item.checkedInAt) : '-'} />
           <InfoRow label="ยอดชำระ" value={formatMoney(item.unitPrice)} />
+          <BookingQrCode item={item} />
         </View>
-
-        <BookingQrCode item={item} />
 
         {message ? <Text style={[styles.messageText, {color: message.includes('สำเร็จ') ? palette.accent : palette.danger}]}>{message}</Text> : null}
 
@@ -275,14 +274,7 @@ function BookingQrCode({item}: {item: CheckinBookingItem}) {
   }, [qrPayload]);
 
   return (
-    <View style={styles.qrCard}>
-      <View style={styles.qrHeader}>
-        <View>
-          <Text style={styles.qrTitle}>QR สำหรับตรวจสอบ</Text>
-          <Text style={styles.qrSubtitle}>ให้เจ้าหน้าที่สแกนเพื่อยืนยันรายการจอง</Text>
-        </View>
-        <MaterialCommunityIcons name="qrcode-scan" size={24} color={colors.tealDark} />
-      </View>
+    <View style={styles.qrCorner}>
       <View style={styles.qrSurface}>
         {matrix.map((row, rowIndex) => (
           <View key={`row-${rowIndex}`} style={styles.qrRow}>
@@ -295,7 +287,7 @@ function BookingQrCode({item}: {item: CheckinBookingItem}) {
           </View>
         ))}
       </View>
-      <Text style={styles.qrReference}>{item.publicId}</Text>
+      <Text style={styles.qrReference}>QR ตรวจสอบ</Text>
     </View>
   );
 }
@@ -591,39 +583,15 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     fontWeight: '900',
   },
-  qrCard: {
-    marginTop: 14,
-    borderRadius: 26,
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 18,
+  qrCorner: {
+    marginTop: 12,
+    alignSelf: 'flex-end',
     alignItems: 'center',
-    ...shadow,
-  },
-  qrHeader: {
-    alignSelf: 'stretch',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-    marginBottom: 16,
-  },
-  qrTitle: {
-    color: colors.ink,
-    fontSize: 16,
-    fontWeight: '900',
-  },
-  qrSubtitle: {
-    marginTop: 3,
-    color: colors.muted,
-    fontSize: 12,
-    fontWeight: '700',
   },
   qrSurface: {
-    padding: 12,
+    padding: 7,
     backgroundColor: colors.white,
-    borderRadius: 16,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: '#eef3f6',
   },
@@ -631,8 +599,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   qrCell: {
-    width: 5,
-    height: 5,
+    width: 3,
+    height: 3,
   },
   qrCellDark: {
     backgroundColor: colors.ink,
@@ -641,9 +609,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
   },
   qrReference: {
-    marginTop: 12,
+    marginTop: 5,
     color: colors.muted,
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: '900',
   },
   detailCheckinButton: {
