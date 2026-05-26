@@ -1,6 +1,7 @@
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
-import {FlatList, Pressable, RefreshControl, StyleSheet, Text, View} from 'react-native';
+import {FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View} from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import qrcode from 'qrcode-generator';
 
 import ApiLoadingState from '../components/ApiLoadingState';
 import {
@@ -214,7 +215,7 @@ function CheckinDetail({
   const checkedIn = Boolean(item.checkedInAt);
   return (
     <View style={[styles.screen, {backgroundColor: palette.background}]}>
-      <View style={styles.detailContent}>
+      <ScrollView contentContainerStyle={styles.detailContent}>
         <View style={styles.detailHeader}>
           <Pressable onPress={onBack} style={styles.backButton}>
             <MaterialCommunityIcons name="chevron-left" size={24} color={colors.ink} />
@@ -232,6 +233,8 @@ function CheckinDetail({
           <InfoRow label="ยอดชำระ" value={formatMoney(item.unitPrice)} />
         </View>
 
+        <BookingQrCode item={item} />
+
         {message ? <Text style={[styles.messageText, {color: message.includes('สำเร็จ') ? palette.accent : palette.danger}]}>{message}</Text> : null}
 
         <Pressable
@@ -243,7 +246,56 @@ function CheckinDetail({
             {checkedIn ? 'Check-in แล้ว' : checkingIn ? 'กำลัง Check-in...' : 'Check-in'}
           </Text>
         </Pressable>
+      </ScrollView>
+    </View>
+  );
+}
+
+function BookingQrCode({item}: {item: CheckinBookingItem}) {
+  const qrPayload = useMemo(() => JSON.stringify({
+    type: 'jonglock_checkin',
+    version: 1,
+    bookingItemId: item.bookingItemId,
+    bookingId: item.bookingId,
+    publicId: item.publicId,
+    organizationId: item.organizationId,
+    marketId: item.marketId,
+    marketCode: item.marketCode,
+    bookingDate: item.bookingDate,
+  }), [item.bookingDate, item.bookingId, item.bookingItemId, item.marketCode, item.marketId, item.organizationId, item.publicId]);
+
+  const matrix = useMemo(() => {
+    const qr = qrcode(0, 'M');
+    qr.addData(qrPayload);
+    qr.make();
+    const count = qr.getModuleCount();
+    return Array.from({length: count}, (ignoredRowValue, row) =>
+      Array.from({length: count}, (ignoredColumnValue, column) => qr.isDark(row, column)),
+    );
+  }, [qrPayload]);
+
+  return (
+    <View style={styles.qrCard}>
+      <View style={styles.qrHeader}>
+        <View>
+          <Text style={styles.qrTitle}>QR สำหรับตรวจสอบ</Text>
+          <Text style={styles.qrSubtitle}>ให้เจ้าหน้าที่สแกนเพื่อยืนยันรายการจอง</Text>
+        </View>
+        <MaterialCommunityIcons name="qrcode-scan" size={24} color={colors.tealDark} />
       </View>
+      <View style={styles.qrSurface}>
+        {matrix.map((row, rowIndex) => (
+          <View key={`row-${rowIndex}`} style={styles.qrRow}>
+            {row.map((dark, columnIndex) => (
+              <View
+                key={`cell-${rowIndex}-${columnIndex}`}
+                style={[styles.qrCell, dark ? styles.qrCellDark : styles.qrCellLight]}
+              />
+            ))}
+          </View>
+        ))}
+      </View>
+      <Text style={styles.qrReference}>{item.publicId}</Text>
     </View>
   );
 }
@@ -487,7 +539,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   detailContent: {
-    flex: 1,
     padding: 22,
     paddingBottom: 118,
   },
@@ -538,6 +589,61 @@ const styles = StyleSheet.create({
     color: colors.ink,
     fontSize: 15,
     lineHeight: 22,
+    fontWeight: '900',
+  },
+  qrCard: {
+    marginTop: 14,
+    borderRadius: 26,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 18,
+    alignItems: 'center',
+    ...shadow,
+  },
+  qrHeader: {
+    alignSelf: 'stretch',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginBottom: 16,
+  },
+  qrTitle: {
+    color: colors.ink,
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  qrSubtitle: {
+    marginTop: 3,
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  qrSurface: {
+    padding: 12,
+    backgroundColor: colors.white,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#eef3f6',
+  },
+  qrRow: {
+    flexDirection: 'row',
+  },
+  qrCell: {
+    width: 5,
+    height: 5,
+  },
+  qrCellDark: {
+    backgroundColor: colors.ink,
+  },
+  qrCellLight: {
+    backgroundColor: colors.white,
+  },
+  qrReference: {
+    marginTop: 12,
+    color: colors.muted,
+    fontSize: 12,
     fontWeight: '900',
   },
   detailCheckinButton: {
