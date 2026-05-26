@@ -1,5 +1,5 @@
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
-import {FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View} from 'react-native';
+import {FlatList, InteractionManager, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View} from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import qrcode from 'qrcode-generator';
 
@@ -168,6 +168,7 @@ const CheckinCard = React.memo(function CheckinCard({
   onCheckin: () => void;
 }) {
   const checkedIn = Boolean(item.checkedInAt);
+  const canCheckinToday = isToday(item.bookingDate);
   return (
     <Pressable onPress={onOpen} style={styles.itemCard}>
       <View style={styles.itemHeader}>
@@ -175,21 +176,23 @@ const CheckinCard = React.memo(function CheckinCard({
           <MaterialCommunityIcons name={checkedIn ? 'check-circle-outline' : 'store-check-outline'} size={22} color={checkedIn ? colors.tealDark : colors.teal} />
         </View>
         <View style={styles.itemMain}>
-          <Text style={styles.itemTitle}>{item.marketName}</Text>
-          <Text style={styles.itemMeta}>{`${formatShortDate(item.bookingDate)} • ${item.boothName || item.boothCode}`}</Text>
+          <Text style={styles.itemDate}>{formatShortDate(item.bookingDate)}</Text>
+          <Text style={styles.itemBooth}>{item.boothName || item.boothCode}</Text>
+          <Text style={styles.itemMarket}>{item.marketName}</Text>
         </View>
-        <Text style={[styles.itemStatus, checkedIn && styles.itemStatusDone]}>{checkedIn ? 'เช็คอินแล้ว' : 'รอเช็คอิน'}</Text>
+        <Text style={[styles.itemStatus, checkedIn && styles.itemStatusDone]}>
+          {checkedIn ? 'เช็คอินแล้ว' : canCheckinToday ? 'วันนี้' : 'นอกวัน'}
+        </Text>
       </View>
       <View style={styles.itemFooter}>
-        <Text style={styles.itemAmount}>{formatMoney(item.unitPrice)}</Text>
         <View style={styles.itemActions}>
           <Pressable onPress={onOpen} style={styles.secondaryButton}>
             <MaterialCommunityIcons name="file-eye-outline" size={16} color={colors.ink} />
           </Pressable>
           <Pressable
-            disabled={checkedIn || checkingIn}
+            disabled={checkedIn || checkingIn || !canCheckinToday}
             onPress={onCheckin}
-            style={[styles.checkinButton, (checkedIn || checkingIn) && styles.checkinButtonDisabled]}>
+            style={[styles.checkinButton, (checkedIn || checkingIn || !canCheckinToday) && styles.checkinButtonDisabled]}>
             <Text style={styles.checkinButtonText}>{checkingIn ? '...' : 'Check-in'}</Text>
           </Pressable>
         </View>
@@ -213,6 +216,7 @@ function CheckinDetail({
 }) {
   const {palette} = useTheme();
   const checkedIn = Boolean(item.checkedInAt);
+  const canCheckinToday = isToday(item.bookingDate);
   return (
     <View style={[styles.screen, {backgroundColor: palette.background}]}>
       <ScrollView contentContainerStyle={styles.detailContent}>
@@ -237,12 +241,12 @@ function CheckinDetail({
         {message ? <Text style={[styles.messageText, {color: message.includes('สำเร็จ') ? palette.accent : palette.danger}]}>{message}</Text> : null}
 
         <Pressable
-          disabled={checkedIn || checkingIn}
+          disabled={checkedIn || checkingIn || !canCheckinToday}
           onPress={onCheckin}
-          style={[styles.detailCheckinButton, (checkedIn || checkingIn) && styles.checkinButtonDisabled]}>
+          style={[styles.detailCheckinButton, (checkedIn || checkingIn || !canCheckinToday) && styles.checkinButtonDisabled]}>
           <MaterialCommunityIcons name={checkedIn ? 'check-circle-outline' : 'qrcode-scan'} size={20} color={colors.white} />
           <Text style={styles.detailCheckinText}>
-            {checkedIn ? 'Check-in แล้ว' : checkingIn ? 'กำลัง Check-in...' : 'Check-in'}
+            {checkedIn ? 'Check-in แล้ว' : checkingIn ? 'กำลัง Check-in...' : canCheckinToday ? 'Check-in' : 'Check-in ได้เฉพาะวันที่ขาย'}
           </Text>
         </Pressable>
       </ScrollView>
@@ -251,19 +255,22 @@ function CheckinDetail({
 }
 
 function BookingQrCode({item}: {item: CheckinBookingItem}) {
-  const qrPayload = useMemo(() => JSON.stringify({
-    type: 'jonglock_checkin',
-    version: 1,
-    bookingItemId: item.bookingItemId,
-    bookingId: item.bookingId,
-    publicId: item.publicId,
-    organizationId: item.organizationId,
-    marketId: item.marketId,
-    marketCode: item.marketCode,
-    bookingDate: item.bookingDate,
-  }), [item.bookingDate, item.bookingId, item.bookingItemId, item.marketCode, item.marketId, item.organizationId, item.publicId]);
+  const [ready, setReady] = useState(false);
+  const qrPayload = useMemo(
+    () => `JLCHK|1|${item.bookingItemId}|${item.bookingId}|${item.publicId}|${item.organizationId}|${item.marketId}|${item.bookingDate}`,
+    [item.bookingDate, item.bookingId, item.bookingItemId, item.marketId, item.organizationId, item.publicId],
+  );
+
+  useEffect(() => {
+    setReady(false);
+    const task = InteractionManager.runAfterInteractions(() => setReady(true));
+    return () => task.cancel();
+  }, [qrPayload]);
 
   const matrix = useMemo(() => {
+    if (!ready) {
+      return [];
+    }
     const qr = qrcode(0, 'M');
     qr.addData(qrPayload);
     qr.make();
@@ -271,7 +278,18 @@ function BookingQrCode({item}: {item: CheckinBookingItem}) {
     return Array.from({length: count}, (ignoredRowValue, row) =>
       Array.from({length: count}, (ignoredColumnValue, column) => qr.isDark(row, column)),
     );
-  }, [qrPayload]);
+  }, [qrPayload, ready]);
+
+  if (!ready) {
+    return (
+      <View style={styles.qrCorner}>
+        <View style={styles.qrPlaceholder}>
+          <MaterialCommunityIcons name="qrcode" size={18} color={colors.muted} />
+        </View>
+        <Text style={styles.qrReference}>QR ตรวจสอบ</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.qrCorner}>
@@ -350,6 +368,17 @@ function formatMoney(value: number) {
   })}`;
 }
 
+function toIsoDate(value: Date) {
+  const year = value.getFullYear();
+  const month = `${value.getMonth() + 1}`.padStart(2, '0');
+  const day = `${value.getDate()}`.padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function isToday(value?: string | null) {
+  return String(value || '').slice(0, 10) === toIsoDate(new Date());
+}
+
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
@@ -411,15 +440,21 @@ const styles = StyleSheet.create({
   itemMain: {
     flex: 1,
   },
-  itemTitle: {
+  itemDate: {
     color: colors.ink,
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '900',
   },
-  itemMeta: {
+  itemBooth: {
     marginTop: 4,
+    color: colors.ink,
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  itemMarket: {
+    marginTop: 3,
     color: colors.muted,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
   },
   itemStatus: {
@@ -434,13 +469,8 @@ const styles = StyleSheet.create({
     marginTop: 14,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     gap: 12,
-  },
-  itemAmount: {
-    color: colors.ink,
-    fontSize: 18,
-    fontWeight: '900',
   },
   itemActions: {
     flexDirection: 'row',
@@ -589,18 +619,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   qrSurface: {
-    padding: 7,
+    padding: 5,
     backgroundColor: colors.white,
-    borderRadius: 12,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: '#eef3f6',
+  },
+  qrPlaceholder: {
+    width: 46,
+    height: 46,
+    borderRadius: 10,
+    backgroundColor: '#f6fafb',
+    borderWidth: 1,
+    borderColor: '#eef3f6',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   qrRow: {
     flexDirection: 'row',
   },
   qrCell: {
-    width: 3,
-    height: 3,
+    width: 1.5,
+    height: 1.5,
   },
   qrCellDark: {
     backgroundColor: colors.ink,
