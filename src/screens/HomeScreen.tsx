@@ -1,5 +1,5 @@
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
-import {FlatList, Image, RefreshControl, ScrollView, StyleSheet, Text, View} from 'react-native';
+import {FlatList, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View} from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 
 import ApiLoadingState from '../components/ApiLoadingState';
@@ -8,6 +8,7 @@ import {getAnnouncements, type Announcement} from '../services/announcements';
 import {colors, shadow} from '../theme/colors';
 import {useTheme} from '../theme/theme';
 import type {MobileUser} from '../types/user';
+import AnnouncementDetailScreen from './AnnouncementDetailScreen';
 
 const MOCK_HOME_BANNER: Announcement = {
   id: 0,
@@ -28,6 +29,7 @@ function HomeScreen({user}: {user: MobileUser | null}) {
   const {palette} = useTheme();
   const [items, setItems] = useState<Announcement[]>([]);
   const [banners, setBanners] = useState<Announcement[]>([]);
+  const [selectedAnnouncement, setSelectedAnnouncement] = useState<Announcement | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [message, setMessage] = useState('');
@@ -78,8 +80,13 @@ function HomeScreen({user}: {user: MobileUser | null}) {
       relativeTime={item.relativeTime}
       imageUrl={item.imageUrl}
       type={item.type}
+      onPress={() => setSelectedAnnouncement(item)}
     />
   ), []);
+
+  const openAnnouncement = useCallback((announcement: Announcement) => {
+    setSelectedAnnouncement(announcement);
+  }, []);
 
   const renderHeader = useCallback(() => (
     <>
@@ -102,7 +109,7 @@ function HomeScreen({user}: {user: MobileUser | null}) {
           <ApiLoadingState label="กำลังโหลดแบนเนอร์" style={styles.bannerLoadingCard} />
         ) : (
           bannerItems.map((item) => (
-            <HomeAdCard key={item.id || item.title} banner={item} />
+            <HomeAdCard key={item.id || item.title} banner={item} onPress={() => openAnnouncement(item)} />
           ))
         )}
       </ScrollView>
@@ -110,7 +117,7 @@ function HomeScreen({user}: {user: MobileUser | null}) {
       <Text style={[styles.sectionTitle, {color: palette.text}]}>ข่าวสารและโปรโมชั่น</Text>
       {message ? <Text style={[styles.messageText, {color: palette.danger}]}>{message}</Text> : null}
     </>
-  ), [bannerItems, banners.length, loading, message, palette, user]);
+  ), [bannerItems, banners.length, loading, message, openAnnouncement, palette, user]);
 
   const renderEmptyFeed = useCallback(() => (
     loading ? (
@@ -122,6 +129,16 @@ function HomeScreen({user}: {user: MobileUser | null}) {
       </View>
     )
   ), [loading, palette]);
+
+  if (selectedAnnouncement) {
+    return (
+      <AnnouncementDetailScreen
+        announcement={selectedAnnouncement}
+        relativeTime={formatRelativeTime(selectedAnnouncement.createdAt || selectedAnnouncement.startDate || '')}
+        onBack={() => setSelectedAnnouncement(null)}
+      />
+    );
+  }
 
   return (
     <FlatList
@@ -141,9 +158,15 @@ function HomeScreen({user}: {user: MobileUser | null}) {
   );
 }
 
-const HomeAdCard = React.memo(function HomeAdCard({banner}: {banner: Announcement}) {
+const HomeAdCard = React.memo(function HomeAdCard({
+  banner,
+  onPress,
+}: {
+  banner: Announcement;
+  onPress: () => void;
+}) {
   return (
-    <View style={styles.bannerCard}>
+    <Pressable onPress={onPress} style={styles.bannerCard}>
       {banner.imageUrl ? <Image source={{uri: banner.imageUrl}} style={styles.bannerImage} resizeMode="cover" /> : null}
       {!banner.imageUrl ? (
         <LinearGradient colors={['#071827', '#0d3448', '#14a997']} style={styles.bannerMockBackground}>
@@ -161,7 +184,7 @@ const HomeAdCard = React.memo(function HomeAdCard({banner}: {banner: Announcemen
           {banner.description || 'พื้นที่สำหรับแสดงโฆษณาหลักของระบบและตลาด'}
         </Text>
       </LinearGradient>
-    </View>
+    </Pressable>
   );
 });
 

@@ -11,6 +11,7 @@ function PromoCard({
   relativeTime,
   imageUrl,
   type,
+  onPress,
 }: {
   title: string;
   text: string;
@@ -18,11 +19,14 @@ function PromoCard({
   relativeTime: string;
   imageUrl?: string;
   type: 'news' | 'banner';
+  onPress?: () => void;
 }) {
   const {palette} = useTheme();
 
   return (
-    <Pressable style={[styles.promoCard, {backgroundColor: palette.surface, borderColor: palette.border}]}>
+    <Pressable
+      onPress={onPress}
+      style={[styles.promoCard, {backgroundColor: palette.surface, borderColor: palette.border}]}>
       {imageUrl ? (
         <Image source={{uri: imageUrl}} style={styles.coverImage} resizeMode="cover" />
       ) : (
