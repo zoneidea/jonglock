@@ -20,4 +20,9 @@ export type AuditUser = {
   email: string;
   staffCode: string;
   role: 'audit';
+  token?: string;
+  organizationId?: number;
+  organizationCode?: string;
+  organizationName?: string;
+  marketIds?: number[];
 };

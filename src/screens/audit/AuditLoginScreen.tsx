@@ -14,6 +14,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import LabeledInput from '../../components/LabeledInput';
+import {loginAudit} from '../../services/audit';
 import {colors, shadow} from '../../theme/colors';
 import {useTheme} from '../../theme/theme';
 import type {AuditUser} from '../../types/user';
@@ -27,8 +28,8 @@ function AuditLoginScreen({
   onAuthenticated: (user: AuditUser) => void;
   onBackToCustomer: () => void;
 }) {
+  const [organizationCode, setOrganizationCode] = useState('');
   const [staffCode, setStaffCode] = useState('');
-  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
@@ -43,15 +44,15 @@ function AuditLoginScreen({
   );
 
   async function handleLogin() {
-    const trimmedStaffCode = staffCode.trim().toUpperCase();
-    const trimmedEmail = email.trim().toLowerCase();
+    const trimmedOrganizationCode = organizationCode.trim().toUpperCase();
+    const trimmedStaffCode = staffCode.trim();
 
-    if (!trimmedStaffCode) {
-      setMessage('กรุณากรอกรหัสเจ้าหน้าที่');
+    if (!trimmedOrganizationCode) {
+      setMessage('กรุณากรอกรหัสองค์กร');
       return;
     }
-    if (!trimmedEmail.includes('@')) {
-      setMessage('กรุณากรอกอีเมลเจ้าหน้าที่ให้ถูกต้อง');
+    if (!trimmedStaffCode) {
+      setMessage('กรุณากรอกรหัสเจ้าหน้าที่');
       return;
     }
     if (password.trim().length < 6) {
@@ -62,12 +63,12 @@ function AuditLoginScreen({
     setLoading(true);
     setMessage('');
     try {
-      onAuthenticated({
-        name: `เจ้าหน้าที่ ${trimmedStaffCode}`,
-        email: trimmedEmail,
-        staffCode: trimmedStaffCode,
-        role: 'audit',
+      const user = await loginAudit({
+        organizationCode: trimmedOrganizationCode,
+        username: trimmedStaffCode,
+        password: password.trim(),
       });
+      onAuthenticated(user);
     } catch (error) {
       setMessage((error as Error).message || 'ยังไม่สามารถเข้าสู่ระบบเจ้าหน้าที่ได้');
     } finally {
@@ -88,44 +89,23 @@ function AuditLoginScreen({
               <Text style={styles.eyebrow}>AUDIT ACCESS</Text>
             </View>
             <Text style={styles.title}>เข้าสู่ระบบเจ้าหน้าที่ตรวจสอบตลาด</Text>
-            <Text style={styles.description}>
-              เส้นทางนี้แยกจากผู้ใช้งานทั่วไปโดยเฉพาะ ใช้สำหรับตรวจสอบการจอง การขาย และการทำผิดกฎภายในตลาด
-            </Text>
-            <View style={styles.featureList}>
-              <View style={styles.featureRow}>
-                <MaterialCommunityIcons name="check-decagram" size={16} color="#70e1d0" />
-                <Text style={styles.featureText}>โหมดตรวจสอบแยกจากโหมดผู้จอง</Text>
-              </View>
-              <View style={styles.featureRow}>
-                <MaterialCommunityIcons name="check-decagram" size={16} color="#70e1d0" />
-                <Text style={styles.featureText}>โครงสร้างหน้าจอและ route คนละชุด</Text>
-              </View>
-              <View style={styles.featureRow}>
-                <MaterialCommunityIcons name="check-decagram" size={16} color="#70e1d0" />
-                <Text style={styles.featureText}>พร้อมต่อยอด workflow งานตรวจภาคสนาม</Text>
-              </View>
-            </View>
           </LinearGradient>
 
           <View style={[styles.formCard, {backgroundColor: palette.surface, borderColor: palette.border}]}>
             <Text style={[styles.formTitle, {color: palette.text}]}>ยืนยันตัวตนเจ้าหน้าที่</Text>
-            <Text style={[styles.formSubtitle, {color: palette.muted}]}>
-              ระบุข้อมูลเจ้าหน้าที่เพื่อเข้าสู่โหมดตรวจสอบ
-            </Text>
 
+            <LabeledInput
+              label="รหัสองค์กร"
+              value={organizationCode}
+              onChangeText={setOrganizationCode}
+              placeholder="เช่น ORG001"
+              autoCapitalize="characters"
+            />
             <LabeledInput
               label="รหัสเจ้าหน้าที่"
               value={staffCode}
               onChangeText={setStaffCode}
-              placeholder="เช่น AUDIT-001"
-              autoCapitalize="characters"
-            />
-            <LabeledInput
-              label="อีเมลเจ้าหน้าที่"
-              value={email}
-              onChangeText={setEmail}
-              placeholder="audit@example.com"
-              keyboardType="email-address"
+              placeholder="เช่น audit"
               autoCapitalize="none"
             />
             <LabeledInput
@@ -178,7 +158,7 @@ const styles = StyleSheet.create({
   heroCard: {
     borderRadius: 30,
     padding: 24,
-    minHeight: 260,
+    minHeight: 172,
     ...shadow,
   },
   heroHeader: {
@@ -207,27 +187,6 @@ const styles = StyleSheet.create({
     lineHeight: 38,
     fontWeight: '900',
   },
-  description: {
-    marginTop: 12,
-    color: '#b9cad9',
-    fontSize: 15,
-    lineHeight: 24,
-    fontWeight: '600',
-  },
-  featureList: {
-    marginTop: 22,
-    gap: 10,
-  },
-  featureRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  featureText: {
-    color: '#d8edf5',
-    fontSize: 13,
-    fontWeight: '700',
-  },
   formCard: {
     marginTop: 18,
     borderRadius: 28,
@@ -238,13 +197,6 @@ const styles = StyleSheet.create({
   formTitle: {
     fontSize: 23,
     fontWeight: '900',
-  },
-  formSubtitle: {
-    marginTop: 8,
-    fontSize: 14,
-    lineHeight: 22,
-    fontWeight: '600',
-    marginBottom: 18,
   },
   messageText: {
     marginTop: 14,
