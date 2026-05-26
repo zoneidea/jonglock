@@ -1,8 +1,10 @@
 import React, {useEffect, useMemo, useState} from 'react';
-import {Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
+import {Modal, Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import {Camera, useCameraDevice, useCameraPermission, useCodeScanner} from 'react-native-vision-camera';
 
 import {fetchAuditSummary} from '../../services/audit';
+import {colors} from '../../theme/colors';
 import type {AuditUser} from '../../types/user';
 
 function AuditDashboardScreen({
@@ -15,12 +17,16 @@ function AuditDashboardScreen({
   const [selectedDate, setSelectedDate] = useState(() => toIsoDate(new Date()));
   const [loading, setLoading] = useState(Boolean(user.token));
   const [message, setMessage] = useState('');
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const [scannerLocked, setScannerLocked] = useState(false);
   const [summary, setSummary] = useState({
     totalJobs: 0,
     pendingJobs: 0,
     violationJobs: 0,
     totalFineAmount: 0,
   });
+  const device = useCameraDevice('back');
+  const {hasPermission, requestPermission} = useCameraPermission();
 
   useEffect(() => {
     if (!user.token) {
@@ -72,53 +78,97 @@ function AuditDashboardScreen({
     [selectedDate, user.name, user.staffCode],
   );
 
+  async function openScanner() {
+    if (!hasPermission) {
+      const granted = await requestPermission();
+      if (!granted) {
+        setMessage('กรุณาอนุญาตใช้กล้องเพื่อสแกนคิวอาร์โค้ด');
+        return;
+      }
+    }
+    setScannerLocked(false);
+    setScannerOpen(true);
+  }
+
+  const codeScanner = useCodeScanner({
+    codeTypes: ['qr', 'ean-13', 'code-128'],
+    onCodeScanned: (codes) => {
+      if (scannerLocked) {
+        return;
+      }
+      const value = codes[0]?.value;
+      if (value) {
+        setScannerLocked(true);
+        setScannerOpen(false);
+        setMessage(`สแกนข้อมูลแล้ว: ${String(value).slice(0, 48)}`);
+      }
+    },
+  });
+
   return (
-    <ScrollView contentContainerStyle={styles.scroll}>
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.eyebrow}>AUDIT MODE</Text>
-          <Text style={styles.title}>งานตรวจสอบตลาด</Text>
-          <Text style={styles.subtitle}>{subtitle}</Text>
-        </View>
-        <Pressable onPress={onLogout} style={styles.logoutButton}>
-          <MaterialCommunityIcons name="logout" size={18} color="#ff95a7" />
-        </Pressable>
-      </View>
-
-      <View style={styles.dateCard}>
-        <View style={styles.dateCardHeader}>
-          <Text style={styles.dateCardLabel}>วันที่สรุปข้อมูล</Text>
-          <Pressable onPress={() => setSelectedDate(toIsoDate(new Date()))} style={styles.todayButton}>
-            <Text style={styles.todayButtonText}>วันนี้</Text>
-          </Pressable>
-        </View>
-        <View style={styles.datePickerRow}>
-          <Pressable
-            onPress={() => setSelectedDate((currentDate) => shiftIsoDate(currentDate, -1))}
-            style={styles.dateNavButton}>
-            <MaterialCommunityIcons name="chevron-left" size={20} color="#d8edf5" />
-          </Pressable>
-          <View style={styles.dateValueWrap}>
-            <Text style={styles.dateValue}>{formatThaiDate(selectedDate)}</Text>
+    <View style={styles.flex}>
+      <ScrollView contentContainerStyle={styles.scroll}>
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.eyebrow}>AUDIT MODE</Text>
+            <Text style={styles.title}>งานตรวจสอบตลาด</Text>
+            <Text style={styles.subtitle}>{subtitle}</Text>
           </View>
-          <Pressable
-            onPress={() => setSelectedDate((currentDate) => shiftIsoDate(currentDate, 1))}
-            style={styles.dateNavButton}>
-            <MaterialCommunityIcons name="chevron-right" size={20} color="#d8edf5" />
+          <Pressable onPress={onLogout} style={styles.logoutButton}>
+            <MaterialCommunityIcons name="logout" size={18} color="#ff95a7" />
           </Pressable>
         </View>
-        {message ? <Text style={styles.messageText}>{message}</Text> : null}
-      </View>
 
-      <View style={styles.cardRow}>
-        <MetricCard label="งานตรวจทั้งหมด" value={loading ? '...' : formatCount(summary.totalJobs)} icon="clipboard-check-outline" />
-        <MetricCard label="รอตรวจ" value={loading ? '...' : formatCount(summary.pendingJobs)} icon="clock-time-four-outline" />
-      </View>
-      <View style={styles.cardRow}>
-        <MetricCard label="ผิดกฎ" value={loading ? '...' : formatCount(summary.violationJobs)} icon="alert-outline" />
-        <MetricCard label="ค่าปรับรวม" value={loading ? '...' : formatCurrency(summary.totalFineAmount)} icon="cash-multiple" />
-      </View>
-    </ScrollView>
+        <View style={styles.dateCard}>
+          <View style={styles.dateCardHeader}>
+            <Text style={styles.dateCardLabel}>วันที่สรุปข้อมูล</Text>
+            <Pressable onPress={() => setSelectedDate(toIsoDate(new Date()))} style={styles.todayButton}>
+              <Text style={styles.todayButtonText}>วันนี้</Text>
+            </Pressable>
+          </View>
+          <View style={styles.datePickerRow}>
+            <Pressable
+              onPress={() => setSelectedDate((currentDate) => shiftIsoDate(currentDate, -1))}
+              style={styles.dateNavButton}>
+              <MaterialCommunityIcons name="chevron-left" size={20} color="#d8edf5" />
+            </Pressable>
+            <View style={styles.dateValueWrap}>
+              <Text style={styles.dateValue}>{formatThaiDate(selectedDate)}</Text>
+            </View>
+            <Pressable
+              onPress={() => setSelectedDate((currentDate) => shiftIsoDate(currentDate, 1))}
+              style={styles.dateNavButton}>
+              <MaterialCommunityIcons name="chevron-right" size={20} color="#d8edf5" />
+            </Pressable>
+          </View>
+          {message ? <Text style={styles.messageText}>{message}</Text> : null}
+        </View>
+
+        <View style={styles.cardRow}>
+          <MetricCard label="งานตรวจทั้งหมด" value={loading ? '...' : formatCount(summary.totalJobs)} icon="clipboard-check-outline" />
+          <MetricCard label="รอตรวจ" value={loading ? '...' : formatCount(summary.pendingJobs)} icon="clock-time-four-outline" />
+        </View>
+        <View style={styles.cardRow}>
+          <MetricCard label="ผิดกฎ" value={loading ? '...' : formatCount(summary.violationJobs)} icon="alert-outline" />
+          <MetricCard label="ค่าปรับรวม" value={loading ? '...' : formatCurrency(summary.totalFineAmount)} icon="cash-multiple" />
+        </View>
+      </ScrollView>
+
+      <Pressable onPress={openScanner} style={styles.scanFab}>
+        <MaterialCommunityIcons name="qrcode-scan" size={28} color="#ffffff" />
+      </Pressable>
+
+      <ScannerModal
+        visible={scannerOpen}
+        device={device}
+        hasPermission={hasPermission}
+        codeScanner={codeScanner}
+        onClose={() => {
+          setScannerOpen(false);
+          setScannerLocked(false);
+        }}
+      />
+    </View>
   );
 }
 
@@ -131,6 +181,42 @@ function MetricCard({label, value, icon}: {label: string; value: string; icon: s
       <Text style={styles.metricLabel}>{label}</Text>
       <Text style={styles.metricValue}>{value}</Text>
     </View>
+  );
+}
+
+function ScannerModal({
+  visible,
+  device,
+  hasPermission,
+  codeScanner,
+  onClose,
+}: {
+  visible: boolean;
+  device: ReturnType<typeof useCameraDevice>;
+  hasPermission: boolean;
+  codeScanner: ReturnType<typeof useCodeScanner>;
+  onClose: () => void;
+}) {
+  return (
+    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+      <View style={styles.scannerScreen}>
+        <Pressable onPress={onClose} style={styles.scannerClose}>
+          <MaterialCommunityIcons name="close" size={24} color={colors.white} />
+        </Pressable>
+        {device && hasPermission ? (
+          <Camera style={StyleSheet.absoluteFill} device={device} isActive={visible} codeScanner={codeScanner} />
+        ) : (
+          <View style={styles.scannerFallback}>
+            <MaterialCommunityIcons name="camera-off-outline" size={46} color={colors.white} />
+            <Text style={styles.scannerFallbackText}>ยังไม่พร้อมเปิดกล้อง</Text>
+          </View>
+        )}
+        <View style={styles.scanFrame}>
+          <View style={styles.scanCorner} />
+          <Text style={styles.scannerHint}>วาง QR Code ให้อยู่ในกรอบ</Text>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -174,10 +260,13 @@ function formatCurrency(value: number) {
 }
 
 const styles = StyleSheet.create({
+  flex: {
+    flex: 1,
+  },
   scroll: {
     flexGrow: 1,
     padding: 22,
-    paddingBottom: 48,
+    paddingBottom: 128,
     backgroundColor: '#08111a',
   },
   header: {
@@ -318,6 +407,81 @@ const styles = StyleSheet.create({
     marginTop: 10,
     color: '#ffffff',
     fontSize: 31,
+    fontWeight: '900',
+  },
+  scanFab: {
+    position: 'absolute',
+    left: '50%',
+    bottom: 34,
+    width: 68,
+    height: 68,
+    marginLeft: -34,
+    borderRadius: 34,
+    backgroundColor: '#0da591',
+    borderWidth: 5,
+    borderColor: '#08111a',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#0da591',
+    shadowOffset: {width: 0, height: 12},
+    shadowOpacity: 0.34,
+    shadowRadius: 20,
+    elevation: 14,
+  },
+  scannerScreen: {
+    flex: 1,
+    backgroundColor: colors.ink,
+  },
+  scannerClose: {
+    position: 'absolute',
+    top: 54,
+    right: 24,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 2,
+  },
+  scannerFallback: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  scannerFallbackText: {
+    color: colors.white,
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  scanFrame: {
+    position: 'absolute',
+    left: 44,
+    right: 44,
+    top: '28%',
+    height: 260,
+    borderRadius: 30,
+    borderWidth: 2,
+    borderColor: '#0da591',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    paddingBottom: 22,
+  },
+  scanCorner: {
+    position: 'absolute',
+    width: 96,
+    height: 96,
+    top: -2,
+    left: -2,
+    borderTopWidth: 6,
+    borderLeftWidth: 6,
+    borderColor: colors.white,
+    borderTopLeftRadius: 30,
+  },
+  scannerHint: {
+    color: colors.white,
+    fontSize: 14,
     fontWeight: '900',
   },
 });

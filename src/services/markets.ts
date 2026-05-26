@@ -177,6 +177,24 @@ export type BookingHistoryRecord = {
   boothNames: string[];
 };
 
+export type CheckinBookingItem = {
+  bookingItemId: number;
+  bookingId: number;
+  publicId: string;
+  organizationId: number;
+  marketId: number;
+  marketCode: string;
+  marketName: string;
+  boothCode: string;
+  boothName: string;
+  bookingDate: string;
+  unitPrice: number;
+  totalAmount: number;
+  paidAt?: string | null;
+  checkedInAt?: string | null;
+  status: string;
+};
+
 export type BookingConfirmResult = {
   bookingId: number;
   publicId: string;
@@ -384,6 +402,14 @@ function normalizeBookingHistory(record: BookingHistoryRecord): BookingHistoryRe
   };
 }
 
+function normalizeCheckinBookingItem(item: CheckinBookingItem): CheckinBookingItem {
+  return {
+    ...item,
+    unitPrice: Number(item.unitPrice || 0),
+    totalAmount: Number(item.totalAmount || 0),
+  };
+}
+
 async function request<T>(path: string, params?: QueryParams): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}${buildQuery(params)}`);
   if (!response.ok) {
@@ -583,4 +609,14 @@ export async function uploadBookingPaymentProof(
 export async function getBookingHistory(user: BoothHoldUser) {
   const bookings = await post<BookingHistoryRecord[]>('/public/bookings/history', {user});
   return bookings.map(normalizeBookingHistory);
+}
+
+export async function getCheckinBookings(user: BoothHoldUser) {
+  const bookings = await post<CheckinBookingItem[]>('/public/bookings/checkins', {user});
+  return bookings.map(normalizeCheckinBookingItem);
+}
+
+export async function checkinBookingItem(bookingItemId: number, user: BoothHoldUser) {
+  const result = await post<CheckinBookingItem>(`/public/booking-items/${bookingItemId}/checkin`, {user});
+  return normalizeCheckinBookingItem(result);
 }

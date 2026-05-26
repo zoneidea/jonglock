@@ -9,6 +9,7 @@ import {TabKey, tabs} from '../types/tabs';
 import type {MobileUser} from '../types/user';
 import BookingScreen from './BookingScreen';
 import CartScreen from './CartScreen';
+import CheckinScreen from './CheckinScreen';
 import HomeScreen from './HomeScreen';
 import ProfileScreen from './ProfileScreen';
 
@@ -91,6 +92,9 @@ function AppShell({
     }
     if (renderedTab === 'cart') {
       return <CartScreen user={user} onCountChange={setCartItemCount} />;
+    }
+    if (renderedTab === 'checkin') {
+      return <CheckinScreen user={user} onRequireAuth={() => changeTab('profile')} />;
     }
     return (
       <ProfileScreen
