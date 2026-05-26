@@ -632,7 +632,7 @@ function ProfileScreen({
 
             <View style={styles.guestAuditFooter}>
               <Pressable onPress={onOpenAuditPortal} style={styles.auditPortalButton}>
-                <MaterialCommunityIcons name="shield-search-outline" size={18} color="#ffffff" />
+                <MaterialCommunityIcons name="shield-search" size={18} color="#ffffff" />
                 <Text style={styles.auditPortalButtonText}>สำหรับเจ้าหน้าที่ตรวจตลาด</Text>
               </Pressable>
             </View>
