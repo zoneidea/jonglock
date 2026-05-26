@@ -603,32 +603,39 @@ function ProfileScreen({
     return (
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.screenScroll} keyboardShouldPersistTaps="handled">
-          <LinearGradient
-            colors={resolvedTheme === 'dark' ? [palette.surfaceMuted, palette.surface] : ['#e4fbf8', '#ffffff']}
-            style={[styles.guestHero, {borderColor: palette.border}]}>
-            <View style={[styles.guestLogo, {backgroundColor: palette.surface}]}>
-              <MaterialCommunityIcons name="storefront-outline" size={28} color={palette.accentDark} />
-            </View>
-            <Text style={[styles.guestTitle, {color: palette.text}]}>เข้าสู่ระบบผู้ค้า</Text>
-            <Text style={[styles.guestText, {color: palette.muted}]}>
-              ใช้ Gmail เพื่อดูข้อมูลบัญชี ประวัติการจอง และตั้งค่าการใช้งานส่วนตัว
-            </Text>
-          </LinearGradient>
+          <View style={styles.guestScreenLayout}>
+            <View>
+              <LinearGradient
+                colors={resolvedTheme === 'dark' ? [palette.surfaceMuted, palette.surface] : ['#e4fbf8', '#ffffff']}
+                style={[styles.guestHero, {borderColor: palette.border}]}>
+                <View style={[styles.guestLogo, {backgroundColor: palette.surface}]}>
+                  <MaterialCommunityIcons name="storefront-outline" size={28} color={palette.accentDark} />
+                </View>
+                <Text style={[styles.guestTitle, {color: palette.text}]}>เข้าสู่ระบบผู้ค้า</Text>
+                <Text style={[styles.guestText, {color: palette.muted}]}>
+                  ใช้ Gmail เพื่อดูข้อมูลบัญชี ประวัติการจอง และตั้งค่าการใช้งานส่วนตัว
+                </Text>
+              </LinearGradient>
 
-          <View style={[styles.guestCard, {backgroundColor: palette.surface, borderColor: palette.border}]}>
-            <Pressable onPress={continueWithGmail} style={[styles.gmailButton, {backgroundColor: palette.surface, borderColor: palette.border}]}>
-              <GoogleIcon />
-              <Text style={[styles.gmailButtonText, {color: palette.text}]}>ดำเนินการต่อด้วย Gmail</Text>
-            </Pressable>
-            <Pressable onPress={onOpenAuditPortal} style={styles.auditPortalLink}>
-              <MaterialCommunityIcons name="shield-search-outline" size={16} color={palette.accentDark} />
-              <Text style={[styles.auditPortalLinkText, {color: palette.accentDark}]}>สำหรับเจ้าหน้าที่ตรวจตลาด</Text>
-            </Pressable>
-            {message ? (
-              <Text style={[styles.messageText, {color: messageTone === 'success' ? palette.accentDark : palette.danger}]}>
-                {message}
-              </Text>
-            ) : null}
+              <View style={[styles.guestCard, {backgroundColor: palette.surface, borderColor: palette.border}]}>
+                <Pressable onPress={continueWithGmail} style={[styles.gmailButton, {backgroundColor: palette.surface, borderColor: palette.border}]}>
+                  <GoogleIcon />
+                  <Text style={[styles.gmailButtonText, {color: palette.text}]}>ดำเนินการต่อด้วย Gmail</Text>
+                </Pressable>
+                {message ? (
+                  <Text style={[styles.messageText, {color: messageTone === 'success' ? palette.accentDark : palette.danger}]}>
+                    {message}
+                  </Text>
+                ) : null}
+              </View>
+            </View>
+
+            <View style={styles.guestAuditFooter}>
+              <Pressable onPress={onOpenAuditPortal} style={styles.auditPortalButton}>
+                <MaterialCommunityIcons name="shield-search-outline" size={18} color="#ffffff" />
+                <Text style={styles.auditPortalButtonText}>สำหรับเจ้าหน้าที่ตรวจตลาด</Text>
+              </Pressable>
+            </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -1256,6 +1263,10 @@ const styles = StyleSheet.create({
     padding: 22,
     paddingBottom: 122,
   },
+  guestScreenLayout: {
+    flexGrow: 1,
+    justifyContent: 'space-between',
+  },
   guestHero: {
     minHeight: 250,
     borderRadius: 34,
@@ -1297,16 +1308,26 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     ...shadow,
   },
-  auditPortalLink: {
-    marginTop: 14,
+  guestAuditFooter: {
+    marginTop: 20,
+    paddingTop: 10,
+  },
+  auditPortalButton: {
+    minHeight: 58,
+    borderRadius: 20,
+    backgroundColor: '#0d2238',
+    borderWidth: 1,
+    borderColor: '#213a55',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: 10,
+    ...shadow,
   },
-  auditPortalLinkText: {
-    fontSize: 13,
-    fontWeight: '800',
+  auditPortalButtonText: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '900',
   },
   gmailButton: {
     height: 58,
