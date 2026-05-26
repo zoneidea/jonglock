@@ -21,7 +21,6 @@ function AuditDashboardScreen({
         </View>
         <Pressable onPress={onLogout} style={styles.logoutButton}>
           <MaterialCommunityIcons name="logout" size={18} color="#ff95a7" />
-          <Text style={styles.logoutText}>ออกจากระบบ</Text>
         </Pressable>
       </View>
 
@@ -32,16 +31,6 @@ function AuditDashboardScreen({
       <View style={styles.cardRow}>
         <MetricCard label="ผิดกฎ" value="2" icon="alert-outline" />
         <MetricCard label="ค่าปรับวันนี้" value="฿600" icon="cash-multiple" />
-      </View>
-
-      <View style={styles.panel}>
-        <Text style={styles.panelTitle}>โครงสร้าง Audit แยกจากผู้ใช้งานทั่วไปแล้ว</Text>
-        <View style={styles.featureList}>
-          <FeatureItem text="เส้นทางเข้าใช้งานอยู่ใต้แท็บโปรไฟล์ของผู้ใช้ทั่วไป" />
-          <FeatureItem text="ล็อกอินเจ้าหน้าที่คนละหน้ากับผู้จอง" />
-          <FeatureItem text="session และ storage ของ audit แยกคนละชุด" />
-          <FeatureItem text="พร้อมต่อยอดเมนูงานตรวจ ประวัติการตรวจ และค่าปรับ" />
-        </View>
       </View>
     </ScrollView>
   );
@@ -55,15 +44,6 @@ function MetricCard({label, value, icon}: {label: string; value: string; icon: s
       </View>
       <Text style={styles.metricLabel}>{label}</Text>
       <Text style={styles.metricValue}>{value}</Text>
-    </View>
-  );
-}
-
-function FeatureItem({text}: {text: string}) {
-  return (
-    <View style={styles.featureRow}>
-      <MaterialCommunityIcons name="check-decagram" size={16} color="#72decc" />
-      <Text style={styles.featureText}>{text}</Text>
     </View>
   );
 }
@@ -102,19 +82,14 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   logoutButton: {
-    minHeight: 44,
-    borderRadius: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: '#284057',
-    paddingHorizontal: 14,
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'center',
     backgroundColor: '#0e1824',
-  },
-  logoutText: {
-    color: '#ffcad3',
-    fontWeight: '800',
   },
   cardRow: {
     flexDirection: 'row',
@@ -149,35 +124,6 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 31,
     fontWeight: '900',
-  },
-  panel: {
-    marginTop: 10,
-    borderRadius: 26,
-    borderWidth: 1,
-    borderColor: '#1d3144',
-    backgroundColor: '#101b27',
-    padding: 20,
-  },
-  panelTitle: {
-    color: '#ffffff',
-    fontSize: 19,
-    fontWeight: '900',
-  },
-  featureList: {
-    marginTop: 18,
-    gap: 12,
-  },
-  featureRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  featureText: {
-    flex: 1,
-    color: '#c7d7e5',
-    fontSize: 14,
-    lineHeight: 22,
-    fontWeight: '700',
   },
 });
 
