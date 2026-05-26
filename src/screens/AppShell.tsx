@@ -1,5 +1,5 @@
-import React, {useCallback, useRef, useState} from 'react';
-import {Animated, SafeAreaView, StatusBar, StyleSheet, Text, View} from 'react-native';
+import React, {useCallback, useEffect, useRef, useState} from 'react';
+import {Animated, InteractionManager, SafeAreaView, StatusBar, StyleSheet, Text, View} from 'react-native';
 
 import BottomTabItem from '../components/BottomTabItem';
 import {getCartBookings} from '../services/markets';
@@ -26,9 +26,11 @@ function AppShell({
   onUserChange: (user: MobileUser) => void;
 }) {
   const [activeTab, setActiveTab] = useState<TabKey>('home');
+  const [renderedTab, setRenderedTab] = useState<TabKey>('home');
   const [bookingTabHidden, setBookingTabHidden] = useState(false);
   const [cartItemCount, setCartItemCount] = useState(0);
   const contentOpacity = useRef(new Animated.Value(1)).current;
+  const transitionTaskRef = useRef<{cancel: () => void} | null>(null);
   const {palette, resolvedTheme} = useTheme();
 
   const refreshCartCount = useCallback(async () => {
@@ -48,6 +50,10 @@ function AppShell({
     refreshCartCount();
   }, [refreshCartCount]);
 
+  useEffect(() => () => {
+    transitionTaskRef.current?.cancel();
+  }, []);
+
   const changeTab = useCallback((nextTab: TabKey) => {
     if (nextTab === activeTab) {
       return;
@@ -55,7 +61,9 @@ function AppShell({
     contentOpacity.stopAnimation();
     contentOpacity.setValue(0.94);
     setActiveTab(nextTab);
-    requestAnimationFrame(() => {
+    transitionTaskRef.current?.cancel();
+    transitionTaskRef.current = InteractionManager.runAfterInteractions(() => {
+      setRenderedTab(nextTab);
       Animated.timing(contentOpacity, {
         toValue: 1,
         duration: 140,
@@ -65,10 +73,10 @@ function AppShell({
   }, [activeTab, contentOpacity]);
 
   function renderTabContent() {
-    if (activeTab === 'home') {
+    if (renderedTab === 'home') {
       return <HomeScreen user={user} />;
     }
-    if (activeTab === 'booking') {
+    if (renderedTab === 'booking') {
       return (
         <BookingScreen
           user={user}
@@ -79,7 +87,7 @@ function AppShell({
         />
       );
     }
-    if (activeTab === 'cart') {
+    if (renderedTab === 'cart') {
       return <CartScreen user={user} onCountChange={setCartItemCount} />;
     }
     return (

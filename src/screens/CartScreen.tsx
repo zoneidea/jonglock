@@ -1,5 +1,5 @@
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
-import {Alert, Image, Modal, PermissionsAndroid, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View} from 'react-native';
+import {Alert, FlatList, Image, Modal, PermissionsAndroid, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View} from 'react-native';
 import {CameraRoll} from '@react-native-camera-roll/camera-roll';
 import RNFS from 'react-native-fs';
 import {launchImageLibrary} from 'react-native-image-picker';
@@ -181,6 +181,7 @@ function CartScreen({
     () => bookings.filter((booking) => selectedBookingIds.includes(booking.bookingId)),
     [bookings, selectedBookingIds],
   );
+  const selectedBookingSet = useMemo(() => new Set(selectedBookingIds), [selectedBookingIds]);
   const selectedTotal = useMemo(
     () => selectedBookings.reduce((total, booking) => total + Number(booking.totalAmount || 0), 0),
     [selectedBookings],
@@ -328,68 +329,28 @@ function CartScreen({
     }
   }, [paymentInfo?.paymentMethod?.qrCodeImageUrl, savingQrCode]);
 
-  if (!user) {
-    return (
-      <ScrollView
-        contentContainerStyle={[styles.screenScroll, {backgroundColor: palette.background}]}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={palette.accent} />}>
-        <PlaceholderPanel
-          title="ตะกร้า"
-          text="กรุณาเข้าสู่ระบบด้วย Gmail เพื่อดูรายการจองที่รอชำระเงิน"
-        />
-      </ScrollView>
-    );
-  }
+  const renderCartBooking = useCallback(({item}: {item: CartBooking}) => (
+    <CartBookingCard
+      booking={item}
+      selected={selectedBookingSet.has(item.bookingId)}
+      onToggleSelect={() => toggleBookingSelection(item.bookingId)}
+      onCancel={() => setCancelTarget(item)}
+      cancelling={cancellingBookingId === item.bookingId}
+      nowMs={nowMs}
+    />
+  ), [cancellingBookingId, nowMs, selectedBookingSet, toggleBookingSelection]);
 
-  return (
-    <ScrollView
-      contentContainerStyle={[styles.screenScroll, {backgroundColor: palette.background}]}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={palette.accent} />}>
+  const renderCartHeader = useCallback(() => (
+    <>
       <View style={styles.headerRow}>
         <View>
-          <Text style={[styles.title, {color: palette.text}]}>{checkoutMode ? 'สรุปชำระเงิน' : 'ตะกร้า'}</Text>
-          <Text style={[styles.subtitle, {color: palette.muted}]}>
-            {checkoutMode ? 'ตรวจสอบรายการก่อนยืนยันการชำระเงิน' : 'รายการจองที่รอชำระเงิน'}
-          </Text>
+          <Text style={[styles.title, {color: palette.text}]}>ตะกร้า</Text>
+          <Text style={[styles.subtitle, {color: palette.muted}]}>รายการจองที่รอชำระเงิน</Text>
         </View>
-        {checkoutMode ? (
-          <Pressable onPress={() => setCheckoutMode(false)} style={[styles.refreshButton, {backgroundColor: palette.surface, borderColor: palette.border}]}>
-            <MaterialCommunityIcons name="chevron-left" size={22} color={palette.accentDark} />
-          </Pressable>
-        ) : (
-          <Pressable onPress={handleRefresh} style={[styles.refreshButton, {backgroundColor: palette.surface, borderColor: palette.border}]}>
-            <MaterialCommunityIcons name="refresh" size={20} color={palette.accentDark} />
-          </Pressable>
-        )}
+        <Pressable onPress={handleRefresh} style={[styles.refreshButton, {backgroundColor: palette.surface, borderColor: palette.border}]}>
+          <MaterialCommunityIcons name="refresh" size={20} color={palette.accentDark} />
+        </Pressable>
       </View>
-
-      {checkoutMode ? (
-        <>
-          {message ? <Text style={[styles.messageText, {color: palette.danger}]}>{message}</Text> : null}
-          <CheckoutSummary
-            bookings={selectedBookings}
-            totalAmount={selectedTotal}
-            nowMs={nowMs}
-            onBack={() => setCheckoutMode(false)}
-            onConfirm={() => openPayment(selectedBookings)}
-          />
-          <PaymentProofModal
-            visible={paymentBookings.length > 0}
-            bookings={paymentBookings}
-            paymentInfo={paymentInfo}
-            totalAmount={selectedTotal}
-            loading={paymentLoading}
-            proofImage={proofImage}
-            uploading={uploadingProof}
-            savingQrCode={savingQrCode}
-            onClose={closePayment}
-            onChooseImage={chooseProofImage}
-            onSaveQrCode={savePaymentQrCode}
-            onSubmit={submitProof}
-          />
-        </>
-      ) : (
-        <>
 
       {!loading && bookings.length > 0 ? (
         <View style={styles.selectionBar}>
@@ -416,32 +377,102 @@ function CartScreen({
       ) : null}
 
       {message ? <Text style={[styles.messageText, {color: palette.danger}]}>{message}</Text> : null}
+    </>
+  ), [
+    allSelected,
+    bookings.length,
+    handleRefresh,
+    loading,
+    message,
+    palette,
+    proceedToCheckout,
+    selectedCount,
+    selectedTotal,
+    toggleSelectAll,
+  ]);
 
-      {loading ? (
-        <ApiLoadingState label="กำลังโหลดตะกร้า" />
-      ) : null}
-
-      {!loading && bookings.length === 0 ? (
-        <View style={[styles.emptyCard, {backgroundColor: palette.surface, borderColor: palette.border}]}>
-          <MaterialCommunityIcons name="cart-outline" size={34} color={palette.accentDark} />
-          <Text style={[styles.emptyTitle, {color: palette.text}]}>ยังไม่มีรายการรอชำระเงิน</Text>
-          <Text style={[styles.emptyText, {color: palette.muted}]}>รายการที่จองแล้วแต่ยังไม่ชำระเงินจะแสดงที่นี่</Text>
-        </View>
-      ) : null}
-
-      <View style={styles.bookingList}>
-        {bookings.map((booking) => (
-          <CartBookingCard
-            key={booking.bookingId}
-            booking={booking}
-            selected={selectedBookingIds.includes(booking.bookingId)}
-            onToggleSelect={() => toggleBookingSelection(booking.bookingId)}
-            onCancel={() => setCancelTarget(booking)}
-            cancelling={cancellingBookingId === booking.bookingId}
-            nowMs={nowMs}
-          />
-        ))}
+  const renderCartEmpty = useCallback(() => (
+    loading ? (
+      <ApiLoadingState label="กำลังโหลดตะกร้า" />
+    ) : (
+      <View style={[styles.emptyCard, {backgroundColor: palette.surface, borderColor: palette.border}]}>
+        <MaterialCommunityIcons name="cart-outline" size={34} color={palette.accentDark} />
+        <Text style={[styles.emptyTitle, {color: palette.text}]}>ยังไม่มีรายการรอชำระเงิน</Text>
+        <Text style={[styles.emptyText, {color: palette.muted}]}>รายการที่จองแล้วแต่ยังไม่ชำระเงินจะแสดงที่นี่</Text>
       </View>
+    )
+  ), [loading, palette]);
+
+  if (!user) {
+    return (
+      <ScrollView
+        contentContainerStyle={[styles.screenScroll, {backgroundColor: palette.background}]}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={palette.accent} />}>
+        <PlaceholderPanel
+          title="ตะกร้า"
+          text="กรุณาเข้าสู่ระบบด้วย Gmail เพื่อดูรายการจองที่รอชำระเงิน"
+        />
+      </ScrollView>
+    );
+  }
+
+  if (checkoutMode) {
+    return (
+      <ScrollView
+        contentContainerStyle={[styles.screenScroll, {backgroundColor: palette.background}]}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={palette.accent} />}>
+        <View style={styles.headerRow}>
+          <View>
+            <Text style={[styles.title, {color: palette.text}]}>สรุปชำระเงิน</Text>
+            <Text style={[styles.subtitle, {color: palette.muted}]}>ตรวจสอบรายการก่อนยืนยันการชำระเงิน</Text>
+          </View>
+          <Pressable onPress={() => setCheckoutMode(false)} style={[styles.refreshButton, {backgroundColor: palette.surface, borderColor: palette.border}]}>
+            <MaterialCommunityIcons name="chevron-left" size={22} color={palette.accentDark} />
+          </Pressable>
+        </View>
+
+        {message ? <Text style={[styles.messageText, {color: palette.danger}]}>{message}</Text> : null}
+        <CheckoutSummary
+          bookings={selectedBookings}
+          totalAmount={selectedTotal}
+          nowMs={nowMs}
+          onBack={() => setCheckoutMode(false)}
+          onConfirm={() => openPayment(selectedBookings)}
+        />
+        <PaymentProofModal
+          visible={paymentBookings.length > 0}
+          bookings={paymentBookings}
+          paymentInfo={paymentInfo}
+          totalAmount={selectedTotal}
+          loading={paymentLoading}
+          proofImage={proofImage}
+          uploading={uploadingProof}
+          savingQrCode={savingQrCode}
+          onClose={closePayment}
+          onChooseImage={chooseProofImage}
+          onSaveQrCode={savePaymentQrCode}
+          onSubmit={submitProof}
+        />
+      </ScrollView>
+    );
+  }
+
+  return (
+    <View style={[styles.flex, {backgroundColor: palette.background}]}>
+      <FlatList
+        data={bookings}
+        keyExtractor={(item) => String(item.bookingId)}
+        renderItem={renderCartBooking}
+        contentContainerStyle={styles.screenScroll}
+        ItemSeparatorComponent={CartListSeparator}
+        ListHeaderComponent={renderCartHeader}
+        ListEmptyComponent={renderCartEmpty}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={palette.accent} />}
+        removeClippedSubviews
+        initialNumToRender={6}
+        maxToRenderPerBatch={8}
+        windowSize={5}
+      />
 
       <AppDialog
         visible={Boolean(cancelTarget)}
@@ -457,14 +488,15 @@ function CartScreen({
         }}
         onConfirm={handleCancelBooking}
       />
-
-        </>
-      )}
-    </ScrollView>
+    </View>
   );
 }
 
-function CartBookingCard({
+function CartListSeparator() {
+  return <View style={styles.cartListSeparator} />;
+}
+
+const CartBookingCard = React.memo(function CartBookingCard({
   booking,
   selected,
   onToggleSelect,
@@ -541,7 +573,12 @@ function CartBookingCard({
       </View>
     </Pressable>
   );
-}
+}, (prev, next) => (
+  prev.booking === next.booking
+  && prev.selected === next.selected
+  && prev.cancelling === next.cancelling
+  && prev.nowMs === next.nowMs
+));
 
 function CheckoutSummary({
   bookings,
@@ -787,6 +824,9 @@ function formatMoney(value: number) {
 }
 
 const styles = StyleSheet.create({
+  flex: {
+    flex: 1,
+  },
   screenScroll: {
     padding: 22,
     paddingBottom: 124,
@@ -879,8 +919,8 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
   },
-  bookingList: {
-    gap: 12,
+  cartListSeparator: {
+    height: 12,
   },
   bookingCard: {
     borderRadius: 24,

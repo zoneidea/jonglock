@@ -189,14 +189,13 @@ iOS:
 
 ## Package Decisions
 
-- `@react-navigation/native` and native stack for routing
-- `react-native-screens` and `react-native-safe-area-context` for native navigation performance
+- Internal shell state for tab routing, avoiding unused navigation runtime dependencies
+- `react-native-safe-area-context` for device safe area handling
 - `@react-native-google-signin/google-signin` for Gmail login
 - `@react-native-firebase/app` for Firebase default app initialization
 - `@react-native-async-storage/async-storage` for temporary local session mock
 - `react-native-linear-gradient` for controlled visual polish
-- `react-native-gesture-handler` for future gesture-driven UI
-- `react-native-vector-icons` installed for future icon use, although current UI avoids relying on it
+- `react-native-vector-icons` for bottom tabs, actions, and form affordances
 
 ## MVP Risks
 

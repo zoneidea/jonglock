@@ -8,6 +8,7 @@ import {
 import auth, {type FirebaseAuthTypes} from '@react-native-firebase/auth';
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {
+  FlatList,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -1139,6 +1140,13 @@ function LocationDropdown<T>({
   onSelect: (item: T) => void;
 }) {
   const {palette} = useTheme();
+  const renderOption = useCallback(({item}: {item: T}) => (
+    <Pressable
+      onPress={() => onSelect(item)}
+      style={[styles.optionItem, {borderBottomColor: palette.border}]}>
+      <Text style={[styles.optionText, {color: palette.text}]}>{getOptionLabel(item)}</Text>
+    </Pressable>
+  ), [getOptionLabel, onSelect, palette.border, palette.text]);
 
   return (
     <View style={styles.dropdownWrap}>
@@ -1165,16 +1173,17 @@ function LocationDropdown<T>({
           {loading ? <ApiLoadingState label="กำลังโหลดข้อมูล" variant="inline" /> : null}
           {!loading && options.length === 0 ? <Text style={[styles.optionStateText, {color: palette.muted}]}>ไม่พบข้อมูล</Text> : null}
           {!loading ? (
-            <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled">
-              {options.map((item) => (
-                <Pressable
-                  key={String(getOptionKey(item))}
-                  onPress={() => onSelect(item)}
-                  style={[styles.optionItem, {borderBottomColor: palette.border}]}>
-                  <Text style={[styles.optionText, {color: palette.text}]}>{getOptionLabel(item)}</Text>
-                </Pressable>
-              ))}
-            </ScrollView>
+            <FlatList
+              nestedScrollEnabled
+              data={options}
+              keyExtractor={(item) => String(getOptionKey(item))}
+              renderItem={renderOption}
+              keyboardShouldPersistTaps="handled"
+              removeClippedSubviews
+              initialNumToRender={12}
+              maxToRenderPerBatch={12}
+              windowSize={5}
+            />
           ) : null}
         </View>
       ) : null}

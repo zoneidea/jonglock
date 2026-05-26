@@ -1,8 +1,8 @@
-import React, {useMemo, useState} from 'react';
+import React, {useCallback, useMemo, useState} from 'react';
 import {
+  FlatList,
   Modal,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -52,6 +52,38 @@ function BookingSelectionModal({
     );
   }, [items, query]);
 
+  const renderItem = useCallback(({item}: {item: SelectionItem}) => {
+    const selected = item.id === selectedId;
+    return (
+      <Pressable
+        onPress={() => onSelect(item.id)}
+        style={[styles.optionCard, selected && styles.optionCardSelected]}>
+        <View style={styles.optionIcon}>
+          <MaterialCommunityIcons
+            name={selected ? 'check-circle' : 'storefront-outline'}
+            size={20}
+            color={selected ? colors.tealDark : colors.muted}
+          />
+        </View>
+        <View style={styles.optionCopy}>
+          <Text style={styles.optionTitle} numberOfLines={1}>{item.title}</Text>
+          <Text style={styles.optionSubtitle} numberOfLines={2}>{item.subtitle || '-'}</Text>
+        </View>
+        {item.badge ? (
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>{item.badge}</Text>
+          </View>
+        ) : null}
+      </Pressable>
+    );
+  }, [onSelect, selectedId]);
+
+  const renderEmpty = useCallback(() => (
+    <View style={styles.emptyCard}>
+      <Text style={styles.emptyText}>{emptyText}</Text>
+    </View>
+  ), [emptyText]);
+
   return (
     <Modal visible={open} transparent animationType="fade" hardwareAccelerated onRequestClose={onClose}>
       <View style={styles.backdrop}>
@@ -77,39 +109,19 @@ function BookingSelectionModal({
             />
           </View>
 
-          <ScrollView style={styles.list} contentContainerStyle={styles.listContent} keyboardShouldPersistTaps="handled">
-            {filteredItems.map((item) => {
-              const selected = item.id === selectedId;
-              return (
-                <Pressable
-                  key={item.id}
-                  onPress={() => onSelect(item.id)}
-                  style={[styles.optionCard, selected && styles.optionCardSelected]}>
-                  <View style={styles.optionIcon}>
-                    <MaterialCommunityIcons
-                      name={selected ? 'check-circle' : 'storefront-outline'}
-                      size={20}
-                      color={selected ? colors.tealDark : colors.muted}
-                    />
-                  </View>
-                  <View style={styles.optionCopy}>
-                    <Text style={styles.optionTitle} numberOfLines={1}>{item.title}</Text>
-                    <Text style={styles.optionSubtitle} numberOfLines={2}>{item.subtitle || '-'}</Text>
-                  </View>
-                  {item.badge ? (
-                    <View style={styles.badge}>
-                      <Text style={styles.badgeText}>{item.badge}</Text>
-                    </View>
-                  ) : null}
-                </Pressable>
-              );
-            })}
-            {!filteredItems.length ? (
-              <View style={styles.emptyCard}>
-                <Text style={styles.emptyText}>{emptyText}</Text>
-              </View>
-            ) : null}
-          </ScrollView>
+          <FlatList
+            style={styles.list}
+            contentContainerStyle={styles.listContent}
+            data={filteredItems}
+            keyExtractor={(item) => String(item.id)}
+            renderItem={renderItem}
+            ListEmptyComponent={renderEmpty}
+            keyboardShouldPersistTaps="handled"
+            removeClippedSubviews
+            initialNumToRender={10}
+            maxToRenderPerBatch={10}
+            windowSize={5}
+          />
         </View>
       </View>
     </Modal>
@@ -290,4 +302,3 @@ const styles = StyleSheet.create({
 });
 
 export default React.memo(BookingSelectionModal);
-

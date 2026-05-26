@@ -1,5 +1,6 @@
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {
+  FlatList,
   Modal,
   Pressable,
   RefreshControl,
@@ -127,6 +128,56 @@ function BoothSelectionStep({
     setSelectedBooth(booth);
   }, []);
 
+  const renderBoothTile = useCallback(({item}: {item: Booth}) => (
+    <BoothTile booth={item} size={tileSize} onPress={() => handleBoothPress(item)} />
+  ), [handleBoothPress, tileSize]);
+
+  const renderBoothHeader = useCallback(() => (
+    <>
+      <View style={styles.detailHeaderRow}>
+        <Pressable onPress={onBack} style={styles.backButton}>
+          <MaterialCommunityIcons name="chevron-left" size={24} color={colors.ink} />
+          <Text style={styles.backText}>กลับ</Text>
+        </Pressable>
+      </View>
+
+      <View style={styles.boothHeaderCard}>
+        <View style={styles.planIntroIcon}>
+          <MaterialCommunityIcons name="view-grid-outline" size={22} color={colors.tealDark} />
+        </View>
+        <View style={styles.planIntroCopy}>
+          <Text style={styles.planEyebrow}>{market.name}</Text>
+          <Text style={styles.planTitle}>เลือกบูธ</Text>
+          <Text style={styles.planSubtitle}>
+            {`${floorPlan.name} • ${formatSelectedDateSummary(selectedDates)}`}
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.shortcutRow}>
+        <ShortcutButton icon="store-search-outline" label="เปลี่ยนตลาด" onPress={() => setMarketModalOpen(true)} />
+        <ShortcutButton icon="map-marker-path" label="เปลี่ยนโซน" onPress={() => setFloorPlanModalOpen(true)} />
+        <ShortcutButton icon="calendar-edit" label="เปลี่ยนวันที่" onPress={onChangeDates} />
+      </View>
+
+      <View style={styles.boothLegendRow}>
+        <LegendDot color="#14b879" label="ว่างทุกวัน" />
+        <LegendDot color="#f5b93f" label="ว่างบางวัน" />
+        <LegendDot color="#ef4444" label="ไม่ว่างเลย" />
+      </View>
+
+      {message ? <Text style={styles.messageText}>{message}</Text> : null}
+    </>
+  ), [floorPlan.name, market.name, message, onBack, onChangeDates, selectedDates]);
+
+  const renderBoothEmpty = useCallback(() => (
+    loading ? (
+      <ApiLoadingState label="กำลังโหลดบูธ" style={styles.boothLoadingCard} />
+    ) : (
+      <EmptyCard text="ยังไม่มีบูธในแผนผังนี้" />
+    )
+  ), [loading]);
+
   const handleReserveBooth = useCallback(async (booth: Booth, availableDates: string[]) => {
     if (!user?.email) {
       setDialog({
@@ -203,58 +254,23 @@ function BoothSelectionStep({
 
   return (
     <View style={styles.flex}>
-      <ScrollView
+      <FlatList
+        key={`booth-grid-${columns}`}
+        data={effectiveBooths}
+        keyExtractor={(item) => String(item.id)}
+        renderItem={renderBoothTile}
+        numColumns={columns}
         contentContainerStyle={styles.screenScroll}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.teal} />}>
-        <View style={styles.detailHeaderRow}>
-          <Pressable onPress={onBack} style={styles.backButton}>
-            <MaterialCommunityIcons name="chevron-left" size={24} color={colors.ink} />
-            <Text style={styles.backText}>กลับ</Text>
-          </Pressable>
-        </View>
-
-        <View style={styles.boothHeaderCard}>
-          <View style={styles.planIntroIcon}>
-            <MaterialCommunityIcons name="view-grid-outline" size={22} color={colors.tealDark} />
-          </View>
-          <View style={styles.planIntroCopy}>
-            <Text style={styles.planEyebrow}>{market.name}</Text>
-            <Text style={styles.planTitle}>เลือกบูธ</Text>
-            <Text style={styles.planSubtitle}>
-              {`${floorPlan.name} • ${formatSelectedDateSummary(selectedDates)}`}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.shortcutRow}>
-          <ShortcutButton icon="store-search-outline" label="เปลี่ยนตลาด" onPress={() => setMarketModalOpen(true)} />
-          <ShortcutButton icon="map-marker-path" label="เปลี่ยนโซน" onPress={() => setFloorPlanModalOpen(true)} />
-          <ShortcutButton icon="calendar-edit" label="เปลี่ยนวันที่" onPress={onChangeDates} />
-        </View>
-
-        <View style={styles.boothLegendRow}>
-          <LegendDot color="#14b879" label="ว่างทุกวัน" />
-          <LegendDot color="#f5b93f" label="ว่างบางวัน" />
-          <LegendDot color="#ef4444" label="ไม่ว่างเลย" />
-        </View>
-
-        {message ? <Text style={styles.messageText}>{message}</Text> : null}
-
-        <View style={styles.boothGrid}>
-          {loading && booths.length === 0 ? (
-            <ApiLoadingState label="กำลังโหลดบูธ" style={styles.boothLoadingCard} />
-          ) : null}
-          {effectiveBooths.map((booth) => (
-            <BoothTile
-              key={booth.id}
-              booth={booth}
-              size={tileSize}
-              onPress={() => handleBoothPress(booth)}
-            />
-          ))}
-          {!loading && booths.length === 0 ? <EmptyCard text="ยังไม่มีบูธในแผนผังนี้" /> : null}
-        </View>
-      </ScrollView>
+        columnWrapperStyle={styles.boothGridRow}
+        ListHeaderComponent={renderBoothHeader}
+        ListEmptyComponent={renderBoothEmpty}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.teal} />}
+        keyboardShouldPersistTaps="handled"
+        removeClippedSubviews
+        initialNumToRender={36}
+        maxToRenderPerBatch={36}
+        windowSize={5}
+      />
 
       <BoothDetailSheet
         booth={selectedBooth}
@@ -309,7 +325,7 @@ function BoothSelectionStep({
   );
 }
 
-function ShortcutButton({
+const ShortcutButton = React.memo(function ShortcutButton({
   icon,
   label,
   onPress,
@@ -324,9 +340,9 @@ function ShortcutButton({
       <Text style={styles.shortcutText}>{label}</Text>
     </Pressable>
   );
-}
+});
 
-function BoothTile({
+const BoothTile = React.memo(function BoothTile({
   booth,
   size,
   onPress,
@@ -360,16 +376,19 @@ function BoothTile({
       </Text>
     </Pressable>
   );
-}
+}, (prev, next) => (
+  prev.booth === next.booth
+  && prev.size === next.size
+));
 
-function LegendDot({color, label}: {color: string; label: string}) {
+const LegendDot = React.memo(function LegendDot({color, label}: {color: string; label: string}) {
   return (
     <View style={styles.legendItem}>
       <View style={[styles.legendDot, {backgroundColor: color}]} />
       <Text style={styles.legendText}>{label}</Text>
     </View>
   );
-}
+});
 
 function BoothDetailSheet({
   booth,
@@ -537,6 +556,8 @@ function applyTempLocksToBooth(
     return {...item, status};
   });
   const availableCount = currentDates.filter((item) => item.status === 'available').length;
+  const unavailableDateCount = selectedDates.length - availableCount;
+  const selectedDateCount = selectedDates.length;
   let availabilityStatus: BoothAvailabilityStatus = 'processing';
   if (booth.status !== 'active') {
     availabilityStatus = 'unavailable';
@@ -546,14 +567,36 @@ function applyTempLocksToBooth(
     availabilityStatus = 'booked';
   }
 
+  if (
+    booth.availabilityStatus === availabilityStatus
+    && Number(booth.availableDateCount || 0) === availableCount
+    && Number(booth.unavailableDateCount || 0) === unavailableDateCount
+    && Number(booth.selectedDateCount || 0) === selectedDateCount
+    && boothDateAvailabilityEqual(booth.availabilityDates || [], currentDates)
+  ) {
+    return booth;
+  }
+
   return {
     ...booth,
     availabilityStatus,
     availabilityDates: currentDates,
     availableDateCount: availableCount,
-    unavailableDateCount: selectedDates.length - availableCount,
-    selectedDateCount: selectedDates.length,
+    unavailableDateCount,
+    selectedDateCount,
   };
+}
+
+function boothDateAvailabilityEqual(
+  previousDates: Array<{date: string; status: BoothAvailabilityStatus}>,
+  nextDates: Array<{date: string; status: BoothAvailabilityStatus}>,
+) {
+  if (previousDates.length !== nextDates.length) {
+    return false;
+  }
+  return previousDates.every((item, index) =>
+    item.date === nextDates[index]?.date && item.status === nextDates[index]?.status,
+  );
 }
 
 function formatSelectedDateSummary(dates: string[]) {
@@ -596,13 +639,13 @@ function getLockExpiryMs(expiresAt?: string | null) {
   return Date.now() + BOOTH_TEMP_LOCK_TTL_MINUTES * 60 * 1000;
 }
 
-function EmptyCard({text}: {text: string}) {
+const EmptyCard = React.memo(function EmptyCard({text}: {text: string}) {
   return (
     <View style={styles.emptyCard}>
       <Text style={styles.emptyText}>{text}</Text>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   flex: {
@@ -735,12 +778,9 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '900',
   },
-  boothGrid: {
+  boothGridRow: {
     marginTop: 14,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
     justifyContent: 'center',
-    alignSelf: 'center',
     gap: 8,
   },
   boothTile: {

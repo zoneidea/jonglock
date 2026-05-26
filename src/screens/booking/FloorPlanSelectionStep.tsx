@@ -1,5 +1,5 @@
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
-import {Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View} from 'react-native';
+import {FlatList, Image, Pressable, RefreshControl, StyleSheet, Text, View} from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
@@ -53,53 +53,64 @@ function FloorPlanSelectionStep({
     }
   }, [loadFloorPlans]);
 
+  const renderFloorPlan = useCallback(({item}: {item: FloorPlan}) => (
+    <FloorPlanCard floorPlan={item} onPress={() => onSelectFloorPlan(item)} />
+  ), [onSelectFloorPlan]);
+
+  const renderHeader = useCallback(() => (
+    <>
+      <View style={styles.detailHeaderRow}>
+        <Pressable onPress={onBack} style={styles.backButton}>
+          <MaterialCommunityIcons name="chevron-left" size={24} color={colors.ink} />
+          <Text style={styles.backText}>กลับ</Text>
+        </Pressable>
+      </View>
+
+      <View style={styles.planIntroCard}>
+        <View style={styles.planIntroIcon}>
+          <MaterialCommunityIcons name="map-outline" size={22} color={colors.tealDark} />
+        </View>
+        <View style={styles.planIntroCopy}>
+          <Text style={styles.planEyebrow}>{market.code}</Text>
+          <Text style={styles.planTitle}>เลือกแผนผัง/โซน</Text>
+          <Text style={styles.planSubtitle}>{market.name}</Text>
+        </View>
+      </View>
+
+      <View style={styles.shortcutRow}>
+        <ShortcutButton icon="store-search-outline" label="เปลี่ยนตลาด" onPress={() => setMarketModalOpen(true)} />
+      </View>
+
+      <Text style={styles.planHelpText}>เลือกโซนที่ต้องการ ก่อนเข้าสู่ขั้นตอนการเลือกบูธ</Text>
+
+      {message ? <Text style={styles.messageText}>{message}</Text> : null}
+    </>
+  ), [market.code, market.name, message, onBack]);
+
+  const renderEmpty = useCallback(() => (
+    loading ? (
+      <ApiLoadingState label="กำลังโหลดแผนผัง/โซน" />
+    ) : (
+      <EmptyCard text="ยังไม่มีแผนผังหรือโซนที่เปิดใช้งาน" />
+    )
+  ), [loading]);
+
   return (
     <View style={styles.flex}>
-      <ScrollView
+      <FlatList
+        data={floorPlans}
+        keyExtractor={(item) => String(item.id)}
+        renderItem={renderFloorPlan}
         contentContainerStyle={styles.screenScroll}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.teal} />}>
-        <View style={styles.detailHeaderRow}>
-          <Pressable onPress={onBack} style={styles.backButton}>
-            <MaterialCommunityIcons name="chevron-left" size={24} color={colors.ink} />
-            <Text style={styles.backText}>กลับ</Text>
-          </Pressable>
-        </View>
-
-        <View style={styles.planIntroCard}>
-          <View style={styles.planIntroIcon}>
-            <MaterialCommunityIcons name="map-outline" size={22} color={colors.tealDark} />
-          </View>
-          <View style={styles.planIntroCopy}>
-            <Text style={styles.planEyebrow}>{market.code}</Text>
-            <Text style={styles.planTitle}>เลือกแผนผัง/โซน</Text>
-            <Text style={styles.planSubtitle}>{market.name}</Text>
-          </View>
-        </View>
-
-        <View style={styles.shortcutRow}>
-          <ShortcutButton icon="store-search-outline" label="เปลี่ยนตลาด" onPress={() => setMarketModalOpen(true)} />
-        </View>
-
-        <Text style={styles.planHelpText}>เลือกโซนที่ต้องการ ก่อนเข้าสู่ขั้นตอนการเลือกบูธ</Text>
-
-        {message ? <Text style={styles.messageText}>{message}</Text> : null}
-
-        <View style={styles.planList}>
-          {loading && floorPlans.length === 0 ? (
-            <ApiLoadingState label="กำลังโหลดแผนผัง/โซน" />
-          ) : null}
-          {floorPlans.map((floorPlan) => (
-            <FloorPlanCard
-              key={floorPlan.id}
-              floorPlan={floorPlan}
-              onPress={() => onSelectFloorPlan(floorPlan)}
-            />
-          ))}
-          {!loading && floorPlans.length === 0 ? (
-            <EmptyCard text="ยังไม่มีแผนผังหรือโซนที่เปิดใช้งาน" />
-          ) : null}
-        </View>
-      </ScrollView>
+        ItemSeparatorComponent={FloorPlanSeparator}
+        ListHeaderComponent={renderHeader}
+        ListEmptyComponent={renderEmpty}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.teal} />}
+        removeClippedSubviews
+        initialNumToRender={8}
+        maxToRenderPerBatch={8}
+        windowSize={5}
+      />
       <BookingSelectionModal
         open={marketModalOpen}
         title="เลือกตลาด"
@@ -119,7 +130,7 @@ function FloorPlanSelectionStep({
   );
 }
 
-function ShortcutButton({
+const ShortcutButton = React.memo(function ShortcutButton({
   icon,
   label,
   onPress,
@@ -134,9 +145,9 @@ function ShortcutButton({
       <Text style={styles.shortcutText}>{label}</Text>
     </Pressable>
   );
-}
+});
 
-function FloorPlanCard({
+const FloorPlanCard = React.memo(function FloorPlanCard({
   floorPlan,
   onPress,
 }: {
@@ -177,6 +188,10 @@ function FloorPlanCard({
       </View>
     </Pressable>
   );
+}, (prev, next) => prev.floorPlan === next.floorPlan);
+
+function FloorPlanSeparator() {
+  return <View style={styles.floorPlanSeparator} />;
 }
 
 function formatPlanDateRange(startDate?: string | null, endDate?: string | null) {
@@ -212,13 +227,13 @@ function formatShortDate(value?: string | null) {
   }).format(date);
 }
 
-function EmptyCard({text}: {text: string}) {
+const EmptyCard = React.memo(function EmptyCard({text}: {text: string}) {
   return (
     <View style={styles.emptyCard}>
       <Text style={styles.emptyText}>{text}</Text>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   flex: {
@@ -330,9 +345,8 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     fontWeight: '800',
   },
-  planList: {
-    marginTop: 14,
-    gap: 14,
+  floorPlanSeparator: {
+    height: 14,
   },
   planCard: {
     borderRadius: 26,

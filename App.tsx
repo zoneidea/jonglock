@@ -1,8 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import auth from '@react-native-firebase/auth';
 import {GoogleSignin} from '@react-native-google-signin/google-signin';
-import {NavigationContainer} from '@react-navigation/native';
-import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import React, {useCallback, useEffect, useState} from 'react';
 import {SafeAreaProvider} from 'react-native-safe-area-context';
 
@@ -10,10 +8,7 @@ import {STORAGE_USER_KEY} from './src/constants/storage';
 import AppShell from './src/screens/AppShell';
 import SplashScreen from './src/screens/SplashScreen';
 import {ThemeProvider} from './src/theme/theme';
-import type {RootStackParamList} from './src/types/navigation';
 import type {MobileUser} from './src/types/user';
-
-const Stack = createNativeStackNavigator<RootStackParamList>();
 
 GoogleSignin.configure({
   scopes: ['profile', 'email'],
@@ -59,20 +54,12 @@ function App(): React.JSX.Element {
         {booting ? (
           <SplashScreen onReady={() => setBooting(false)} />
         ) : (
-          <NavigationContainer>
-            <Stack.Navigator screenOptions={{headerShown: false}}>
-              <Stack.Screen name="Home">
-                {() => (
-                  <AppShell
-                    user={user}
-                    onLogout={logout}
-                    onAuthenticated={persistUser}
-                    onUserChange={persistUser}
-                  />
-                )}
-              </Stack.Screen>
-            </Stack.Navigator>
-          </NavigationContainer>
+          <AppShell
+            user={user}
+            onLogout={logout}
+            onAuthenticated={persistUser}
+            onUserChange={persistUser}
+          />
         )}
       </ThemeProvider>
     </SafeAreaProvider>

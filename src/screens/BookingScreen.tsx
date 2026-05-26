@@ -1,6 +1,7 @@
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
+  FlatList,
   Image,
   Modal,
   Pressable,
@@ -267,6 +268,43 @@ function BookingScreen({
     },
   });
 
+  const renderMarketCard = useCallback(({item}: {item: Market}) => (
+    <MarketListCard market={item} onPress={() => selectMarket(item)} />
+  ), [selectMarket]);
+
+  const renderMarketListHeader = useCallback(() => (
+    <>
+      <View style={styles.searchRow}>
+        <View style={styles.searchBox}>
+          <MaterialCommunityIcons name="magnify" size={22} color={colors.muted} />
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            placeholder="ค้นหาชื่อตลาดหรือรหัสตลาด"
+            placeholderTextColor="#8fa2b2"
+            style={styles.searchInput}
+            autoCapitalize="none"
+            selectionColor={colors.teal}
+          />
+        </View>
+        <Pressable onPress={openScanner} style={styles.scanButton}>
+          <MaterialCommunityIcons name="qrcode-scan" size={24} color={colors.white} />
+        </Pressable>
+      </View>
+
+      {message ? <Text style={styles.messageText}>{message}</Text> : null}
+
+      <View style={styles.sectionHeaderRow}>
+        <Text style={styles.sectionTitle}>ตลาดทั้งหมด</Text>
+        <Text style={styles.sectionCaption}>{`${filteredMarkets.length} ตลาด`}</Text>
+      </View>
+    </>
+  ), [filteredMarkets.length, message, openScanner, query]);
+
+  const renderMarketEmpty = useCallback(() => (
+    loading ? <ApiLoadingState label="กำลังโหลดรายการตลาด" /> : <EmptyCard text="ไม่มีรายการตลาด" />
+  ), [loading]);
+
   const isSummaryStep = Boolean(floorPlanMarket && selectedFloorPlan && bookingHold && reservedBooth);
   useEffect(() => {
     onBottomTabHiddenChange?.(isSummaryStep);
@@ -384,44 +422,21 @@ function BookingScreen({
 
   return (
     <View style={styles.flex}>
-      <ScrollView
+      <FlatList
+        data={filteredMarkets}
+        keyExtractor={(item) => String(item.id)}
+        renderItem={renderMarketCard}
         contentContainerStyle={styles.screenScroll}
+        ItemSeparatorComponent={MarketListSeparator}
+        ListHeaderComponent={renderMarketListHeader}
+        ListEmptyComponent={renderMarketEmpty}
         keyboardShouldPersistTaps="handled"
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefreshMarkets} tintColor={colors.teal} />}>
-        <View style={styles.searchRow}>
-          <View style={styles.searchBox}>
-            <MaterialCommunityIcons name="magnify" size={22} color={colors.muted} />
-            <TextInput
-              value={query}
-              onChangeText={setQuery}
-              placeholder="ค้นหาชื่อตลาดหรือรหัสตลาด"
-              placeholderTextColor="#8fa2b2"
-              style={styles.searchInput}
-              autoCapitalize="none"
-              selectionColor={colors.teal}
-            />
-          </View>
-          <Pressable onPress={openScanner} style={styles.scanButton}>
-            <MaterialCommunityIcons name="qrcode-scan" size={24} color={colors.white} />
-          </Pressable>
-        </View>
-
-        {message ? <Text style={styles.messageText}>{message}</Text> : null}
-
-        <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitle}>ตลาดทั้งหมด</Text>
-          <Text style={styles.sectionCaption}>{`${filteredMarkets.length} ตลาด`}</Text>
-        </View>
-        <View style={styles.marketList}>
-          {loading && filteredMarkets.length === 0 ? (
-            <ApiLoadingState label="กำลังโหลดรายการตลาด" />
-          ) : null}
-          {filteredMarkets.map((market) => (
-            <MarketListCard key={market.id} market={market} onPress={() => selectMarket(market)} />
-          ))}
-          {!loading && filteredMarkets.length === 0 ? <EmptyCard text="ไม่มีรายการตลาด" /> : null}
-        </View>
-      </ScrollView>
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefreshMarkets} tintColor={colors.teal} />}
+        removeClippedSubviews
+        initialNumToRender={6}
+        maxToRenderPerBatch={8}
+        windowSize={5}
+      />
 
       <ScannerModal
         visible={scannerOpen}
@@ -437,7 +452,7 @@ function BookingScreen({
   );
 }
 
-function MarketListCard({market, onPress}: {market: Market; onPress: () => void}) {
+const MarketListCard = React.memo(function MarketListCard({market, onPress}: {market: Market; onPress: () => void}) {
   return (
     <Pressable onPress={onPress} style={styles.listCard}>
       <MarketImage imageUrl={market.mainImageUrl} style={styles.listImage} />
@@ -450,9 +465,9 @@ function MarketListCard({market, onPress}: {market: Market; onPress: () => void}
       </LinearGradient>
     </Pressable>
   );
-}
+}, (prev, next) => prev.market === next.market);
 
-function MarketImage({imageUrl, style}: {imageUrl: string; style: object}) {
+const MarketImage = React.memo(function MarketImage({imageUrl, style}: {imageUrl: string; style: object}) {
   const [failed, setFailed] = useState(false);
   if (!imageUrl || failed) {
     return (
@@ -462,6 +477,10 @@ function MarketImage({imageUrl, style}: {imageUrl: string; style: object}) {
     );
   }
   return <Image source={{uri: imageUrl}} style={style} resizeMode="cover" onError={() => setFailed(true)} />;
+});
+
+function MarketListSeparator() {
+  return <View style={styles.marketListSeparator} />;
 }
 
 function MarketDetailScreen({
@@ -830,8 +849,8 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     fontWeight: '900',
   },
-  marketList: {
-    gap: 14,
+  marketListSeparator: {
+    height: 14,
   },
   listCard: {
     height: 148,

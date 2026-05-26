@@ -1,5 +1,5 @@
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
-import {Image, RefreshControl, ScrollView, StyleSheet, Text, View} from 'react-native';
+import {FlatList, Image, RefreshControl, ScrollView, StyleSheet, Text, View} from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 
 import ApiLoadingState from '../components/ApiLoadingState';
@@ -70,10 +70,19 @@ function HomeScreen({user}: {user: MobileUser | null}) {
 
   const bannerItems = useMemo(() => (banners.length ? banners : [MOCK_HOME_BANNER]), [banners]);
 
-  return (
-    <ScrollView
-      contentContainerStyle={[styles.homeScroll, {backgroundColor: palette.background}]}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={palette.accent} />}>
+  const renderFeedItem = useCallback(({item}: {item: Announcement & {relativeTime: string}}) => (
+    <PromoCard
+      title={item.title}
+      text={item.description}
+      marketName={item.marketName}
+      relativeTime={item.relativeTime}
+      imageUrl={item.imageUrl}
+      type={item.type}
+    />
+  ), []);
+
+  const renderHeader = useCallback(() => (
+    <>
       <View style={styles.homeTopbar}>
         <View>
           <Text style={[styles.homeHello, {color: palette.muted}]}>สวัสดี</Text>
@@ -100,33 +109,39 @@ function HomeScreen({user}: {user: MobileUser | null}) {
 
       <Text style={[styles.sectionTitle, {color: palette.text}]}>ข่าวสารและโปรโมชั่น</Text>
       {message ? <Text style={[styles.messageText, {color: palette.danger}]}>{message}</Text> : null}
-      <View style={styles.promoList}>
-        {loading && feedItems.length === 0 ? (
-          <ApiLoadingState label="กำลังโหลดข่าวสารและโปรโมชั่น" />
-        ) : null}
-        {feedItems.map((item) => (
-          <PromoCard
-            key={item.id}
-            title={item.title}
-            text={item.description}
-            marketName={item.marketName}
-            relativeTime={item.relativeTime}
-            imageUrl={item.imageUrl}
-            type={item.type}
-          />
-        ))}
-        {!loading && feedItems.length === 0 ? (
-          <View style={[styles.emptyCard, {backgroundColor: palette.surface, borderColor: palette.border}]}>
-            <Text style={[styles.emptyTitle, {color: palette.text}]}>ยังไม่มีข่าวสารและโปรโมชั่น</Text>
-            <Text style={[styles.emptyText, {color: palette.muted}]}>รายการประกาศจากตลาดจะมาแสดงที่หน้านี้</Text>
-          </View>
-        ) : null}
+    </>
+  ), [bannerItems, banners.length, loading, message, palette, user]);
+
+  const renderEmptyFeed = useCallback(() => (
+    loading ? (
+      <ApiLoadingState label="กำลังโหลดข่าวสารและโปรโมชั่น" />
+    ) : (
+      <View style={[styles.emptyCard, {backgroundColor: palette.surface, borderColor: palette.border}]}>
+        <Text style={[styles.emptyTitle, {color: palette.text}]}>ยังไม่มีข่าวสารและโปรโมชั่น</Text>
+        <Text style={[styles.emptyText, {color: palette.muted}]}>รายการประกาศจากตลาดจะมาแสดงที่หน้านี้</Text>
       </View>
-    </ScrollView>
+    )
+  ), [loading, palette]);
+
+  return (
+    <FlatList
+      data={feedItems}
+      keyExtractor={(item) => String(item.id)}
+      renderItem={renderFeedItem}
+      contentContainerStyle={[styles.homeScroll, {backgroundColor: palette.background}]}
+      ItemSeparatorComponent={FeedSeparator}
+      ListHeaderComponent={renderHeader}
+      ListEmptyComponent={renderEmptyFeed}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={palette.accent} />}
+      removeClippedSubviews
+      initialNumToRender={6}
+      maxToRenderPerBatch={8}
+      windowSize={5}
+    />
   );
 }
 
-function HomeAdCard({banner}: {banner: Announcement}) {
+const HomeAdCard = React.memo(function HomeAdCard({banner}: {banner: Announcement}) {
   return (
     <View style={styles.bannerCard}>
       {banner.imageUrl ? <Image source={{uri: banner.imageUrl}} style={styles.bannerImage} resizeMode="cover" /> : null}
@@ -148,6 +163,10 @@ function HomeAdCard({banner}: {banner: Announcement}) {
       </LinearGradient>
     </View>
   );
+});
+
+function FeedSeparator() {
+  return <View style={styles.feedSeparator} />;
 }
 
 function formatRelativeTime(input: string) {
@@ -314,8 +333,8 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
   },
-  promoList: {
-    gap: 12,
+  feedSeparator: {
+    height: 12,
   },
   emptyCard: {
     minHeight: 112,
