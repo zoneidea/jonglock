@@ -1,11 +1,35 @@
 import React, {useEffect, useMemo, useState} from 'react';
-import {Modal, Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
+import {ActivityIndicator, FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import {Camera, useCameraDevice, useCameraPermission, useCodeScanner} from 'react-native-vision-camera';
 
-import {fetchAuditSummary} from '../../services/audit';
+import {
+  fetchAuditInspections,
+  fetchAuditSummary,
+  type AuditInspectionFilter,
+  type AuditInspectionItem,
+} from '../../services/audit';
 import {colors} from '../../theme/colors';
 import type {AuditUser} from '../../types/user';
+
+const INSPECTION_FILTERS: Record<AuditInspectionFilter, {title: string; emptyText: string}> = {
+  all: {
+    title: 'งานตรวจทั้งหมด',
+    emptyText: 'ยังไม่มีรายการจองที่ชำระเงินแล้วในวันที่เลือก',
+  },
+  pending: {
+    title: 'รอตรวจ',
+    emptyText: 'ไม่มีรายการที่รอตรวจในวันที่เลือก',
+  },
+  violation: {
+    title: 'ผิดกฎ',
+    emptyText: 'ไม่มีรายการผิดกฎในวันที่เลือก',
+  },
+  fine: {
+    title: 'รายการค่าปรับ',
+    emptyText: 'ไม่มีรายการค่าปรับในวันที่เลือก',
+  },
+};
 
 function AuditDashboardScreen({
   user,
@@ -19,6 +43,10 @@ function AuditDashboardScreen({
   const [message, setMessage] = useState('');
   const [scannerOpen, setScannerOpen] = useState(false);
   const [scannerLocked, setScannerLocked] = useState(false);
+  const [inspectionFilter, setInspectionFilter] = useState<AuditInspectionFilter | null>(null);
+  const [inspectionItems, setInspectionItems] = useState<AuditInspectionItem[]>([]);
+  const [inspectionLoading, setInspectionLoading] = useState(false);
+  const [inspectionMessage, setInspectionMessage] = useState('');
   const [summary, setSummary] = useState({
     totalJobs: 0,
     pendingJobs: 0,
@@ -73,6 +101,39 @@ function AuditDashboardScreen({
     };
   }, [selectedDate, user.token]);
 
+  useEffect(() => {
+    if (!inspectionFilter || !user.token) {
+      return;
+    }
+
+    let cancelled = false;
+    setInspectionLoading(true);
+    setInspectionMessage('');
+    fetchAuditInspections({token: user.token, date: selectedDate, filter: inspectionFilter})
+      .then((result) => {
+        if (cancelled) {
+          return;
+        }
+        setInspectionItems(result.items);
+      })
+      .catch((error) => {
+        if (cancelled) {
+          return;
+        }
+        setInspectionItems([]);
+        setInspectionMessage((error as Error).message || 'ยังไม่สามารถโหลดรายการตรวจสอบได้');
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setInspectionLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [inspectionFilter, selectedDate, user.token]);
+
   const subtitle = useMemo(
     () => `${user.name} · ${user.staffCode} · ${formatThaiDate(selectedDate)}`,
     [selectedDate, user.name, user.staffCode],
@@ -104,6 +165,23 @@ function AuditDashboardScreen({
       }
     },
   });
+
+  function openInspectionList(filter: AuditInspectionFilter) {
+    setInspectionFilter(filter);
+  }
+
+  function closeInspectionList() {
+    setInspectionFilter(null);
+    setInspectionItems([]);
+    setInspectionMessage('');
+  }
+
+  function openScannerFromInspectionList() {
+    closeInspectionList();
+    setTimeout(() => {
+      openScanner();
+    }, 0);
+  }
 
   return (
     <View style={styles.flex}>
@@ -145,12 +223,12 @@ function AuditDashboardScreen({
         </View>
 
         <View style={styles.cardRow}>
-          <MetricCard label="งานตรวจทั้งหมด" value={loading ? '...' : formatCount(summary.totalJobs)} icon="clipboard-check-outline" />
-          <MetricCard label="รอตรวจ" value={loading ? '...' : formatCount(summary.pendingJobs)} icon="clock-time-four-outline" />
+          <MetricCard label="งานตรวจทั้งหมด" value={loading ? '...' : formatCount(summary.totalJobs)} icon="clipboard-check-outline" onPress={() => openInspectionList('all')} />
+          <MetricCard label="รอตรวจ" value={loading ? '...' : formatCount(summary.pendingJobs)} icon="clock-time-four-outline" onPress={() => openInspectionList('pending')} />
         </View>
         <View style={styles.cardRow}>
-          <MetricCard label="ผิดกฎ" value={loading ? '...' : formatCount(summary.violationJobs)} icon="alert-outline" />
-          <MetricCard label="ค่าปรับรวม" value={loading ? '...' : formatCurrency(summary.totalFineAmount)} icon="cash-multiple" />
+          <MetricCard label="ผิดกฎ" value={loading ? '...' : formatCount(summary.violationJobs)} icon="alert-outline" onPress={() => openInspectionList('violation')} />
+          <MetricCard label="ค่าปรับรวม" value={loading ? '...' : formatCurrency(summary.totalFineAmount)} icon="cash-multiple" onPress={() => openInspectionList('fine')} />
         </View>
       </ScrollView>
 
@@ -168,18 +246,133 @@ function AuditDashboardScreen({
           setScannerLocked(false);
         }}
       />
+      <InspectionListModal
+        visible={Boolean(inspectionFilter)}
+        filter={inspectionFilter || 'all'}
+        bookingDate={selectedDate}
+        items={inspectionItems}
+        loading={inspectionLoading}
+        message={inspectionMessage}
+        onClose={closeInspectionList}
+        onOpenScanner={openScannerFromInspectionList}
+      />
     </View>
   );
 }
 
-function MetricCard({label, value, icon}: {label: string; value: string; icon: string}) {
+function MetricCard({
+  label,
+  value,
+  icon,
+  onPress,
+}: {
+  label: string;
+  value: string;
+  icon: string;
+  onPress: () => void;
+}) {
   return (
-    <View style={styles.metricCard}>
+    <Pressable onPress={onPress} style={({pressed}) => [styles.metricCard, pressed && styles.metricCardPressed]}>
       <View style={styles.metricIconWrap}>
         <MaterialCommunityIcons name={icon} size={18} color="#7bd7c9" />
       </View>
       <Text style={styles.metricLabel}>{label}</Text>
       <Text style={styles.metricValue}>{value}</Text>
+    </Pressable>
+  );
+}
+
+function InspectionListModal({
+  visible,
+  filter,
+  bookingDate,
+  items,
+  loading,
+  message,
+  onClose,
+  onOpenScanner,
+}: {
+  visible: boolean;
+  filter: AuditInspectionFilter;
+  bookingDate: string;
+  items: AuditInspectionItem[];
+  loading: boolean;
+  message: string;
+  onClose: () => void;
+  onOpenScanner: () => void;
+}) {
+  const config = INSPECTION_FILTERS[filter];
+  return (
+    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+      <View style={styles.listScreen}>
+        <View style={styles.listHeader}>
+          <View style={styles.listHeaderTextWrap}>
+            <Text style={styles.listEyebrow}>รายการตรวจสอบ</Text>
+            <Text style={styles.listTitle}>{config.title}</Text>
+            <Text style={styles.listSubtitle}>{formatThaiDate(bookingDate)} · {items.length.toLocaleString('th-TH')} รายการ</Text>
+          </View>
+          <Pressable onPress={onClose} style={styles.listCloseButton}>
+            <MaterialCommunityIcons name="close" size={22} color="#d8edf5" />
+          </Pressable>
+        </View>
+
+        {loading ? (
+          <View style={styles.listState}>
+            <ActivityIndicator color="#7bd7c9" />
+            <Text style={styles.listStateText}>กำลังโหลดรายการตรวจสอบ...</Text>
+          </View>
+        ) : message ? (
+          <View style={styles.listState}>
+            <MaterialCommunityIcons name="alert-circle-outline" size={32} color="#ff95a7" />
+            <Text style={[styles.listStateText, styles.listStateError]}>{message}</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={items}
+            keyExtractor={(item) => String(item.bookingItemId)}
+            contentContainerStyle={items.length ? styles.inspectionList : styles.listState}
+            renderItem={({item}) => (
+              <InspectionListItem item={item} onOpenScanner={onOpenScanner} />
+            )}
+            ListEmptyComponent={(
+              <>
+                <MaterialCommunityIcons name="clipboard-check-outline" size={34} color="#7bd7c9" />
+                <Text style={styles.listStateText}>{config.emptyText}</Text>
+              </>
+            )}
+          />
+        )}
+      </View>
+    </Modal>
+  );
+}
+
+function InspectionListItem({
+  item,
+  onOpenScanner,
+}: {
+  item: AuditInspectionItem;
+  onOpenScanner: () => void;
+}) {
+  const checkedIn = Boolean(item.checkedInAt);
+  return (
+    <View style={styles.inspectionItem}>
+      <View style={styles.inspectionItemMain}>
+        <View style={styles.inspectionItemTopRow}>
+          <Text style={styles.customerName} numberOfLines={1}>{item.customerName}</Text>
+          <View style={[styles.checkinBadge, checkedIn ? styles.checkinBadgeDone : styles.checkinBadgeWaiting]}>
+            <Text style={[styles.checkinBadgeText, checkedIn ? styles.checkinBadgeTextDone : styles.checkinBadgeTextWaiting]}>
+              {checkedIn ? 'เช็คอินแล้ว' : 'ยังไม่เช็คอิน'}
+            </Text>
+          </View>
+        </View>
+        <Text style={styles.inspectionMeta} numberOfLines={1}>{item.boothName || item.boothCode || '-'}</Text>
+        <Text style={styles.inspectionDate}>{formatThaiDate(item.bookingDate)} · {formatAuditStatus(item.auditStatus)}</Text>
+      </View>
+      <Pressable onPress={onOpenScanner} style={styles.itemScanButton}>
+        <MaterialCommunityIcons name="qrcode-scan" size={18} color="#ffffff" />
+        <Text style={styles.itemScanButtonText}>สแกน QR</Text>
+      </Pressable>
     </View>
   );
 }
@@ -257,6 +450,19 @@ function formatCurrency(value: number) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
+}
+
+function formatAuditStatus(value: AuditInspectionItem['auditStatus']) {
+  if (value === 'pass') {
+    return 'ผ่านการตรวจ';
+  }
+  if (value === 'warning') {
+    return 'ตักเตือน';
+  }
+  if (value === 'failed') {
+    return 'ผิดกฎ';
+  }
+  return 'รอตรวจ';
 }
 
 const styles = StyleSheet.create({
@@ -389,6 +595,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#1d3144',
   },
+  metricCardPressed: {
+    opacity: 0.82,
+    transform: [{scale: 0.99}],
+  },
   metricIconWrap: {
     width: 40,
     height: 40,
@@ -482,6 +692,147 @@ const styles = StyleSheet.create({
   scannerHint: {
     color: colors.white,
     fontSize: 14,
+    fontWeight: '900',
+  },
+  listScreen: {
+    flex: 1,
+    backgroundColor: '#08111a',
+  },
+  listHeader: {
+    paddingTop: 56,
+    paddingHorizontal: 22,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1d3144',
+    backgroundColor: '#0c1622',
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 16,
+  },
+  listHeaderTextWrap: {
+    flex: 1,
+  },
+  listEyebrow: {
+    color: '#7bd7c9',
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 1.4,
+  },
+  listTitle: {
+    marginTop: 8,
+    color: '#ffffff',
+    fontSize: 26,
+    fontWeight: '900',
+  },
+  listSubtitle: {
+    marginTop: 6,
+    color: '#9cb0c3',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  listCloseButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: '#142435',
+    borderWidth: 1,
+    borderColor: '#284057',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  inspectionList: {
+    padding: 16,
+    paddingBottom: 32,
+  },
+  listState: {
+    flexGrow: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 28,
+    gap: 12,
+  },
+  listStateText: {
+    color: '#9cb0c3',
+    fontSize: 14,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  listStateError: {
+    color: '#ff95a7',
+  },
+  inspectionItem: {
+    minHeight: 112,
+    borderRadius: 22,
+    padding: 14,
+    marginBottom: 12,
+    backgroundColor: '#101b27',
+    borderWidth: 1,
+    borderColor: '#1d3144',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  inspectionItemMain: {
+    flex: 1,
+    minWidth: 0,
+  },
+  inspectionItemTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  customerName: {
+    flex: 1,
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  checkinBadge: {
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  checkinBadgeDone: {
+    backgroundColor: '#123f36',
+  },
+  checkinBadgeWaiting: {
+    backgroundColor: '#3f2d12',
+  },
+  checkinBadgeText: {
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  checkinBadgeTextDone: {
+    color: '#7bd7c9',
+  },
+  checkinBadgeTextWaiting: {
+    color: '#ffc56d',
+  },
+  inspectionMeta: {
+    marginTop: 10,
+    color: '#d8edf5',
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  inspectionDate: {
+    marginTop: 6,
+    color: '#8ea4b8',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  itemScanButton: {
+    minHeight: 44,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    backgroundColor: '#0da591',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  itemScanButtonText: {
+    color: '#ffffff',
+    fontSize: 10,
     fontWeight: '900',
   },
 });

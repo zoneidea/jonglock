@@ -28,6 +28,33 @@ type AuditSummaryResponse = {
   totalFineAmount: number;
 };
 
+export type AuditInspectionFilter = 'all' | 'pending' | 'violation' | 'fine';
+
+export type AuditInspectionItem = {
+  bookingItemId: number;
+  bookingId: number;
+  bookingPublicId: string;
+  bookingDate: string;
+  marketId: number;
+  marketName: string;
+  boothCode: string;
+  boothName: string;
+  customerName: string;
+  auditStatus: 'pending' | 'pass' | 'warning' | 'failed';
+  latestAuditResult: 'pass' | 'warning' | 'failed' | null;
+  latestFineAmount: number;
+  latestCheckedAt: string | null;
+  checkedInAt: string | null;
+  checkinStatus: 'checked_in' | 'waiting';
+  paidAt: string | null;
+};
+
+type AuditInspectionsResponse = {
+  bookingDate: string;
+  filter: AuditInspectionFilter;
+  items: AuditInspectionItem[];
+};
+
 async function readErrorMessage(response: Response) {
   try {
     const payload = (await response.json()) as {message?: string};
@@ -87,4 +114,34 @@ export async function fetchAuditSummary({
 
   const result = (await response.json()) as ApiResponse<AuditSummaryResponse>;
   return result.data;
+}
+
+export async function fetchAuditInspections({
+  token,
+  date,
+  filter,
+}: {
+  token: string;
+  date: string;
+  filter: AuditInspectionFilter;
+}): Promise<AuditInspectionsResponse> {
+  const params = new URLSearchParams({date, filter});
+  const response = await fetch(`${API_BASE_URL}/mobile/audit/inspections?${params.toString()}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+
+  const result = (await response.json()) as ApiResponse<AuditInspectionsResponse>;
+  return {
+    ...result.data,
+    items: (result.data.items || []).map((item) => ({
+      ...item,
+      latestFineAmount: Number(item.latestFineAmount || 0),
+    })),
+  };
 }
