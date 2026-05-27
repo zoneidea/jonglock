@@ -170,10 +170,35 @@ function AuditDashboardScreen({
       if (value) {
         setScannerLocked(true);
         setScannerOpen(false);
-        setMessage(`สแกนข้อมูลแล้ว: ${String(value).slice(0, 48)}`);
+        openInspectionFormFromScan(String(value));
       }
     },
   });
+
+  function openInspectionFormFromScan(value: string) {
+    const bookingItemId = extractBookingItemIdFromScan(value);
+    if (!bookingItemId) {
+      setMessage('QR Code ไม่ถูกต้อง หรือไม่พบรหัสรายการจอง');
+      return;
+    }
+    if (!user.token) {
+      setMessage('ไม่พบ session สำหรับโหลดข้อมูลตรวจสอบ');
+      return;
+    }
+
+    setMessage('');
+    setSelectedInspection(null);
+    setInspectionForm(null);
+    setFormMessage('');
+    setFormLoading(true);
+    fetchAuditInspectionForm({token: user.token, bookingItemId})
+      .then((form) => {
+        setSelectedInspection(form.item);
+        setInspectionForm(form);
+      })
+      .catch((error) => setMessage((error as Error).message || 'ยังไม่สามารถโหลดข้อมูลตรวจสอบจาก QR Code ได้'))
+      .finally(() => setFormLoading(false));
+  }
 
   function openInspectionList(filter: AuditInspectionFilter) {
     setInspectionFilter(filter);
@@ -238,13 +263,6 @@ function AuditDashboardScreen({
     } finally {
       setFormSaving(false);
     }
-  }
-
-  function openScannerFromInspectionList() {
-    closeInspectionList();
-    setTimeout(() => {
-      openScanner();
-    }, 0);
   }
 
   return (
@@ -319,7 +337,6 @@ function AuditDashboardScreen({
         message={inspectionMessage}
         onClose={closeInspectionList}
         onSelectItem={openInspectionForm}
-        onOpenScanner={openScannerFromInspectionList}
       />
       <InspectionFormModal
         visible={Boolean(selectedInspection)}
@@ -366,7 +383,6 @@ function InspectionListModal({
   message,
   onClose,
   onSelectItem,
-  onOpenScanner,
 }: {
   visible: boolean;
   filter: AuditInspectionFilter;
@@ -376,7 +392,6 @@ function InspectionListModal({
   message: string;
   onClose: () => void;
   onSelectItem: (item: AuditInspectionItem) => void;
-  onOpenScanner: () => void;
 }) {
   const config = INSPECTION_FILTERS[filter];
   return (
@@ -409,7 +424,7 @@ function InspectionListModal({
             keyExtractor={(item) => String(item.bookingItemId)}
             contentContainerStyle={items.length ? styles.inspectionList : styles.listState}
             renderItem={({item}) => (
-              <InspectionListItem item={item} onPress={() => onSelectItem(item)} onOpenScanner={onOpenScanner} />
+              <InspectionListItem item={item} onPress={() => onSelectItem(item)} />
             )}
             ListEmptyComponent={(
               <>
@@ -427,11 +442,9 @@ function InspectionListModal({
 function InspectionListItem({
   item,
   onPress,
-  onOpenScanner,
 }: {
   item: AuditInspectionItem;
   onPress: () => void;
-  onOpenScanner: () => void;
 }) {
   const checkedIn = Boolean(item.checkedInAt);
   return (
@@ -448,10 +461,6 @@ function InspectionListItem({
         <Text style={styles.inspectionMeta} numberOfLines={1}>{item.boothName || item.boothCode || '-'}</Text>
         <Text style={styles.inspectionDate}>{formatThaiDate(item.bookingDate)} · {formatAuditStatus(item.auditStatus)}</Text>
       </View>
-      <Pressable onPress={onOpenScanner} style={styles.itemScanButton}>
-        <MaterialCommunityIcons name="qrcode-scan" size={18} color="#ffffff" />
-        <Text style={styles.itemScanButtonText}>สแกน QR</Text>
-      </Pressable>
     </Pressable>
   );
 }
@@ -679,6 +688,42 @@ function shiftIsoDate(value: string, amount: number) {
   }
   baseDate.setDate(baseDate.getDate() + amount);
   return toIsoDate(baseDate);
+}
+
+function extractBookingItemIdFromScan(value: string) {
+  const rawValue = String(value || '').trim();
+  if (!rawValue) {
+    return null;
+  }
+
+  const pipeParts = rawValue.split('|');
+  if (pipeParts[0] === 'JLCHK' && pipeParts[2]) {
+    const id = Number(pipeParts[2]);
+    return Number.isInteger(id) && id > 0 ? id : null;
+  }
+
+  try {
+    const parsedUrl = new URL(rawValue);
+    const id = Number(
+      parsedUrl.searchParams.get('bookingItemId')
+      || parsedUrl.searchParams.get('booking_item_id')
+      || parsedUrl.searchParams.get('itemId'),
+    );
+    return Number.isInteger(id) && id > 0 ? id : null;
+  } catch {
+    // Not a URL payload.
+  }
+
+  try {
+    const parsedJson = JSON.parse(rawValue);
+    const id = Number(parsedJson.bookingItemId || parsedJson.booking_item_id || parsedJson.itemId);
+    return Number.isInteger(id) && id > 0 ? id : null;
+  } catch {
+    // Not a JSON payload.
+  }
+
+  const numericId = Number(rawValue);
+  return Number.isInteger(numericId) && numericId > 0 ? numericId : null;
 }
 
 function formatThaiDate(value: string) {
