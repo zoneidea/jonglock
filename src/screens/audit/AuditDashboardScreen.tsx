@@ -56,6 +56,11 @@ function AuditDashboardScreen({
   const [formLoading, setFormLoading] = useState(false);
   const [formSaving, setFormSaving] = useState(false);
   const [formMessage, setFormMessage] = useState('');
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyDate, setHistoryDate] = useState(() => toIsoDate(new Date()));
+  const [historyItems, setHistoryItems] = useState<AuditInspectionItem[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyMessage, setHistoryMessage] = useState('');
   const [summary, setSummary] = useState({
     totalJobs: 0,
     pendingJobs: 0,
@@ -143,6 +148,39 @@ function AuditDashboardScreen({
     };
   }, [inspectionFilter, selectedDate, user.token]);
 
+  useEffect(() => {
+    if (!historyOpen || !user.token) {
+      return;
+    }
+
+    let cancelled = false;
+    setHistoryLoading(true);
+    setHistoryMessage('');
+    fetchAuditInspections({token: user.token, date: historyDate, filter: 'all'})
+      .then((result) => {
+        if (cancelled) {
+          return;
+        }
+        setHistoryItems(result.items.filter((item) => item.latestCheckedAt || item.auditStatus !== 'pending'));
+      })
+      .catch((error) => {
+        if (cancelled) {
+          return;
+        }
+        setHistoryItems([]);
+        setHistoryMessage((error as Error).message || 'ยังไม่สามารถโหลดประวัติการตรวจสอบได้');
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setHistoryLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [historyDate, historyOpen, user.token]);
+
   const subtitle = useMemo(
     () => `${user.name} · ${user.staffCode} · ${formatThaiDate(selectedDate)}`,
     [selectedDate, user.name, user.staffCode],
@@ -202,6 +240,11 @@ function AuditDashboardScreen({
 
   function openInspectionList(filter: AuditInspectionFilter) {
     setInspectionFilter(filter);
+  }
+
+  function openHistory() {
+    setHistoryDate(selectedDate);
+    setHistoryOpen(true);
   }
 
   function closeInspectionList() {
@@ -312,6 +355,10 @@ function AuditDashboardScreen({
           <MetricCard label="ผิดกฎ" value={loading ? '...' : formatCount(summary.violationJobs)} icon="alert-outline" onPress={() => openInspectionList('violation')} />
           <MetricCard label="ค่าปรับรวม" value={loading ? '...' : formatCurrency(summary.totalFineAmount)} icon="cash-multiple" onPress={() => openInspectionList('fine')} />
         </View>
+        <Pressable onPress={openHistory} style={styles.historyButton}>
+          <MaterialCommunityIcons name="history" size={20} color="#7bd7c9" />
+          <Text style={styles.historyButtonText}>ประวัติการตรวจสอบ</Text>
+        </Pressable>
       </ScrollView>
 
       <Pressable onPress={openScanner} style={styles.scanFab}>
@@ -348,6 +395,16 @@ function AuditDashboardScreen({
         onClose={closeInspectionForm}
         onSave={saveInspectionForm}
       />
+      <InspectionHistoryModal
+        visible={historyOpen}
+        bookingDate={historyDate}
+        items={historyItems}
+        loading={historyLoading}
+        message={historyMessage}
+        onClose={() => setHistoryOpen(false)}
+        onChangeDate={setHistoryDate}
+        onSelectItem={openInspectionForm}
+      />
     </View>
   );
 }
@@ -369,7 +426,7 @@ function MetricCard({
         <MaterialCommunityIcons name={icon} size={18} color="#7bd7c9" />
       </View>
       <Text style={styles.metricLabel}>{label}</Text>
-      <Text style={styles.metricValue}>{value}</Text>
+      <Text style={styles.metricValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.62}>{value}</Text>
     </Pressable>
   );
 }
@@ -447,6 +504,9 @@ function InspectionListItem({
   onPress: () => void;
 }) {
   const checkedIn = Boolean(item.checkedInAt);
+  const hasViolation = item.auditStatus === 'failed' || item.latestAuditResult === 'failed';
+  const reasonText = item.latestAuditNote?.trim();
+  const fineAmount = Number(item.latestFineAmount || 0);
   return (
     <Pressable onPress={onPress} style={({pressed}) => [styles.inspectionItem, pressed && styles.metricCardPressed]}>
       <View style={styles.inspectionItemMain}>
@@ -460,7 +520,113 @@ function InspectionListItem({
         </View>
         <Text style={styles.inspectionMeta} numberOfLines={1}>{item.boothName || item.boothCode || '-'}</Text>
         <Text style={styles.inspectionDate}>{formatThaiDate(item.bookingDate)} · {formatAuditStatus(item.auditStatus)}</Text>
+        <View style={styles.inspectionDetailRow}>
+          <Text style={[styles.inspectionStatusPill, hasViolation ? styles.inspectionStatusDanger : styles.inspectionStatusNormal]}>
+            {hasViolation ? 'ทำผิดกฎ' : formatAuditResult(item.latestAuditResult || item.auditStatus)}
+          </Text>
+          {fineAmount > 0 ? <Text style={styles.inspectionFineText}>{formatCurrency(fineAmount)}</Text> : null}
+        </View>
+        {reasonText ? <Text style={styles.inspectionReasonText} numberOfLines={2}>เหตุผล: {reasonText}</Text> : null}
       </View>
+    </Pressable>
+  );
+}
+
+function InspectionHistoryModal({
+  visible,
+  bookingDate,
+  items,
+  loading,
+  message,
+  onClose,
+  onChangeDate,
+  onSelectItem,
+}: {
+  visible: boolean;
+  bookingDate: string;
+  items: AuditInspectionItem[];
+  loading: boolean;
+  message: string;
+  onClose: () => void;
+  onChangeDate: (date: string) => void;
+  onSelectItem: (item: AuditInspectionItem) => void;
+}) {
+  return (
+    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+      <View style={styles.listScreen}>
+        <View style={styles.listHeader}>
+          <View style={styles.listHeaderTextWrap}>
+            <Text style={styles.listEyebrow}>ประวัติการตรวจสอบ</Text>
+            <Text style={styles.listTitle}>รายการที่ตรวจแล้ว</Text>
+            <Text style={styles.listSubtitle}>{formatThaiDate(bookingDate)} · {items.length.toLocaleString('th-TH')} รายการ</Text>
+          </View>
+          <Pressable onPress={onClose} style={styles.listCloseButton}>
+            <MaterialCommunityIcons name="close" size={22} color="#d8edf5" />
+          </Pressable>
+        </View>
+
+        <View style={styles.historyDatePicker}>
+          <Pressable onPress={() => onChangeDate(shiftIsoDate(bookingDate, -1))} style={styles.dateNavButton}>
+            <MaterialCommunityIcons name="chevron-left" size={20} color="#d8edf5" />
+          </Pressable>
+          <View style={styles.historyDateValue}>
+            <Text style={styles.historyDateLabel}>วันที่ต้องการดูประวัติ</Text>
+            <Text style={styles.historyDateText}>{formatThaiDate(bookingDate)}</Text>
+          </View>
+          <Pressable onPress={() => onChangeDate(shiftIsoDate(bookingDate, 1))} style={styles.dateNavButton}>
+            <MaterialCommunityIcons name="chevron-right" size={20} color="#d8edf5" />
+          </Pressable>
+        </View>
+        <Pressable onPress={() => onChangeDate(toIsoDate(new Date()))} style={styles.historyTodayButton}>
+          <Text style={styles.historyTodayButtonText}>วันนี้</Text>
+        </Pressable>
+
+        {loading ? (
+          <View style={styles.listState}>
+            <ActivityIndicator color="#7bd7c9" />
+            <Text style={styles.listStateText}>กำลังโหลดประวัติการตรวจสอบ...</Text>
+          </View>
+        ) : message ? (
+          <View style={styles.listState}>
+            <MaterialCommunityIcons name="alert-circle-outline" size={32} color="#ff95a7" />
+            <Text style={[styles.listStateText, styles.listStateError]}>{message}</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={items}
+            keyExtractor={(item) => String(item.bookingItemId)}
+            contentContainerStyle={items.length ? styles.inspectionList : styles.listState}
+            renderItem={({item}) => (
+              <InspectionHistoryItem item={item} onPress={() => onSelectItem(item)} />
+            )}
+            ListEmptyComponent={(
+              <>
+                <MaterialCommunityIcons name="history" size={34} color="#7bd7c9" />
+                <Text style={styles.listStateText}>ไม่พบประวัติการตรวจสอบในวันที่เลือก</Text>
+              </>
+            )}
+          />
+        )}
+      </View>
+    </Modal>
+  );
+}
+
+function InspectionHistoryItem({item, onPress}: {item: AuditInspectionItem; onPress: () => void}) {
+  const hasViolation = item.auditStatus === 'failed' || item.latestAuditResult === 'failed';
+  const fineAmount = Number(item.latestFineAmount || 0);
+  const reasonText = item.latestAuditNote?.trim() || '-';
+  return (
+    <Pressable onPress={onPress} style={({pressed}) => [styles.historyItem, pressed && styles.metricCardPressed]}>
+      <View style={styles.historyItemHeader}>
+        <Text style={styles.customerName} numberOfLines={1}>{item.customerName}</Text>
+        <Text style={[styles.inspectionStatusPill, hasViolation ? styles.inspectionStatusDanger : styles.inspectionStatusNormal]}>
+          {hasViolation ? 'ทำผิดกฎ' : formatAuditResult(item.latestAuditResult || item.auditStatus)}
+        </Text>
+      </View>
+      <Text style={styles.inspectionMeta} numberOfLines={1}>{item.boothName || item.boothCode || '-'}</Text>
+      <Text style={styles.inspectionReasonText} numberOfLines={2}>เหตุผล: {reasonText}</Text>
+      {fineAmount > 0 ? <Text style={styles.historyFineText}>ค่าปรับ {formatCurrency(fineAmount)}</Text> : null}
     </Pressable>
   );
 }
@@ -766,6 +932,19 @@ function formatAuditStatus(value: AuditInspectionItem['auditStatus']) {
   return 'รอตรวจ';
 }
 
+function formatAuditResult(value: AuditInspectionItem['latestAuditResult'] | AuditInspectionItem['auditStatus']) {
+  if (value === 'pass') {
+    return 'ผ่านการตรวจ';
+  }
+  if (value === 'warning') {
+    return 'ตักเตือน';
+  }
+  if (value === 'failed') {
+    return 'ทำผิดกฎ';
+  }
+  return 'รอตรวจ';
+}
+
 const styles = StyleSheet.create({
   flex: {
     flex: 1,
@@ -887,6 +1066,24 @@ const styles = StyleSheet.create({
     gap: 12,
     marginBottom: 12,
   },
+  historyButton: {
+    minHeight: 52,
+    borderRadius: 18,
+    marginTop: 4,
+    marginBottom: 96,
+    backgroundColor: '#0f2a36',
+    borderWidth: 1,
+    borderColor: '#1d5f61',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  historyButtonText: {
+    color: '#d8fff8',
+    fontSize: 14,
+    fontWeight: '900',
+  },
   metricCard: {
     flex: 1,
     minHeight: 136,
@@ -917,8 +1114,9 @@ const styles = StyleSheet.create({
   metricValue: {
     marginTop: 10,
     color: '#ffffff',
-    fontSize: 31,
+    fontSize: 25,
     fontWeight: '900',
+    lineHeight: 31,
   },
   scanFab: {
     position: 'absolute',
@@ -1126,18 +1324,102 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
   },
-  itemScanButton: {
-    minHeight: 44,
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    backgroundColor: '#0da591',
+  inspectionDetailRow: {
+    marginTop: 10,
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
+    gap: 8,
+    flexWrap: 'wrap',
   },
-  itemScanButtonText: {
+  inspectionStatusPill: {
+    overflow: 'hidden',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  inspectionStatusNormal: {
+    color: '#bff8ea',
+    backgroundColor: '#113b38',
+  },
+  inspectionStatusDanger: {
+    color: '#ffe1e6',
+    backgroundColor: '#5b1d2b',
+  },
+  inspectionFineText: {
+    color: '#ffd384',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  inspectionReasonText: {
+    marginTop: 8,
+    color: '#c1d1df',
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 17,
+  },
+  historyDatePicker: {
+    marginHorizontal: 16,
+    marginTop: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  historyDateValue: {
+    flex: 1,
+    minHeight: 58,
+    borderRadius: 16,
+    backgroundColor: '#0c1622',
+    borderWidth: 1,
+    borderColor: '#24384c',
+    justifyContent: 'center',
+    paddingHorizontal: 14,
+  },
+  historyDateLabel: {
+    color: '#7f94a8',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  historyDateText: {
+    marginTop: 4,
     color: '#ffffff',
-    fontSize: 10,
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  historyTodayButton: {
+    alignSelf: 'center',
+    marginTop: 10,
+    borderRadius: 999,
+    backgroundColor: '#142435',
+    borderWidth: 1,
+    borderColor: '#284057',
+    paddingHorizontal: 18,
+    paddingVertical: 9,
+  },
+  historyTodayButtonText: {
+    color: '#d8edf5',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  historyItem: {
+    borderRadius: 22,
+    padding: 15,
+    marginBottom: 12,
+    backgroundColor: '#101b27',
+    borderWidth: 1,
+    borderColor: '#1d3144',
+  },
+  historyItemHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  historyFineText: {
+    marginTop: 10,
+    color: '#ffd384',
+    fontSize: 13,
     fontWeight: '900',
   },
   formContent: {

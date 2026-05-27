@@ -42,6 +42,7 @@ export type AuditInspectionItem = {
   customerName: string;
   auditStatus: 'pending' | 'pass' | 'warning' | 'failed';
   latestAuditResult: 'pass' | 'warning' | 'failed' | null;
+  latestAuditNote: string;
   latestFineAmount: number;
   latestCheckedAt: string | null;
   checkedInAt: string | null;
@@ -228,6 +229,7 @@ export async function fetchAuditInspections({
     ...result.data,
     items: (result.data.items || []).map((item) => ({
       ...item,
+      latestAuditNote: item.latestAuditNote || '',
       latestFineAmount: Number(item.latestFineAmount || 0),
     })),
   };
