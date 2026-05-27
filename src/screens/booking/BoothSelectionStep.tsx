@@ -27,7 +27,6 @@ import {
 import {
   availabilityStatusWithTempLock,
   BOOTH_TEMP_LOCK_TTL_MINUTES,
-  saveBoothTempLocks,
   subscribeFloorPlanTempLocks,
   tempLockKey,
   type BoothTempLockMap,
@@ -75,7 +74,6 @@ function BoothSelectionStep({
   const [marketModalOpen, setMarketModalOpen] = useState(false);
   const [floorPlanModalOpen, setFloorPlanModalOpen] = useState(false);
   const ownerId = user?.email || user?.name || 'anonymous-mobile-user';
-  const ownerLabel = user?.email || user?.name || 'mobile-user';
   const marketItems = useMemo(() => markets.map(marketToSelectionItem), [markets]);
   const floorPlanItems = useMemo(() => floorPlans.map(floorPlanToSelectionItem), [floorPlans]);
 
@@ -204,29 +202,10 @@ function BoothSelectionStep({
         email: user.email,
         name: user.name,
       });
-      const expiresAtMs = getLockExpiryMs(holdResult.expiresAt);
-      let realtimeSaved = true;
-      try {
-        await saveBoothTempLocks({
-          organizationId: floorPlan.organizationId,
-          marketId: floorPlan.marketId,
-          floorPlanId: floorPlan.id,
-          boothId: booth.id,
-          dates: holdResult.lockedDates,
-          ownerId,
-          ownerLabel,
-          expiresAtMs,
-        });
-      } catch {
-        realtimeSaved = false;
-      }
 
       clearBoothAvailabilityCache();
       setSelectedBooth(null);
       await loadBooths();
-      if (!realtimeSaved) {
-        setMessage('บันทึก realtime lock ไม่สำเร็จ แต่ฐานข้อมูลหลักล็อกบูธไว้แล้ว');
-      }
       onReserved(holdResult, booth);
     } catch {
       clearBoothAvailabilityCache();
@@ -241,16 +220,7 @@ function BoothSelectionStep({
     } finally {
       setBookingInProgress(false);
     }
-  }, [
-    floorPlan.id,
-    floorPlan.marketId,
-    floorPlan.organizationId,
-    loadBooths,
-    ownerId,
-    ownerLabel,
-    onReserved,
-    user,
-  ]);
+  }, [loadBooths, onReserved, user]);
 
   return (
     <View style={styles.flex}>
@@ -629,14 +599,6 @@ function formatMoney(value: number) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(value || 0);
-}
-
-function getLockExpiryMs(expiresAt?: string | null) {
-  const parsed = expiresAt ? new Date(expiresAt).getTime() : NaN;
-  if (Number.isFinite(parsed)) {
-    return parsed;
-  }
-  return Date.now() + BOOTH_TEMP_LOCK_TTL_MINUTES * 60 * 1000;
 }
 
 const EmptyCard = React.memo(function EmptyCard({text}: {text: string}) {

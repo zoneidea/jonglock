@@ -15,6 +15,7 @@ import AppDialog from '../../components/AppDialog';
 import ApiLoadingState from '../../components/ApiLoadingState';
 import {
   confirmBooking,
+  clearBoothAvailabilityCache,
   getMarketAccessories,
   updateBookingSummary,
   type BookingSummary,
@@ -24,6 +25,7 @@ import {
   type Market,
   type MarketAccessory,
 } from '../../services/markets';
+import {saveBoothTempLocks} from '../../services/boothTempLocks';
 import {colors, shadow} from '../../theme/colors';
 import type {MobileUser} from '../../types/user';
 
@@ -164,14 +166,30 @@ function BookingSummaryStep({
     setConfirming(true);
     setMessage('');
     try {
-      await confirmBooking(hold.bookingId, {email: user.email, name: user.name});
+      const confirmed = await confirmBooking(hold.bookingId, {email: user.email, name: user.name});
+      const expiresAtMs = getLockExpiryMs(confirmed.expiresAt || hold.expiresAt);
+      try {
+        await saveBoothTempLocks({
+          organizationId: floorPlan.organizationId,
+          marketId: floorPlan.marketId,
+          floorPlanId: floorPlan.id,
+          boothId: booth.id,
+          dates: hold.lockedDates,
+          ownerId: user.email || user.name || 'mobile-user',
+          ownerLabel: user.email || user.name || 'mobile-user',
+          expiresAtMs,
+        });
+      } catch {
+        // MySQL is the source of truth; realtime locks can be recreated by API refresh/cron.
+      }
+      clearBoothAvailabilityCache();
       setDialogVisible(true);
     } catch (error) {
       setMessage((error as Error).message || 'ยังไม่สามารถยืนยันการจองได้');
     } finally {
       setConfirming(false);
     }
-  }, [hold.bookingId, summary, user]);
+  }, [booth.id, floorPlan.id, floorPlan.marketId, floorPlan.organizationId, hold.bookingId, hold.expiresAt, hold.lockedDates, summary, user]);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -395,6 +413,11 @@ function formatMoney(value: number) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(value || 0);
+}
+
+function getLockExpiryMs(expiresAt?: string | null) {
+  const parsed = expiresAt ? new Date(expiresAt).getTime() : NaN;
+  return Number.isFinite(parsed) ? parsed : Date.now() + 10 * 60 * 1000;
 }
 
 const styles = StyleSheet.create({
