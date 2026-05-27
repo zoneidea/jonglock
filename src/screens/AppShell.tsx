@@ -1,6 +1,7 @@
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {Animated, InteractionManager, SafeAreaView, StatusBar, StyleSheet, Text, View} from 'react-native';
 
+import type {AppDeepLink} from '../../App';
 import BottomTabItem from '../components/BottomTabItem';
 import {getCartBookings} from '../services/markets';
 import {colors} from '../theme/colors';
@@ -21,12 +22,16 @@ function AppShell({
   onAuthenticated,
   onUserChange,
   onOpenAuditPortal,
+  deepLink,
+  onDeepLinkConsumed,
 }: {
   user: MobileUser | null;
   onLogout: () => void;
   onAuthenticated: (user: MobileUser) => void;
   onUserChange: (user: MobileUser) => void;
   onOpenAuditPortal: () => void;
+  deepLink: AppDeepLink | null;
+  onDeepLinkConsumed: () => void;
 }) {
   const [activeTab, setActiveTab] = useState<TabKey>('home');
   const [renderedTab, setRenderedTab] = useState<TabKey>('home');
@@ -75,6 +80,15 @@ function AppShell({
     });
   }, [activeTab, contentOpacity]);
 
+  useEffect(() => {
+    if (!deepLink) {
+      return;
+    }
+    setBookingTabHidden(false);
+    setActiveTab('booking');
+    setRenderedTab('booking');
+  }, [deepLink]);
+
   function renderTabContent() {
     if (renderedTab === 'home') {
       return <HomeScreen user={user} />;
@@ -87,6 +101,8 @@ function AppShell({
           onBottomTabHiddenChange={setBookingTabHidden}
           onCartChanged={refreshCartCount}
           onOpenCart={() => changeTab('cart')}
+          deepLink={deepLink}
+          onDeepLinkConsumed={onDeepLinkConsumed}
         />
       );
     }

@@ -17,6 +17,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import {Camera, useCameraDevice, useCameraPermission, useCodeScanner} from 'react-native-vision-camera';
 
+import type {AppDeepLink} from '../../App';
 import AppDialog from '../components/AppDialog';
 import ApiLoadingState from '../components/ApiLoadingState';
 import {
@@ -82,12 +83,16 @@ function BookingScreen({
   onBottomTabHiddenChange,
   onCartChanged,
   onOpenCart,
+  deepLink,
+  onDeepLinkConsumed,
 }: {
   user: MobileUser | null;
   onRequireAuth: () => void;
   onBottomTabHiddenChange?: (hidden: boolean) => void;
   onCartChanged?: () => void;
   onOpenCart?: () => void;
+  deepLink: AppDeepLink | null;
+  onDeepLinkConsumed: () => void;
 }) {
   const [query, setQuery] = useState('');
   const [markets, setMarkets] = useState<Market[]>([]);
@@ -271,6 +276,20 @@ function BookingScreen({
   const renderMarketCard = useCallback(({item}: {item: Market}) => (
     <MarketListCard market={item} onPress={() => selectMarket(item)} />
   ), [selectMarket]);
+
+  useEffect(() => {
+    if (!deepLink || deepLink.type !== 'market' || !markets.length) {
+      return;
+    }
+    const matchedMarket = markets.find((market) =>
+      (deepLink.marketId && String(market.id) === String(deepLink.marketId))
+      || (deepLink.marketCode && String(market.code).toLowerCase() === String(deepLink.marketCode).toLowerCase()),
+    );
+    if (matchedMarket) {
+      selectMarket(matchedMarket);
+    }
+    onDeepLinkConsumed();
+  }, [deepLink, markets, onDeepLinkConsumed, selectMarket]);
 
   const renderMarketListHeader = useCallback(() => (
     <>

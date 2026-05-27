@@ -11,6 +11,19 @@ import SplashScreen from './src/screens/SplashScreen';
 import {ThemeProvider} from './src/theme/theme';
 import type {AuditUser, MobileUser} from './src/types/user';
 
+export type AppDeepLink = {
+  type: 'market';
+  organizationCode?: string;
+  organizationId?: string;
+  marketId?: string;
+  marketCode?: string;
+};
+
+type LinkingModule = {
+  getInitialURL?: () => Promise<string | null>;
+  addEventListener?: (eventType: 'url', listener: (event: {url: string}) => void) => {remove: () => void};
+};
+
 GoogleSignin.configure({
   scopes: ['profile', 'email'],
 });
@@ -20,6 +33,7 @@ function App(): React.JSX.Element {
   const [user, setUser] = useState<MobileUser | null>(null);
   const [auditUser, setAuditUser] = useState<AuditUser | null>(null);
   const [activeExperience, setActiveExperience] = useState<'customer' | 'audit'>('customer');
+  const [pendingDeepLink, setPendingDeepLink] = useState<AppDeepLink | null>(null);
 
   useEffect(() => {
     Promise.all([
@@ -37,6 +51,39 @@ function App(): React.JSX.Element {
       })
       .catch(() => undefined);
   }, []);
+
+  const handleIncomingUrl = useCallback((url: string | null) => {
+    const deepLink = parseAppDeepLink(url);
+    if (!deepLink) {
+      return;
+    }
+    setActiveExperience('customer');
+    setPendingDeepLink(deepLink);
+  }, []);
+
+  useEffect(() => {
+    if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'test') {
+      return undefined;
+    }
+    let LinkingModuleValue: LinkingModule | null = null;
+    try {
+      // Avoid the react-native named export getter in Jest while keeping native Linking in runtime.
+      const loadedModule = require('react-native/Libraries/Linking/Linking') as {default?: LinkingModule} & LinkingModule;
+      LinkingModuleValue = loadedModule.default || loadedModule;
+    } catch {
+      return undefined;
+    }
+    const linking = LinkingModuleValue;
+    if (
+      typeof linking.getInitialURL !== 'function'
+      || typeof linking.addEventListener !== 'function'
+    ) {
+      return undefined;
+    }
+    linking.getInitialURL().then(handleIncomingUrl).catch(() => undefined);
+    const subscription = linking.addEventListener('url', (event) => handleIncomingUrl(event.url));
+    return () => subscription?.remove();
+  }, [handleIncomingUrl]);
 
   const persistUser = useCallback(async (nextUser: MobileUser) => {
     await AsyncStorage.setItem(STORAGE_USER_KEY, JSON.stringify(nextUser));
@@ -97,11 +144,34 @@ function App(): React.JSX.Element {
             onAuthenticated={persistUser}
             onUserChange={persistUser}
             onOpenAuditPortal={openAuditPortal}
+            deepLink={pendingDeepLink}
+            onDeepLinkConsumed={() => setPendingDeepLink(null)}
           />
         )}
       </ThemeProvider>
     </SafeAreaProvider>
   );
+}
+
+function parseAppDeepLink(url: string | null): AppDeepLink | null {
+  if (!url) {
+    return null;
+  }
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== 'jonglock:' || parsed.hostname !== 'market') {
+      return null;
+    }
+    return {
+      type: 'market',
+      organizationCode: parsed.searchParams.get('organizationCode') || undefined,
+      organizationId: parsed.searchParams.get('organizationId') || undefined,
+      marketId: parsed.searchParams.get('marketId') || undefined,
+      marketCode: parsed.searchParams.get('marketCode') || undefined,
+    };
+  } catch {
+    return null;
+  }
 }
 
 export default App;

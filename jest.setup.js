@@ -104,6 +104,12 @@ jest.mock('@react-native-camera-roll/camera-roll', () => ({
   },
 }));
 
+jest.mock('react-native/Libraries/Linking/Linking', () => ({
+  getInitialURL: jest.fn(() => Promise.resolve(null)),
+  addEventListener: jest.fn(() => ({remove: jest.fn()})),
+  openURL: jest.fn(() => Promise.resolve()),
+}));
+
 jest.mock('react-native-fs', () => ({
   CachesDirectoryPath: '/tmp',
   downloadFile: jest.fn(() => ({promise: Promise.resolve({statusCode: 200})})),
