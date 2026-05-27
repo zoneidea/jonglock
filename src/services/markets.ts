@@ -140,7 +140,9 @@ export type BookingSummary = {
 };
 
 export type CartBooking = {
+  cartItemType?: 'booking' | 'audit_check';
   bookingId: number;
+  auditCheckId?: number;
   publicId: string;
   organizationId: number;
   marketId: number;
@@ -377,6 +379,8 @@ function normalizeSummary(summary: BookingSummary): BookingSummary {
 function normalizeCartBooking(booking: CartBooking): CartBooking {
   return {
     ...booking,
+    cartItemType: booking.cartItemType || 'booking',
+    auditCheckId: booking.auditCheckId ? Number(booking.auditCheckId) : undefined,
     marketImageUrl: normalizeUrl(booking.marketImageUrl),
     subtotalAmount: Number(booking.subtotalAmount || 0),
     discountAmount: Number(booking.discountAmount || 0),
@@ -565,6 +569,21 @@ export async function getBookingPaymentInfo(bookingId: number, user: BoothHoldUs
   };
 }
 
+export async function getCartPaymentInfo(booking: CartBooking, user: BoothHoldUser) {
+  if (booking.cartItemType === 'audit_check' && booking.auditCheckId) {
+    const result = await post<BookingPaymentInfo>(`/public/audit-checks/${booking.auditCheckId}/payment-info`, {user});
+    return {
+      ...result,
+      amount: Number(result.amount || 0),
+      paymentMethod: {
+        ...result.paymentMethod,
+        qrCodeImageUrl: normalizeUrl(result.paymentMethod?.qrCodeImageUrl || ''),
+      },
+    };
+  }
+  return getBookingPaymentInfo(booking.bookingId, user);
+}
+
 export async function uploadBookingPaymentProof(
   bookingId: number,
   user: BoothHoldUser,
@@ -589,6 +608,51 @@ export async function uploadBookingPaymentProof(
   } as never);
 
   const response = await fetch(`${API_BASE_URL}/public/bookings/${bookingId}/payment-proof`, {
+    method: 'POST',
+    body: formData,
+  });
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+
+  const payload = (await response.json()) as ApiResponse<BookingPaymentProofResult>;
+  return {
+    ...payload.data,
+    payment: {
+      ...payload.data.payment,
+      amount: Number(payload.data.payment?.amount || 0),
+    },
+  };
+}
+
+export async function uploadCartPaymentProof(
+  booking: CartBooking,
+  user: BoothHoldUser,
+  file: {uri: string; name?: string; type?: string},
+  details: {providerReference?: string; payerNote?: string} = {},
+) {
+  if (booking.cartItemType !== 'audit_check' || !booking.auditCheckId) {
+    return uploadBookingPaymentProof(booking.bookingId, user, file, details);
+  }
+
+  const formData = new FormData();
+  formData.append('email', user.email);
+  if (user.name) {
+    formData.append('name', user.name);
+  }
+  if (details.providerReference) {
+    formData.append('providerReference', details.providerReference);
+  }
+  if (details.payerNote) {
+    formData.append('payerNote', details.payerNote);
+  }
+  formData.append('proofImage', {
+    uri: file.uri,
+    name: file.name || 'payment-proof.jpg',
+    type: file.type || 'image/jpeg',
+  } as never);
+
+  const response = await fetch(`${API_BASE_URL}/public/audit-checks/${booking.auditCheckId}/payment-proof`, {
     method: 'POST',
     body: formData,
   });

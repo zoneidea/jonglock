@@ -1,11 +1,15 @@
 import React, {useEffect, useMemo, useState} from 'react';
-import {ActivityIndicator, FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
+import {ActivityIndicator, FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View} from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import {Camera, useCameraDevice, useCameraPermission, useCodeScanner} from 'react-native-vision-camera';
 
 import {
   fetchAuditInspections,
+  fetchAuditInspectionForm,
   fetchAuditSummary,
+  saveAuditInspectionCheck,
+  type AuditCheckPayload,
+  type AuditInspectionForm,
   type AuditInspectionFilter,
   type AuditInspectionItem,
 } from '../../services/audit';
@@ -47,6 +51,11 @@ function AuditDashboardScreen({
   const [inspectionItems, setInspectionItems] = useState<AuditInspectionItem[]>([]);
   const [inspectionLoading, setInspectionLoading] = useState(false);
   const [inspectionMessage, setInspectionMessage] = useState('');
+  const [selectedInspection, setSelectedInspection] = useState<AuditInspectionItem | null>(null);
+  const [inspectionForm, setInspectionForm] = useState<AuditInspectionForm | null>(null);
+  const [formLoading, setFormLoading] = useState(false);
+  const [formSaving, setFormSaving] = useState(false);
+  const [formMessage, setFormMessage] = useState('');
   const [summary, setSummary] = useState({
     totalJobs: 0,
     pendingJobs: 0,
@@ -176,6 +185,61 @@ function AuditDashboardScreen({
     setInspectionMessage('');
   }
 
+  function openInspectionForm(item: AuditInspectionItem) {
+    setSelectedInspection(item);
+    setInspectionForm(null);
+    setFormMessage('');
+    if (!user.token) {
+      setFormMessage('ไม่พบ session สำหรับโหลดข้อมูลตรวจสอบ');
+      return;
+    }
+    setFormLoading(true);
+    fetchAuditInspectionForm({token: user.token, bookingItemId: item.bookingItemId})
+      .then(setInspectionForm)
+      .catch((error) => setFormMessage((error as Error).message || 'ยังไม่สามารถโหลดข้อมูลตรวจสอบได้'))
+      .finally(() => setFormLoading(false));
+  }
+
+  function closeInspectionForm() {
+    setSelectedInspection(null);
+    setInspectionForm(null);
+    setFormMessage('');
+    setFormSaving(false);
+  }
+
+  async function saveInspectionForm(payload: AuditCheckPayload) {
+    if (!user.token || !selectedInspection) {
+      return;
+    }
+    setFormSaving(true);
+    setFormMessage('');
+    try {
+      await saveAuditInspectionCheck({
+        token: user.token,
+        bookingItemId: selectedInspection.bookingItemId,
+        payload,
+      });
+      setFormMessage(payload.fineAmount || payload.accessories.some((item) => item.quantity > 0)
+        ? 'บันทึกแล้ว และส่งรายการไปยังตะกร้าลูกค้าแล้ว'
+        : 'บันทึกผลการตรวจแล้ว');
+      const nextSummary = await fetchAuditSummary({token: user.token, date: selectedDate});
+      setSummary({
+        totalJobs: nextSummary.totalJobs,
+        pendingJobs: nextSummary.pendingJobs,
+        violationJobs: nextSummary.violationJobs,
+        totalFineAmount: nextSummary.totalFineAmount,
+      });
+      if (inspectionFilter) {
+        const nextList = await fetchAuditInspections({token: user.token, date: selectedDate, filter: inspectionFilter});
+        setInspectionItems(nextList.items);
+      }
+    } catch (error) {
+      setFormMessage((error as Error).message || 'ยังไม่สามารถบันทึกผลตรวจได้');
+    } finally {
+      setFormSaving(false);
+    }
+  }
+
   function openScannerFromInspectionList() {
     closeInspectionList();
     setTimeout(() => {
@@ -254,7 +318,18 @@ function AuditDashboardScreen({
         loading={inspectionLoading}
         message={inspectionMessage}
         onClose={closeInspectionList}
+        onSelectItem={openInspectionForm}
         onOpenScanner={openScannerFromInspectionList}
+      />
+      <InspectionFormModal
+        visible={Boolean(selectedInspection)}
+        item={selectedInspection}
+        form={inspectionForm}
+        loading={formLoading}
+        saving={formSaving}
+        message={formMessage}
+        onClose={closeInspectionForm}
+        onSave={saveInspectionForm}
       />
     </View>
   );
@@ -290,6 +365,7 @@ function InspectionListModal({
   loading,
   message,
   onClose,
+  onSelectItem,
   onOpenScanner,
 }: {
   visible: boolean;
@@ -299,6 +375,7 @@ function InspectionListModal({
   loading: boolean;
   message: string;
   onClose: () => void;
+  onSelectItem: (item: AuditInspectionItem) => void;
   onOpenScanner: () => void;
 }) {
   const config = INSPECTION_FILTERS[filter];
@@ -332,7 +409,7 @@ function InspectionListModal({
             keyExtractor={(item) => String(item.bookingItemId)}
             contentContainerStyle={items.length ? styles.inspectionList : styles.listState}
             renderItem={({item}) => (
-              <InspectionListItem item={item} onOpenScanner={onOpenScanner} />
+              <InspectionListItem item={item} onPress={() => onSelectItem(item)} onOpenScanner={onOpenScanner} />
             )}
             ListEmptyComponent={(
               <>
@@ -349,14 +426,16 @@ function InspectionListModal({
 
 function InspectionListItem({
   item,
+  onPress,
   onOpenScanner,
 }: {
   item: AuditInspectionItem;
+  onPress: () => void;
   onOpenScanner: () => void;
 }) {
   const checkedIn = Boolean(item.checkedInAt);
   return (
-    <View style={styles.inspectionItem}>
+    <Pressable onPress={onPress} style={({pressed}) => [styles.inspectionItem, pressed && styles.metricCardPressed]}>
       <View style={styles.inspectionItemMain}>
         <View style={styles.inspectionItemTopRow}>
           <Text style={styles.customerName} numberOfLines={1}>{item.customerName}</Text>
@@ -373,7 +452,180 @@ function InspectionListItem({
         <MaterialCommunityIcons name="qrcode-scan" size={18} color="#ffffff" />
         <Text style={styles.itemScanButtonText}>สแกน QR</Text>
       </Pressable>
-    </View>
+    </Pressable>
+  );
+}
+
+function InspectionFormModal({
+  visible,
+  item,
+  form,
+  loading,
+  saving,
+  message,
+  onClose,
+  onSave,
+}: {
+  visible: boolean;
+  item: AuditInspectionItem | null;
+  form: AuditInspectionForm | null;
+  loading: boolean;
+  saving: boolean;
+  message: string;
+  onClose: () => void;
+  onSave: (payload: AuditCheckPayload) => void;
+}) {
+  const [result, setResult] = useState<AuditCheckPayload['result']>('pass');
+  const [note, setNote] = useState('');
+  const [fineAmount, setFineAmount] = useState('');
+  const [quantities, setQuantities] = useState<Record<number, number>>({});
+
+  useEffect(() => {
+    if (!visible || !form) {
+      return;
+    }
+    setResult(form.latestCheck?.result || 'pass');
+    setNote(form.latestCheck?.note || '');
+    setFineAmount(form.latestCheck?.fineAmount ? String(form.latestCheck.fineAmount) : '');
+    setQuantities({});
+  }, [form, visible]);
+
+  const accessorySubtotal = useMemo(() => (
+    (form?.availableAccessories || []).reduce((sum, accessory) => {
+      const quantity = quantities[accessory.id] || 0;
+      return sum + (Number(accessory.price || 0) * quantity);
+    }, 0)
+  ), [form?.availableAccessories, quantities]);
+  const fineValue = result === 'failed' ? Number(fineAmount || 0) || 0 : 0;
+  const vatAmount = form?.vat.enabled ? roundMoney(((accessorySubtotal + fineValue) * Number(form.vat.rate || 0)) / 100) : 0;
+  const totalAmount = roundMoney(accessorySubtotal + fineValue + vatAmount);
+
+  function changeQuantity(accessoryId: number, amount: number) {
+    setQuantities((current) => ({
+      ...current,
+      [accessoryId]: Math.max(0, Math.min(99, (current[accessoryId] || 0) + amount)),
+    }));
+  }
+
+  function submit() {
+    onSave({
+      result,
+      note,
+      fineAmount: fineValue,
+      accessories: Object.entries(quantities).map(([accessoryId, quantity]) => ({
+        accessoryId: Number(accessoryId),
+        quantity,
+      })),
+    });
+  }
+
+  return (
+    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+      <View style={styles.formScreen}>
+        <View style={styles.listHeader}>
+          <View style={styles.listHeaderTextWrap}>
+            <Text style={styles.listEyebrow}>บันทึกการตรวจสอบ</Text>
+            <Text style={styles.listTitle}>{item?.customerName || 'รายการตรวจสอบ'}</Text>
+            <Text style={styles.listSubtitle}>{`${item?.boothName || item?.boothCode || '-'} · ${item?.bookingDate ? formatThaiDate(item.bookingDate) : '-'}`}</Text>
+          </View>
+          <Pressable onPress={onClose} style={styles.listCloseButton}>
+            <MaterialCommunityIcons name="close" size={22} color="#d8edf5" />
+          </Pressable>
+        </View>
+
+        {loading ? (
+          <View style={styles.listState}>
+            <ActivityIndicator color="#7bd7c9" />
+            <Text style={styles.listStateText}>กำลังโหลดข้อมูล...</Text>
+          </View>
+        ) : (
+          <ScrollView contentContainerStyle={styles.formContent}>
+            {form?.usedAccessories.length ? (
+              <View style={styles.formSection}>
+                <Text style={styles.formSectionTitle}>บริการเสริมที่ใช้อยู่</Text>
+                {form.usedAccessories.map((accessory) => (
+                  <View key={accessory.id} style={styles.totalLine}>
+                    <Text style={styles.totalLineLabel}>{`${accessory.name} x${accessory.quantity}`}</Text>
+                    <Text style={styles.totalLineValue}>{formatCurrency(accessory.lineTotal)}</Text>
+                  </View>
+                ))}
+              </View>
+            ) : null}
+
+            <View style={styles.formSection}>
+              <Text style={styles.formSectionTitle}>เพิ่มบริการเสริม</Text>
+              {form?.availableAccessories.length ? form.availableAccessories.map((accessory) => (
+                <View key={accessory.id} style={styles.accessoryPickRow}>
+                  <View style={styles.inspectionItemMain}>
+                    <Text style={styles.customerName}>{accessory.name}</Text>
+                    <Text style={styles.inspectionDate}>{`${formatCurrency(accessory.price)} / หน่วย`}</Text>
+                  </View>
+                  <View style={styles.quantityControl}>
+                    <Pressable onPress={() => changeQuantity(accessory.id, -1)} style={styles.quantityButton}>
+                      <Text style={styles.quantityButtonText}>-</Text>
+                    </Pressable>
+                    <Text style={styles.quantityValue}>{quantities[accessory.id] || 0}</Text>
+                    <Pressable onPress={() => changeQuantity(accessory.id, 1)} style={styles.quantityButton}>
+                      <Text style={styles.quantityButtonText}>+</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              )) : <Text style={styles.listStateText}>ไม่มีบริการเสริมให้เลือก</Text>}
+            </View>
+
+            <View style={styles.formSection}>
+              <Text style={styles.formSectionTitle}>ผลการตรวจ</Text>
+              <View style={styles.resultRow}>
+                {[
+                  {key: 'pass', label: 'ไม่ผิดกฎ'},
+                  {key: 'warning', label: 'ตักเตือน'},
+                  {key: 'failed', label: 'ผิดกฎ'},
+                ].map((option) => (
+                  <Pressable
+                    key={option.key}
+                    onPress={() => setResult(option.key as AuditCheckPayload['result'])}
+                    style={[styles.resultChip, result === option.key && styles.resultChipActive]}>
+                    <Text style={[styles.resultChipText, result === option.key && styles.resultChipTextActive]}>{option.label}</Text>
+                  </Pressable>
+                ))}
+              </View>
+              <TextInput
+                value={note}
+                onChangeText={setNote}
+                placeholder="เหตุผล / หมายเหตุ"
+                placeholderTextColor="#6d8194"
+                multiline
+                style={[styles.formInput, styles.noteInput]}
+              />
+              {result === 'failed' ? (
+                <TextInput
+                  value={fineAmount}
+                  onChangeText={setFineAmount}
+                  placeholder="ค่าปรับ"
+                  placeholderTextColor="#6d8194"
+                  keyboardType="decimal-pad"
+                  style={styles.formInput}
+                />
+              ) : null}
+            </View>
+
+            <View style={styles.formSection}>
+              <Text style={styles.formSectionTitle}>สรุปยอด</Text>
+              <View style={styles.totalLine}><Text style={styles.totalLineLabel}>บริการเสริม</Text><Text style={styles.totalLineValue}>{formatCurrency(accessorySubtotal)}</Text></View>
+              <View style={styles.totalLine}><Text style={styles.totalLineLabel}>ค่าปรับ</Text><Text style={styles.totalLineValue}>{formatCurrency(fineValue)}</Text></View>
+              {form?.vat.enabled ? <View style={styles.totalLine}><Text style={styles.totalLineLabel}>{`VAT ${form.vat.rate}%`}</Text><Text style={styles.totalLineValue}>{formatCurrency(vatAmount)}</Text></View> : null}
+              <View style={[styles.totalLine, styles.grandTotalLine]}><Text style={styles.grandTotalLabel}>ยอดรวม</Text><Text style={styles.grandTotalValue}>{formatCurrency(totalAmount)}</Text></View>
+            </View>
+
+            {message ? <Text style={message.includes('ไม่ได้') || message.includes('ไม่สามารถ') ? styles.formErrorText : styles.formSuccessText}>{message}</Text> : null}
+
+            <Pressable onPress={submit} disabled={saving} style={[styles.saveButton, saving && styles.saveButtonDisabled]}>
+              <Text style={styles.saveButtonText}>{saving ? 'กำลังบันทึก...' : 'บันทึกการตรวจสอบ'}</Text>
+            </Pressable>
+          </ScrollView>
+        )}
+      </View>
+    </Modal>
   );
 }
 
@@ -450,6 +702,10 @@ function formatCurrency(value: number) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
+}
+
+function roundMoney(value: number) {
+  return Math.round((Number(value) || 0) * 100) / 100;
 }
 
 function formatAuditStatus(value: AuditInspectionItem['auditStatus']) {
@@ -698,6 +954,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#08111a',
   },
+  formScreen: {
+    flex: 1,
+    backgroundColor: '#08111a',
+  },
   listHeader: {
     paddingTop: 56,
     paddingHorizontal: 22,
@@ -833,6 +1093,166 @@ const styles = StyleSheet.create({
   itemScanButtonText: {
     color: '#ffffff',
     fontSize: 10,
+    fontWeight: '900',
+  },
+  formContent: {
+    padding: 16,
+    paddingBottom: 36,
+    gap: 14,
+  },
+  formSection: {
+    borderRadius: 22,
+    padding: 16,
+    backgroundColor: '#101b27',
+    borderWidth: 1,
+    borderColor: '#1d3144',
+  },
+  formSectionTitle: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '900',
+    marginBottom: 12,
+  },
+  accessoryPickRow: {
+    minHeight: 66,
+    borderRadius: 16,
+    padding: 12,
+    marginBottom: 10,
+    backgroundColor: '#0c1622',
+    borderWidth: 1,
+    borderColor: '#20364a',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  quantityControl: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  quantityButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 12,
+    backgroundColor: '#18354a',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quantityButtonText: {
+    color: '#d8edf5',
+    fontSize: 18,
+    fontWeight: '900',
+  },
+  quantityValue: {
+    minWidth: 24,
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '900',
+    textAlign: 'center',
+  },
+  resultRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
+  },
+  resultChip: {
+    flex: 1,
+    minHeight: 42,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#0c1622',
+    borderWidth: 1,
+    borderColor: '#20364a',
+  },
+  resultChipActive: {
+    backgroundColor: '#0da591',
+    borderColor: '#7bd7c9',
+  },
+  resultChipText: {
+    color: '#9cb0c3',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  resultChipTextActive: {
+    color: '#ffffff',
+  },
+  formInput: {
+    minHeight: 48,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#20364a',
+    backgroundColor: '#0c1622',
+    color: '#ffffff',
+    paddingHorizontal: 14,
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  noteInput: {
+    minHeight: 92,
+    paddingTop: 12,
+    marginBottom: 10,
+    textAlignVertical: 'top',
+  },
+  totalLine: {
+    minHeight: 34,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 12,
+  },
+  totalLineLabel: {
+    flex: 1,
+    color: '#9cb0c3',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  totalLineValue: {
+    color: '#d8edf5',
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  grandTotalLine: {
+    marginTop: 8,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#20364a',
+  },
+  grandTotalLabel: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  grandTotalValue: {
+    color: '#7bd7c9',
+    fontSize: 20,
+    fontWeight: '900',
+  },
+  formErrorText: {
+    color: '#ff95a7',
+    fontSize: 13,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  formSuccessText: {
+    color: '#7bd7c9',
+    fontSize: 13,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  saveButton: {
+    minHeight: 54,
+    borderRadius: 18,
+    backgroundColor: '#0da591',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  saveButtonDisabled: {
+    opacity: 0.58,
+  },
+  saveButtonText: {
+    color: '#ffffff',
+    fontSize: 15,
     fontWeight: '900',
   },
 });

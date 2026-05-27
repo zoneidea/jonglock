@@ -10,11 +10,11 @@ import ApiLoadingState from '../components/ApiLoadingState';
 import PlaceholderPanel from '../components/PlaceholderPanel';
 import {
   cancelCartBooking,
-  getBookingPaymentInfo,
+  getCartPaymentInfo,
   getCartBookings,
   type BookingPaymentInfo,
   type CartBooking,
-  uploadBookingPaymentProof,
+  uploadCartPaymentProof,
 } from '../services/markets';
 import {colors, shadow} from '../theme/colors';
 import {useTheme} from '../theme/theme';
@@ -241,7 +241,7 @@ function CartScreen({
     setMessage('');
     try {
       const paymentInfos = await Promise.all(
-        targetBookings.map((booking) => getBookingPaymentInfo(booking.bookingId, {email: user.email, name: user.name})),
+        targetBookings.map((booking) => getCartPaymentInfo(booking, {email: user.email, name: user.name})),
       );
       const info = paymentInfos[0] || null;
       setPaymentInfo(info);
@@ -295,8 +295,8 @@ function CartScreen({
     setMessage('');
     try {
       for (const booking of paymentBookings) {
-        await uploadBookingPaymentProof(
-          booking.bookingId,
+        await uploadCartPaymentProof(
+          booking,
           {email: user.email, name: user.name},
           proofImage,
         );
@@ -512,6 +512,7 @@ const CartBookingCard = React.memo(function CartBookingCard({
   nowMs: number;
 }) {
   const isProcessing = booking.status === 'payment_processing';
+  const isAuditCharge = booking.cartItemType === 'audit_check';
   const countdownText = formatBookingCountdown(booking, nowMs);
   return (
     <Pressable onPress={onToggleSelect} style={[styles.bookingCard, selected && styles.bookingCardSelected]}>
@@ -534,7 +535,7 @@ const CartBookingCard = React.memo(function CartBookingCard({
           <Text style={styles.marketName} numberOfLines={1}>{booking.marketName}</Text>
           <Text style={styles.bookingCode}>{booking.publicId}</Text>
           <Text style={[styles.expiresText, countdownText.isUrgent && styles.expiresTextUrgent]}>
-            {countdownText.text}
+            {isAuditCharge ? 'ค่าบริการ/ค่าปรับจากการตรวจสอบ' : countdownText.text}
           </Text>
         </View>
         <View style={styles.cardActions}>
@@ -543,9 +544,11 @@ const CartBookingCard = React.memo(function CartBookingCard({
               {isProcessing ? 'รอตรวจสลิป' : 'รอชำระ'}
             </Text>
           </View>
-          <Pressable onPress={onCancel} disabled={cancelling} style={[styles.cancelButton, cancelling && styles.cancelButtonDisabled]}>
-            <MaterialCommunityIcons name="trash-can-outline" size={16} color={colors.danger} />
-          </Pressable>
+          {!isAuditCharge ? (
+            <Pressable onPress={onCancel} disabled={cancelling} style={[styles.cancelButton, cancelling && styles.cancelButtonDisabled]}>
+              <MaterialCommunityIcons name="trash-can-outline" size={16} color={colors.danger} />
+            </Pressable>
+          ) : null}
         </View>
       </View>
 
