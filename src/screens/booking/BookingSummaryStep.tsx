@@ -95,7 +95,12 @@ function BookingSummaryStep({
     let active = true;
     setLoading(true);
     Promise.all([
-      getMarketAccessories(market.id),
+      getMarketAccessories(market.id).catch((error) => {
+        if (active) {
+          setMessage((error as Error).message || 'ยังไม่สามารถโหลดบริการเสริมได้');
+        }
+        return [];
+      }),
       user?.email
         ? updateBookingSummary(hold.bookingId, {email: user.email, name: user.name}, [], '')
         : Promise.resolve(null),
