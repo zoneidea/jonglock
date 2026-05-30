@@ -20,6 +20,14 @@ export type PublicProfile = {
   phoneVerifiedAt?: string | null;
   firebaseUid?: string;
   avatarUrl: string;
+  storeName: string;
+  storeLogoUrl: string;
+  storeProductDescription: string;
+  storeFacebookUrl: string;
+  storeLineId: string;
+  storeWebsiteUrl: string;
+  storeContactPhone: string;
+  storeGalleryImages: string[];
   address: string;
   provinceId?: number | null;
   amphureId?: number | null;
@@ -64,6 +72,14 @@ function normalizeProfile(profile: PublicProfile): PublicProfile {
     provinceId: profile.provinceId ? Number(profile.provinceId) : null,
     amphureId: profile.amphureId ? Number(profile.amphureId) : null,
     subdistrictId: profile.subdistrictId ? Number(profile.subdistrictId) : null,
+    storeName: profile.storeName || '',
+    storeLogoUrl: profile.storeLogoUrl || '',
+    storeProductDescription: profile.storeProductDescription || '',
+    storeFacebookUrl: profile.storeFacebookUrl || '',
+    storeLineId: profile.storeLineId || '',
+    storeWebsiteUrl: profile.storeWebsiteUrl || '',
+    storeContactPhone: profile.storeContactPhone || '',
+    storeGalleryImages: Array.isArray(profile.storeGalleryImages) ? profile.storeGalleryImages.filter(Boolean) : [],
     pdpaTermsAccepted: Boolean(profile.pdpaTermsAccepted),
     pdpaMarketingAccepted: Boolean(profile.pdpaMarketingAccepted),
     notificationEnabled: Boolean(profile.notificationEnabled),
@@ -141,4 +157,59 @@ export async function uploadPublicProfileAvatar(
 
   const payload = (await response.json()) as ApiResponse<PublicProfile>;
   return normalizeProfile(payload.data);
+}
+
+export async function updatePublicStoreProfile(
+  user: PublicUserIdentity,
+  payload: {
+    storeName?: string;
+    storeProductDescription?: string;
+    storeFacebookUrl?: string;
+    storeLineId?: string;
+    storeWebsiteUrl?: string;
+    storeContactPhone?: string;
+    logoFile?: {uri: string; name?: string; type?: string} | null;
+    galleryFiles?: Array<{uri: string; name?: string; type?: string}>;
+  },
+) {
+  const formData = new FormData();
+  formData.append('email', user.email);
+  if (user.name) {
+    formData.append('name', user.name);
+  }
+  formData.append('storeName', payload.storeName || '');
+  formData.append('storeProductDescription', payload.storeProductDescription || '');
+  formData.append('storeFacebookUrl', payload.storeFacebookUrl || '');
+  formData.append('storeLineId', payload.storeLineId || '');
+  formData.append('storeWebsiteUrl', payload.storeWebsiteUrl || '');
+  formData.append('storeContactPhone', payload.storeContactPhone || '');
+
+  if (payload.logoFile?.uri) {
+    formData.append('logo', {
+      uri: payload.logoFile.uri,
+      name: payload.logoFile.name || 'store-logo.jpg',
+      type: payload.logoFile.type || 'image/jpeg',
+    } as never);
+  }
+
+  (payload.galleryFiles || []).forEach((file, index) => {
+    if (!file?.uri) return;
+    formData.append('gallery', {
+      uri: file.uri,
+      name: file.name || `store-gallery-${index + 1}.jpg`,
+      type: file.type || 'image/jpeg',
+    } as never);
+  });
+
+  const response = await fetch(`${API_BASE_URL}/public/profile/store`, {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+
+  const apiResponse = (await response.json()) as ApiResponse<PublicProfile>;
+  return normalizeProfile(apiResponse.data);
 }

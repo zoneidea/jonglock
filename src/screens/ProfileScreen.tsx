@@ -31,6 +31,7 @@ import {getBookingHistory, type BookingHistoryRecord} from '../services/markets'
 import {
   changePublicProfilePassword,
   getPublicProfile,
+  updatePublicStoreProfile,
   updatePublicProfileAddress,
   uploadPublicProfileAvatar,
   verifyPublicProfilePhone,
@@ -105,6 +106,17 @@ function ProfileScreen({
   const [pdpaMarketing, setPdpaMarketing] = useState(false);
   const [pdpaTerms, setPdpaTerms] = useState(true);
   const [notification, setNotification] = useState(true);
+  const [shopScreenOpen, setShopScreenOpen] = useState(false);
+  const [storeName, setStoreName] = useState('');
+  const [storeProductDescription, setStoreProductDescription] = useState('');
+  const [storeFacebookUrl, setStoreFacebookUrl] = useState('');
+  const [storeLineId, setStoreLineId] = useState('');
+  const [storeWebsiteUrl, setStoreWebsiteUrl] = useState('');
+  const [storeContactPhone, setStoreContactPhone] = useState('');
+  const [storeLogoUrl, setStoreLogoUrl] = useState('');
+  const [storeGalleryImages, setStoreGalleryImages] = useState<string[]>([]);
+  const [pendingStoreLogo, setPendingStoreLogo] = useState<{uri: string; name?: string; type?: string} | null>(null);
+  const [pendingStoreGallery, setPendingStoreGallery] = useState<Array<{uri: string; name?: string; type?: string}>>([]);
   const [historyItems, setHistoryItems] = useState<BookingHistoryRecord[]>([]);
   const [historyFilter, setHistoryFilter] = useState<HistoryFilter>('all');
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -115,6 +127,7 @@ function ProfileScreen({
   const [sendingOtp, setSendingOtp] = useState(false);
   const [verifyingOtp, setVerifyingOtp] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [savingStore, setSavingStore] = useState(false);
   const [profileLocationIds, setProfileLocationIds] = useState<{
     provinceId: number | null;
     amphureId: number | null;
@@ -216,6 +229,16 @@ function ProfileScreen({
     setPdpaMarketing(profile.pdpaMarketingAccepted);
     setPdpaTerms(profile.pdpaTermsAccepted);
     setNotification(profile.notificationEnabled);
+    setStoreName(profile.storeName || '');
+    setStoreProductDescription(profile.storeProductDescription || '');
+    setStoreFacebookUrl(profile.storeFacebookUrl || '');
+    setStoreLineId(profile.storeLineId || '');
+    setStoreWebsiteUrl(profile.storeWebsiteUrl || '');
+    setStoreContactPhone(profile.storeContactPhone || '');
+    setStoreLogoUrl(profile.storeLogoUrl || '');
+    setStoreGalleryImages(profile.storeGalleryImages || []);
+    setPendingStoreLogo(null);
+    setPendingStoreGallery([]);
     setProfileLocationIds({
       provinceId: profile.provinceId ?? null,
       amphureId: profile.amphureId ?? null,
@@ -390,6 +413,45 @@ function ProfileScreen({
     } finally {
       setUploadingAvatar(false);
     }
+  }
+
+  async function selectStoreLogo() {
+    const result = await launchImageLibrary({
+      mediaType: 'photo',
+      quality: 0.8,
+      selectionLimit: 1,
+    });
+    if (result.didCancel) {
+      return;
+    }
+    const asset = result.assets?.[0];
+    if (!asset?.uri) {
+      return;
+    }
+    setPendingStoreLogo({
+      uri: asset.uri,
+      name: asset.fileName || 'store-logo.jpg',
+      type: asset.type || 'image/jpeg',
+    });
+  }
+
+  async function selectStoreGallery() {
+    const result = await launchImageLibrary({
+      mediaType: 'photo',
+      quality: 0.8,
+      selectionLimit: 8,
+    });
+    if (result.didCancel) {
+      return;
+    }
+    const assets = (result.assets || [])
+      .filter((asset) => asset.uri)
+      .map((asset, index) => ({
+        uri: asset.uri as string,
+        name: asset.fileName || `store-gallery-${index + 1}.jpg`,
+        type: asset.type || 'image/jpeg',
+      }));
+    setPendingStoreGallery(assets.slice(0, 8));
   }
 
   async function continueWithGmail() {
@@ -572,6 +634,47 @@ function ProfileScreen({
     selectedAmphure?.id,
     selectedProvince?.id,
     selectedSubdistrict?.id,
+    userIdentity,
+  ]);
+
+  const saveStoreProfile = useCallback(async () => {
+    if (!userIdentity) {
+      setMessage('กรุณาเข้าสู่ระบบก่อนอัปเดตข้อมูลร้านค้า');
+      setMessageTone('error');
+      return;
+    }
+    setSavingStore(true);
+    setMessage('');
+    try {
+      const profile = await updatePublicStoreProfile(userIdentity, {
+        storeName,
+        storeProductDescription,
+        storeFacebookUrl,
+        storeLineId,
+        storeWebsiteUrl,
+        storeContactPhone,
+        logoFile: pendingStoreLogo,
+        galleryFiles: pendingStoreGallery,
+      });
+      applyProfile(profile);
+      setMessage('อัปเดตข้อมูลร้านค้าแล้ว');
+      setMessageTone('success');
+    } catch (error) {
+      setMessage((error as Error).message || 'อัปเดตข้อมูลร้านค้าไม่สำเร็จ');
+      setMessageTone('error');
+    } finally {
+      setSavingStore(false);
+    }
+  }, [
+    applyProfile,
+    pendingStoreGallery,
+    pendingStoreLogo,
+    storeContactPhone,
+    storeFacebookUrl,
+    storeLineId,
+    storeName,
+    storeProductDescription,
+    storeWebsiteUrl,
     userIdentity,
   ]);
 
@@ -955,6 +1058,76 @@ function ProfileScreen({
     );
   }
 
+  function renderStoreScreen() {
+    const logoPreview = pendingStoreLogo?.uri || storeLogoUrl || '';
+    const galleryPreview = pendingStoreGallery.length
+      ? pendingStoreGallery.map((item) => item.uri)
+      : storeGalleryImages;
+
+    return (
+      <View style={styles.panel}>
+        <View style={styles.storeHeaderRow}>
+          <Pressable onPress={() => setShopScreenOpen(false)} style={[styles.storeBackButton, {backgroundColor: palette.surfaceMuted}]}>
+            <MaterialCommunityIcons name="chevron-left" size={20} color={palette.text} />
+            <Text style={[styles.storeBackText, {color: palette.text}]}>กลับ</Text>
+          </Pressable>
+        </View>
+        <Text style={[styles.panelTitle, {color: palette.text}]}>ข้อมูลร้านค้า</Text>
+        <Text style={[styles.settingText, {color: palette.muted}]}>ทุกช่องเป็นข้อมูลเสริม สามารถเว้นว่างได้</Text>
+
+        <View style={styles.storeMediaSection}>
+          <Pressable onPress={selectStoreLogo} style={[styles.storeLogoPicker, {backgroundColor: palette.surfaceMuted, borderColor: palette.border}]}>
+            {logoPreview ? (
+              <Image source={{uri: logoPreview}} style={styles.storeLogoImage} />
+            ) : (
+              <View style={styles.storeLogoFallback}>
+                <MaterialCommunityIcons name="storefront-outline" size={28} color={palette.accentDark} />
+                <Text style={[styles.storeLogoHint, {color: palette.muted}]}>โลโก้ร้าน</Text>
+              </View>
+            )}
+          </Pressable>
+          <Pressable onPress={selectStoreGallery} style={[styles.storeGalleryButton, {backgroundColor: palette.surfaceMuted, borderColor: palette.border}]}>
+            <MaterialCommunityIcons name="image-multiple-outline" size={20} color={palette.accentDark} />
+            <Text style={[styles.storeGalleryButtonText, {color: palette.text}]}>เลือกแกลลอรี่</Text>
+            <Text style={[styles.storeGalleryButtonCaption, {color: palette.muted}]}>
+              {galleryPreview.length ? `${galleryPreview.length} รูป` : 'ยังไม่มีรูป'}
+            </Text>
+          </Pressable>
+        </View>
+
+        {galleryPreview.length ? (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.storeGalleryRow}>
+            {galleryPreview.map((imageUrl) => (
+              <Image key={imageUrl} source={{uri: imageUrl}} style={styles.storeGalleryImage} />
+            ))}
+          </ScrollView>
+        ) : null}
+
+        <LabeledInput label="ชื่อร้าน" value={storeName} onChangeText={setStoreName} placeholder="ชื่อร้านค้า" />
+        <LabeledInput
+          label="สินค้าที่ขาย"
+          value={storeProductDescription}
+          onChangeText={setStoreProductDescription}
+          placeholder="อาหาร เครื่องดื่ม เสื้อผ้า หรืออื่น ๆ"
+          multiline
+        />
+        <LabeledInput label="Facebook" value={storeFacebookUrl} onChangeText={setStoreFacebookUrl} placeholder="https://facebook.com/yourshop" autoCapitalize="none" />
+        <LabeledInput label="LINE" value={storeLineId} onChangeText={setStoreLineId} placeholder="@yourshop" autoCapitalize="none" />
+        <LabeledInput label="Website" value={storeWebsiteUrl} onChangeText={setStoreWebsiteUrl} placeholder="https://yourshop.com" autoCapitalize="none" />
+        <LabeledInput label="เบอร์ติดต่อ" value={storeContactPhone} onChangeText={setStoreContactPhone} placeholder="08x-xxx-xxxx" keyboardType="phone-pad" />
+
+        <Pressable
+          onPress={saveStoreProfile}
+          disabled={savingStore}
+          style={[styles.saveButton, {backgroundColor: palette.accent}, savingStore && styles.saveButtonDisabled]}>
+          <Text style={[styles.saveButtonText, {color: palette.inverseText}]}>
+            {savingStore ? 'กำลังอัปเดต...' : 'อัปเดตข้อมูล'}
+          </Text>
+        </Pressable>
+      </View>
+    );
+  }
+
   if (!user) {
     return renderGuestLogin();
   }
@@ -973,9 +1146,9 @@ function ProfileScreen({
         </Pressable>
         {renderAvatar()}
         <Text style={[styles.profileName, {color: palette.text}]}>{user.name}</Text>
-        <View style={[styles.profileBadge, {backgroundColor: palette.accent}]}>
-          <Text style={[styles.profileBadgeText, {color: palette.inverseText}]}>Gmail Connected</Text>
-        </View>
+        <Pressable onPress={() => setShopScreenOpen(true)} style={[styles.profileBadge, {backgroundColor: palette.accent}]}>
+          <Text style={[styles.profileBadgeText, {color: palette.inverseText}]}>ข้อมูลร้านค้า</Text>
+        </Pressable>
       </View>
 
       <View style={[styles.tabBar, {backgroundColor: palette.surfaceMuted, borderColor: palette.surface}]}>
@@ -1011,10 +1184,11 @@ function ProfileScreen({
         </Text>
       ) : null}
 
-      {activeTab === 'account' && renderAccountTab()}
-      {activeTab === 'address' && renderAddressTab()}
-      {activeTab === 'history' && renderHistoryTab()}
-      {activeTab === 'settings' && renderSettingsTab()}
+      {shopScreenOpen ? renderStoreScreen() : null}
+      {!shopScreenOpen && activeTab === 'account' && renderAccountTab()}
+      {!shopScreenOpen && activeTab === 'address' && renderAddressTab()}
+      {!shopScreenOpen && activeTab === 'history' && renderHistoryTab()}
+      {!shopScreenOpen && activeTab === 'settings' && renderSettingsTab()}
     </ScrollView>
   );
 }
@@ -1418,6 +1592,80 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontSize: 12,
     fontWeight: '900',
+  },
+  storeHeaderRow: {
+    marginBottom: 12,
+  },
+  storeBackButton: {
+    alignSelf: 'flex-start',
+    minHeight: 38,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  storeBackText: {
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  storeMediaSection: {
+    marginTop: 6,
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'stretch',
+  },
+  storeLogoPicker: {
+    width: 108,
+    height: 108,
+    borderRadius: 24,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  storeLogoImage: {
+    width: '100%',
+    height: '100%',
+  },
+  storeLogoFallback: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 10,
+  },
+  storeLogoHint: {
+    marginTop: 6,
+    fontSize: 12,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  storeGalleryButton: {
+    flex: 1,
+    borderRadius: 22,
+    borderWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    justifyContent: 'center',
+  },
+  storeGalleryButtonText: {
+    marginTop: 8,
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  storeGalleryButtonCaption: {
+    marginTop: 4,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  storeGalleryRow: {
+    gap: 10,
+    paddingTop: 14,
+    paddingBottom: 4,
+  },
+  storeGalleryImage: {
+    width: 96,
+    height: 96,
+    borderRadius: 18,
+    backgroundColor: colors.soft,
   },
   tabBar: {
     marginTop: 8,
