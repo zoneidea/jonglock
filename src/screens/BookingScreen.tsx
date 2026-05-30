@@ -375,6 +375,14 @@ function BookingScreen({
           setBookingHold(null);
           setReservedBooth(null);
         }}
+        onContinueBooking={() => {
+          setSelectedMarket(null);
+          setFloorPlanMarket(null);
+          setSelectedFloorPlan(null);
+          setSelectedBookingDates([]);
+          setBookingHold(null);
+          setReservedBooth(null);
+        }}
         onConfirmed={() => {
           setSelectedMarket(null);
           setFloorPlanMarket(null);

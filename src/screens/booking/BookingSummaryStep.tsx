@@ -37,6 +37,7 @@ function BookingSummaryStep({
   hold,
   user,
   onBack,
+  onContinueBooking,
   onConfirmed,
 }: {
   market: Market;
@@ -45,6 +46,7 @@ function BookingSummaryStep({
   hold: BoothHoldResult;
   user: MobileUser | null;
   onBack: () => void;
+  onContinueBooking?: () => void;
   onConfirmed?: () => void;
 }) {
   const [accessories, setAccessories] = useState<MarketAccessory[]>([]);
@@ -315,9 +317,12 @@ function BookingSummaryStep({
         icon="cart-check"
         title="ยืนยันการจองสำเร็จ"
         message="ระบบเพิ่มรายการนี้ไปที่ตะกร้าแล้ว กรุณาชำระเงินภายในเวลาที่กำหนด"
-        cancelLabel="อยู่หน้านี้"
+        cancelLabel="จองเพิ่ม"
         confirmLabel="ไปตะกร้า"
-        onCancel={() => setDialogVisible(false)}
+        onCancel={() => {
+          setDialogVisible(false);
+          onContinueBooking?.();
+        }}
         onConfirm={() => {
           setDialogVisible(false);
           onConfirmed?.();

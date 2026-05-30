@@ -152,6 +152,12 @@ function BoothSelectionStep({
             {`${floorPlan.name} • ${formatSelectedDateSummary(selectedDates)}`}
           </Text>
         </View>
+        {floorPlan.planImageUrl ? (
+          <Pressable onPress={() => setPlanPreviewOpen(true)} style={styles.headerPreviewButton}>
+            <MaterialCommunityIcons name="image-search-outline" size={18} color={colors.white} />
+            <Text style={styles.headerPreviewButtonText}>ดูแผนผัง</Text>
+          </Pressable>
+        ) : null}
       </View>
 
       <View style={styles.shortcutRow}>
@@ -159,13 +165,6 @@ function BoothSelectionStep({
         <ShortcutButton icon="map-marker-path" label="เปลี่ยนโซน" onPress={() => setFloorPlanModalOpen(true)} />
         <ShortcutButton icon="calendar-edit" label="เปลี่ยนวันที่" onPress={onChangeDates} />
       </View>
-
-      {floorPlan.planImageUrl ? (
-        <Pressable onPress={() => setPlanPreviewOpen(true)} style={styles.previewButton}>
-          <MaterialCommunityIcons name="image-search-outline" size={18} color={colors.tealDark} />
-          <Text style={styles.previewButtonText}>ดูแผนผัง</Text>
-        </Pressable>
-      ) : null}
 
       <View style={styles.boothLegendRow}>
         <LegendDot color="#14b879" label="ว่างทุกวัน" />
@@ -403,7 +402,7 @@ const BoothTile = React.memo(function BoothTile({
         {boothDisplayName(booth)}
       </Text>
       <Text style={[styles.boothPriceText, {color: statusStyle.text}]} numberOfLines={1}>
-        {formatMoney(booth.grossPrice)}
+        {formatMoney(booth.price)}
       </Text>
     </Pressable>
   );
@@ -791,22 +790,19 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingHorizontal: 10,
   },
-  previewButton: {
-    marginTop: 12,
+  headerPreviewButton: {
     minHeight: 42,
-    alignSelf: 'flex-start',
     borderRadius: 16,
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.border,
+    backgroundColor: '#f59e0b',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 7,
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
+    ...shadow,
   },
-  previewButtonText: {
-    color: colors.tealDark,
-    fontSize: 13,
+  headerPreviewButtonText: {
+    color: colors.white,
+    fontSize: 12,
     fontWeight: '900',
   },
   legendDot: {
