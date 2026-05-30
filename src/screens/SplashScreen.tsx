@@ -1,8 +1,9 @@
 import React, {useEffect, useRef} from 'react';
-import {Animated, Easing, StatusBar, StyleSheet, Text} from 'react-native';
+import {Animated, Easing, Image, StatusBar, StyleSheet, Text} from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 
 import {colors, shadow} from '../theme/colors';
+import appIcon from '../assets/app-icon.png';
 
 function SplashScreen({onReady}: {onReady: () => void}) {
   const scale = useRef(new Animated.Value(0.86)).current;
@@ -55,7 +56,7 @@ function SplashScreen({onReady}: {onReady: () => void}) {
         ]}
       />
       <Animated.View style={[styles.logoMark, {opacity, transform: [{scale}]}]}>
-        <Text style={styles.logoIcon}>J</Text>
+        <Image source={appIcon} style={styles.logoIcon} />
       </Animated.View>
       <Animated.Text style={[styles.brandName, {opacity}]}>JONGLOCK</Animated.Text>
       <Animated.Text style={[styles.brandSubtitle, {opacity}]}>
@@ -85,14 +86,14 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.teal,
+    backgroundColor: colors.ink,
+    overflow: 'hidden',
     ...shadow,
   },
   logoIcon: {
-    color: colors.white,
-    fontSize: 52,
-    fontWeight: '900',
-    letterSpacing: 0,
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
   },
   brandName: {
     marginTop: 22,
