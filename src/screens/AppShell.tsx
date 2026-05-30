@@ -2,8 +2,10 @@ import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {Animated, InteractionManager, SafeAreaView, StatusBar, StyleSheet, Text, View} from 'react-native';
 
 import type {AppDeepLink} from '../../App';
+import AppDialog from '../components/AppDialog';
 import BottomTabItem from '../components/BottomTabItem';
 import {getCartBookings} from '../services/markets';
+import {subscribeToForegroundPushMessages} from '../services/notifications';
 import {colors} from '../theme/colors';
 import {useTheme} from '../theme/theme';
 import {TabKey, tabs} from '../types/tabs';
@@ -37,6 +39,7 @@ function AppShell({
   const [renderedTab, setRenderedTab] = useState<TabKey>('home');
   const [bookingTabHidden, setBookingTabHidden] = useState(false);
   const [cartItemCount, setCartItemCount] = useState(0);
+  const [pushMessage, setPushMessage] = useState<{title: string; body: string} | null>(null);
   const contentOpacity = useRef(new Animated.Value(1)).current;
   const transitionTaskRef = useRef<{cancel: () => void} | null>(null);
   const {palette, resolvedTheme} = useTheme();
@@ -61,6 +64,13 @@ function AppShell({
   useEffect(() => () => {
     transitionTaskRef.current?.cancel();
   }, []);
+
+  useEffect(() => {
+    if (!user?.email) {
+      return undefined;
+    }
+    return subscribeToForegroundPushMessages(setPushMessage);
+  }, [user?.email]);
 
   const changeTab = useCallback((nextTab: TabKey) => {
     if (nextTab === activeTab) {
@@ -148,6 +158,16 @@ function AppShell({
           <Text style={[styles.poweredByText, {color: palette.muted}]}>{POWERED_BY_TEXT}</Text>
         </>
       ) : null}
+      <AppDialog
+        visible={Boolean(pushMessage)}
+        title={pushMessage?.title || 'Jonglock'}
+        message={pushMessage?.body || ''}
+        icon="bell-ring-outline"
+        cancelLabel="ปิด"
+        confirmLabel="รับทราบ"
+        onCancel={() => setPushMessage(null)}
+        onConfirm={() => setPushMessage(null)}
+      />
     </SafeAreaView>
   );
 }

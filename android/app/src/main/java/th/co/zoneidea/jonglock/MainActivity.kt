@@ -1,4 +1,4 @@
-package com.jonglockapp
+package th.co.zoneidea.jonglock
 
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate

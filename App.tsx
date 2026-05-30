@@ -8,6 +8,7 @@ import {STORAGE_AUDIT_USER_KEY, STORAGE_USER_KEY} from './src/constants/storage'
 import AuditShell from './src/screens/AuditShell';
 import AppShell from './src/screens/AppShell';
 import SplashScreen from './src/screens/SplashScreen';
+import {syncDynamicAppIcon} from './src/services/appIcon';
 import {ThemeProvider} from './src/theme/theme';
 import type {AuditUser, MobileUser} from './src/types/user';
 
@@ -36,6 +37,10 @@ function App(): React.JSX.Element {
   const [pendingDeepLink, setPendingDeepLink] = useState<AppDeepLink | null>(null);
 
   useEffect(() => {
+    if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'test') {
+      return;
+    }
+    syncDynamicAppIcon();
     Promise.all([
       AsyncStorage.getItem(STORAGE_USER_KEY),
       AsyncStorage.getItem(STORAGE_AUDIT_USER_KEY),
@@ -159,7 +164,9 @@ function parseAppDeepLink(url: string | null): AppDeepLink | null {
   }
   try {
     const parsed = new URL(url);
-    if (parsed.protocol !== 'jonglock:' || parsed.hostname !== 'market') {
+    const customSchemeMarket = parsed.protocol === 'jonglock:' && parsed.hostname === 'market';
+    const universalMarket = /^https?:$/i.test(parsed.protocol) && parsed.pathname.replace(/\/+$/, '') === '/market';
+    if (!customSchemeMarket && !universalMarket) {
       return null;
     }
     return {

@@ -4,7 +4,7 @@
 
 This folder contains the Jonglock mobile application. It is a React Native CLI project without Expo. The mobile app is for vendors, tenants, and audit users who interact with the Jonglock market booking platform.
 
-The current stage is UI-first. Do not connect APIs unless the task explicitly asks for it.
+The current stage is API-connected for public booking, profile, cart, check-in, push notification, and audit workflows. Customer login still uses Gmail/email as a local identity and must be upgraded to backend token exchange before production authentication.
 
 ## Product Context
 
@@ -17,7 +17,7 @@ Jonglock supports:
 - Audit workflow for checking seller compliance
 - Fines and payment proof workflows
 
-The mobile app should eventually support:
+The mobile app currently supports:
 
 - Gmail login / signup
 - Vendor profile
@@ -33,12 +33,14 @@ The mobile app should eventually support:
 - Use React Native CLI only. Do not add Expo.
 - Keep Android and iOS native folders functional.
 - Prefer TypeScript for new code.
-- Keep UI state local until API integration is requested.
-- Use React Navigation for screen routing.
+- Keep screen state local unless it belongs in a shared service or app shell concern.
+- The app uses an internal tab shell, not React Navigation, in the current implementation.
 - Use AsyncStorage only for non-sensitive local UI/session state in this MVP.
 - Firebase core is available through `@react-native-firebase/app`.
 - Do not store tokens, passwords, payment data, or PII in plain AsyncStorage when real APIs are introduced.
 - Use platform-native secure storage before production authentication.
+- Android package/application id is `th.co.zoneidea.jonglock`.
+- iOS bundle identifier is `th.co.zoneidea`, matching `ios/JonglockApp/GoogleService-Info.plist`.
 
 ## Commands
 
@@ -94,7 +96,12 @@ Screen ownership:
 - `src/screens/HomeScreen.tsx`
 - `src/screens/BookingScreen.tsx`
 - `src/screens/CartScreen.tsx`
+- `src/screens/CheckinScreen.tsx`
 - `src/screens/ProfileScreen.tsx`
+- `src/screens/AuditShell.tsx`
+- `src/screens/audit/AuditLoginScreen.tsx`
+- `src/screens/audit/AuditDashboardScreen.tsx`
+- `src/screens/booking/*`
 
 Reusable UI belongs in `src/components`. Shared colors/tokens belong in `src/theme`. Shared TypeScript contracts belong in `src/types`.
 
@@ -110,15 +117,15 @@ The current code calls Google Sign-In and keeps the user on Login if the user ca
 
 Before production:
 
-- Add real Google client configuration for Android and iOS.
+- Confirm Android OAuth credentials for package `th.co.zoneidea.jonglock` and iOS OAuth credentials for bundle id `th.co.zoneidea`.
 - Exchange Google identity with backend mobile auth endpoint.
 - Store backend token securely.
 
 ## Firebase
 
-Android has Firebase configured with `android/app/google-services.json` and the Google Services Gradle plugin.
+Android has Firebase configured with `android/app/google-services.json`, package `th.co.zoneidea.jonglock`, and the Google Services Gradle plugin.
 
-iOS is not fully configured until `GoogleService-Info.plist` is added to `ios/JonglockApp/` and included in the Xcode target.
+iOS has `ios/JonglockApp/GoogleService-Info.plist` included in the Xcode target and the Google Sign-In reversed client ID URL scheme in `Info.plist`.
 
 Use Firebase only as the native platform foundation until a specific product is requested:
 
@@ -129,9 +136,9 @@ Use Firebase only as the native platform foundation until a specific product is 
 
 Do not add those product modules proactively.
 
-## API Integration Plan
+## API Layer
 
-When API integration begins, create a small API layer instead of calling `fetch` directly inside screens:
+Use the existing API layer under `src/services/` instead of adding direct `fetch` calls inside screens:
 
 ```text
 src/
@@ -145,11 +152,12 @@ src/
 
 Suggested services:
 
-- `auth.service.ts`
-- `markets.service.ts`
-- `bookings.service.ts`
-- `payments.service.ts`
-- `audit.service.ts`
+- `markets.ts` for public market, booking, cart, payment proof, history, and check-in
+- `profile.ts` for public profile and account settings
+- `locations.ts` for Thailand master data
+- `announcements.ts` for public announcements
+- `audit.ts` for mobile audit auth and inspection workflows
+- `notifications.ts` for FCM permission, token registration, and foreground messages
 
 ## Verification
 

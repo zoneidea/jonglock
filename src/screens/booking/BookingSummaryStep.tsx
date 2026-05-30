@@ -26,6 +26,7 @@ import {
   type MarketAccessory,
 } from '../../services/markets';
 import {saveBoothTempLocks} from '../../services/boothTempLocks';
+import {registerPushDeviceToken} from '../../services/notifications';
 import {colors, shadow} from '../../theme/colors';
 import type {MobileUser} from '../../types/user';
 
@@ -167,6 +168,7 @@ function BookingSummaryStep({
     setMessage('');
     try {
       const confirmed = await confirmBooking(hold.bookingId, {email: user.email, name: user.name});
+      registerPushDeviceToken({user, organizationId: market.organizationId}).catch(() => undefined);
       const expiresAtMs = getLockExpiryMs(confirmed.expiresAt || hold.expiresAt);
       try {
         await saveBoothTempLocks({
@@ -189,7 +191,7 @@ function BookingSummaryStep({
     } finally {
       setConfirming(false);
     }
-  }, [booth.id, floorPlan.id, floorPlan.marketId, floorPlan.organizationId, hold.bookingId, hold.expiresAt, hold.lockedDates, summary, user]);
+  }, [booth.id, floorPlan.id, floorPlan.marketId, floorPlan.organizationId, hold.bookingId, hold.expiresAt, hold.lockedDates, market.organizationId, summary, user]);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);

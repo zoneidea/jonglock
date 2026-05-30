@@ -4,16 +4,28 @@ require Pod::Executable.execute_command('node', ['-p',
     "react-native/scripts/react_native_pods.rb",
     {paths: [process.argv[1]]},
   )', __dir__]).strip
+require 'fileutils'
+
+def ensure_grpc_core_modulemap(installer)
+  grpc_modulemap_source = File.join(
+    installer.sandbox.root.to_s,
+    'Target Support Files',
+    'gRPC-Core',
+    'gRPC-Core.modulemap'
+  )
+  grpc_modulemap_dir = File.join(installer.sandbox.root.to_s, 'Headers', 'Private', 'grpc')
+  FileUtils.mkdir_p(grpc_modulemap_dir)
+  FileUtils.ln_sf(grpc_modulemap_source, File.join(grpc_modulemap_dir, 'gRPC-Core.modulemap')) if File.exist?(grpc_modulemap_source)
+end
 
 platform :ios, min_ios_version_supported
 prepare_react_native_project!
 use_modular_headers!
 
-linkage = ENV['USE_FRAMEWORKS']
-if linkage != nil
-  Pod::UI.puts "Configuring Pod with #{linkage}ally linked Frameworks".green
-  use_frameworks! :linkage => linkage.to_sym
-end
+$RNFirebaseAsStaticFramework = true
+linkage = ENV['USE_FRAMEWORKS'] || 'static'
+Pod::UI.puts "Configuring Pod with #{linkage}ally linked Frameworks".green
+use_frameworks! :linkage => linkage.to_sym
 
 target 'JonglockApp' do
   config = use_native_modules!
@@ -37,5 +49,11 @@ target 'JonglockApp' do
       :mac_catalyst_enabled => false,
       # :ccache_enabled => true
     )
+
+    ensure_grpc_core_modulemap(installer)
+  end
+
+  post_integrate do |installer|
+    ensure_grpc_core_modulemap(installer)
   end
 end

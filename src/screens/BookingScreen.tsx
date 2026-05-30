@@ -30,6 +30,7 @@ import {
   type FloorPlan,
   type Market,
 } from '../services/markets';
+import {registerPushDeviceToken} from '../services/notifications';
 import {colors, shadow} from '../theme/colors';
 import type {MobileUser} from '../types/user';
 import BookingDateSelectionStep from './booking/BookingDateSelectionStep';
@@ -75,6 +76,23 @@ function floorPlanContainsDates(floorPlan: FloorPlan, dates: string[]) {
 
 function findFloorPlanForDates(floorPlans: FloorPlan[], dates: string[]) {
   return floorPlans.find((floorPlan) => floorPlanContainsDates(floorPlan, dates)) || null;
+}
+
+function parseMarketDeepLinkValue(value: string) {
+  try {
+    const parsed = new URL(value);
+    const customSchemeMarket = parsed.protocol === 'jonglock:' && parsed.hostname === 'market';
+    const universalMarket = /^https?:$/i.test(parsed.protocol) && parsed.pathname.replace(/\/+$/, '') === '/market';
+    if (!customSchemeMarket && !universalMarket) {
+      return null;
+    }
+    return {
+      marketId: parsed.searchParams.get('marketId') || '',
+      marketCode: parsed.searchParams.get('marketCode') || '',
+    };
+  } catch {
+    return null;
+  }
 }
 
 function BookingScreen({
@@ -250,8 +268,11 @@ function BookingScreen({
     setScannerOpen(false);
     setScannerLocked(false);
 
+    const deeplink = parseMarketDeepLinkValue(cleanValue);
     const matchedMarket = markets.find((market) =>
-      cleanValue.toLowerCase().includes(market.code.toLowerCase())
+      (deeplink?.marketId && String(market.id) === String(deeplink.marketId))
+      || (deeplink?.marketCode && market.code.toLowerCase() === deeplink.marketCode.toLowerCase())
+      || cleanValue.toLowerCase().includes(market.code.toLowerCase())
       || cleanValue.toLowerCase().includes(String(market.id)),
     );
     if (matchedMarket) {
@@ -290,6 +311,14 @@ function BookingScreen({
     }
     onDeepLinkConsumed();
   }, [deepLink, markets, onDeepLinkConsumed, selectMarket]);
+
+  useEffect(() => {
+    const organizationId = selectedMarket?.organizationId || floorPlanMarket?.organizationId;
+    if (!user?.email || !organizationId) {
+      return;
+    }
+    registerPushDeviceToken({user, organizationId}).catch(() => undefined);
+  }, [floorPlanMarket?.organizationId, selectedMarket?.organizationId, user]);
 
   const renderMarketListHeader = useCallback(() => (
     <>

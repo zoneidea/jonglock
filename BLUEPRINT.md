@@ -2,7 +2,7 @@
 
 ## MVP Goal
 
-Build a clean mobile application for vendors to sign in, browse markets, choose a date, select product type, see booth availability visually, and create bookings. This initial version prepares the native foundation and UI direction without connecting backend APIs yet.
+Build a clean mobile application for vendors to sign in, browse markets, choose dates, select booths, create bookings, upload payment proof, check in, manage profile data, and let audit users inspect bookings and issue fines. The current app is connected to the Jonglock public/mobile APIs for the main MVP workflows.
 
 ## Platforms
 
@@ -37,13 +37,14 @@ Core flows:
 
 Mobile-only operational user for market inspection.
 
-Future flows:
+Current flows:
 
 - View bookings for selected date
 - Check whether vendor sells on the correct date
 - Record pass / violation status
 - Add fine
-- Upload evidence if needed
+- Add accessory usage to inspection fines
+- Send fines to the customer cart for manual payment proof upload
 
 ## Screen Blueprint
 
@@ -78,7 +79,7 @@ Future:
 
 - Google ID token exchange with backend
 - Organization discovery or market affiliation
-- Vendor profile completion
+- Secure backend token storage
 
 ### 3. Home
 
@@ -88,30 +89,67 @@ Purpose:
 
 Current:
 
-- Mock stats
+- Public announcement and booking entry surface
 - Main booking CTA
-- Booking, payment, audit action cards
+- Booking, cart, check-in, profile, and audit entry points
 
 Future:
 
-- Pull real booking summary
 - Show nearest active market
 - Show pending payment and fine alerts
 
-## Backend Integration Plan
+### 4. Booking
 
-Recommended endpoint groups:
+Current:
+
+- Public market search and deep link handling
+- Floor plan and booth availability loading
+- QR scanner entry point
+- Date selection, booth selection, accessories, coupon summary, hold, and confirm flow
+
+Future:
+
+- Backend mobile auth token ownership
+- Payment provider redirect/SDK flow
+
+### 5. Cart / Payment
+
+Current:
+
+- Booking and audit fine cart items
+- Payment QR display/save
+- Manual payment proof upload
+- Local expiry handling for pending items
+
+Future:
+
+- Provider-backed payment state synchronization
+- Receipt/tax document download
+
+### 6. Profile / Check-in / Audit
+
+Current:
+
+- Public profile, address, avatar, phone verification, booking history, and settings
+- Customer check-in list and check-in action
+- Audit login, dashboard, QR lookup, inspection form, fine calculation, and save
+
+Future:
+
+- Secure backend auth session for customer profile
+- Evidence image upload for audit checks
+
+## Backend Integration
+
+Current endpoint groups:
 
 ```text
-/api/mobile/auth/*
-/api/mobile/markets/*
-/api/mobile/bookings/*
-/api/mobile/payments/*
-/api/mobile/fines/*
+/api/public/*
 /api/mobile/audit/*
+/api/mobile/locations/*
 ```
 
-Suggested flow:
+Production auth target:
 
 1. Mobile calls Google Sign-In.
 2. App sends Google token to backend.
@@ -175,16 +213,18 @@ Audit:
 
 Android:
 
-- Configure package/application ID before production release.
+- Package/application ID is `th.co.zoneidea.jonglock`.
 - Add release keystore.
-- Configure Google Sign-In SHA-1/SHA-256.
-- Add push notification config later if needed.
+- Confirm Firebase Android app and Google Sign-In SHA-1/SHA-256 for `th.co.zoneidea.jonglock`.
+- Push notification code is present; confirm FCM production credentials before release.
 
 iOS:
 
 - Open `ios/JonglockApp.xcworkspace`.
-- Configure bundle identifier and signing team.
-- Configure Google Sign-In URL scheme.
+- Bundle identifier is `th.co.zoneidea`, matching `GoogleService-Info.plist`.
+- `GoogleService-Info.plist` is linked to the Xcode target.
+- Google Sign-In reversed client ID URL scheme is configured.
+- Configure signing team.
 - Add push notification capability later if needed.
 
 ## Package Decisions
@@ -200,17 +240,17 @@ iOS:
 ## MVP Risks
 
 - Google Sign-In requires native credentials before production.
-- iOS Firebase requires `GoogleService-Info.plist` before iOS production testing.
+- Android Firebase must be regenerated from Firebase Console if the checked-in `google-services.json` does not contain OAuth clients for `th.co.zoneidea.jonglock`.
 - Payment flow must not launch without provider signature verification.
 - Booth visual map needs a stable coordinate schema shared by backend, frontend, and mobile.
 - Real mobile auth should use secure storage, not plain AsyncStorage.
 
 ## Next Implementation Steps
 
-1. Split `App.tsx` into `src/screens`, `src/components`, `src/theme`, and `src/navigation`.
-2. Add secure storage package for real token storage.
-3. Add API client with base URL environment config.
-4. Implement mobile auth token exchange.
-5. Implement market list and booth availability screens.
-6. Implement visual booth map renderer.
-7. Implement booking create and payment status flow.
+1. Add secure storage package for real token storage.
+2. Add API base URL environment/flavor config.
+3. Implement mobile auth token exchange.
+4. Regenerate Android Firebase config for `th.co.zoneidea.jonglock` if needed.
+5. Add provider-backed payment flow and webhook verification.
+6. Add audit evidence image upload.
+7. Run Android/iOS device builds after native credential changes.

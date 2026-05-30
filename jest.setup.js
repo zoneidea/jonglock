@@ -86,6 +86,23 @@ jest.mock('@react-native-firebase/firestore', () => {
   };
 });
 
+jest.mock('@react-native-firebase/messaging', () => {
+  const messaging = jest.fn(() => ({
+    requestPermission: jest.fn(() => Promise.resolve(1)),
+    getToken: jest.fn(() => Promise.resolve('mock-fcm-token')),
+    onMessage: jest.fn(() => jest.fn()),
+  }));
+  messaging.AuthorizationStatus = {
+    AUTHORIZED: 1,
+    PROVISIONAL: 2,
+    DENIED: 0,
+  };
+  return {
+    __esModule: true,
+    default: messaging,
+  };
+});
+
 jest.mock('react-native-vector-icons/MaterialCommunityIcons', () => {
   const React = require('react');
   const {Text} = require('react-native');

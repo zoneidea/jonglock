@@ -24,33 +24,73 @@
 	<array>
 		<dict>
 			<key>CFBundleURLName</key>
-			<string>com.jonglockapp.deeplink</string>
+			<string>th.co.zoneidea.jonglock.deeplink</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>jonglock</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>th.co.zoneidea.google-signin</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.1087957238231-3o7hcpka4kll9r1i3qumq1vuk1tovai2</string>
+			</array>
+		</dict>
 	</array>
+	<key>CFBundleIcons</key>
+	<dict>
+		<key>CFBundlePrimaryIcon</key>
+		<dict>
+			<key>CFBundleIconFiles</key>
+			<array>
+				<string>AppIcon</string>
+			</array>
+			<key>UIPrerenderedIcon</key>
+			<false/>
+		</dict>
+		<key>CFBundleAlternateIcons</key>
+		<dict>
+			<key>AppIconTeal</key>
+			<dict>
+				<key>CFBundleIconFiles</key>
+				<array>
+					<string>AppIconTeal</string>
+				</array>
+				<key>UIPrerenderedIcon</key>
+				<false/>
+			</dict>
+			<key>AppIconMidnight</key>
+			<dict>
+				<key>CFBundleIconFiles</key>
+				<array>
+					<string>AppIconMidnight</string>
+				</array>
+				<key>UIPrerenderedIcon</key>
+				<false/>
+			</dict>
+		</dict>
+	</dict>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSAppTransportSecurity</key>
 	<dict>
-	  <!-- Do not change NSAllowsArbitraryLoads to true, or you will risk app rejection! -->
 		<key>NSAllowsArbitraryLoads</key>
 		<false/>
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string></string>
 	<key>NSCameraUsageDescription</key>
 	<string>ใช้สำหรับสแกนคิวอาร์โค้ดตลาดเพื่อค้นหาและจองพื้นที่</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>ใช้สำหรับเลือกรูปโปรไฟล์ของผู้ใช้งาน</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string></string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>ใช้สำหรับบันทึก QR Code การชำระเงินลงในคลังรูปภาพ</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>ใช้สำหรับเลือกรูปโปรไฟล์ของผู้ใช้งาน</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIRequiredDeviceCapabilities</key>
