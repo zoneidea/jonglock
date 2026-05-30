@@ -1,6 +1,6 @@
 import NetInfo from '@react-native-community/netinfo';
 import React, {useState} from 'react';
-import {ActivityIndicator, Image, Pressable, SafeAreaView, StyleSheet, Text, View} from 'react-native';
+import {ActivityIndicator, Image, Platform, Pressable, SafeAreaView, StyleSheet, Text, View} from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
@@ -11,6 +11,7 @@ import {useTheme} from '../theme/theme';
 function OfflineScreen() {
   const {palette, resolvedTheme} = useTheme();
   const [retrying, setRetrying] = useState(false);
+  const iconSource = Platform.OS === 'android' ? {uri: 'ic_launcher_round'} : appIcon;
 
   async function handleRetry() {
     setRetrying(true);
@@ -28,9 +29,7 @@ function OfflineScreen() {
         <LinearGradient
           colors={resolvedTheme === 'dark' ? ['#102532', '#07131d'] : ['#def8f3', '#f7fbfb']}
           style={[styles.heroCard, {borderColor: palette.border}]}>
-          <View style={[styles.iconHalo, {backgroundColor: resolvedTheme === 'dark' ? palette.surface : '#ffffff'}]}>
-            <Image source={appIcon} style={styles.appIcon} resizeMode="contain" />
-          </View>
+          <Image source={iconSource} style={styles.appIcon} resizeMode="cover" />
           <View style={[styles.badge, {backgroundColor: resolvedTheme === 'dark' ? palette.surface : '#ffffff'}]}>
             <MaterialCommunityIcons name="wifi-off" size={16} color={palette.danger} />
             <Text style={[styles.badgeText, {color: palette.danger}]}>ออฟไลน์</Text>
@@ -39,13 +38,6 @@ function OfflineScreen() {
           <Text style={[styles.message, {color: palette.muted}]}>
             ตรวจสอบ Wi-Fi หรือเครือข่ายมือถือ แล้วลองเชื่อมต่อใหม่อีกครั้งเพื่อใช้งาน Jonglock ต่อ
           </Text>
-
-          <View style={[styles.tipCard, {backgroundColor: palette.surface, borderColor: palette.border}]}>
-            <MaterialCommunityIcons name="cloud-alert-outline" size={20} color={palette.accentDark} />
-            <Text style={[styles.tipText, {color: palette.text}]}>
-              เมื่อกลับมาออนไลน์ ระบบจะกลับเข้าแอปให้อัตโนมัติ
-            </Text>
-          </View>
 
           <Pressable
             onPress={handleRetry}
@@ -87,17 +79,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     ...shadow,
   },
-  iconHalo: {
-    width: 110,
-    height: 110,
-    borderRadius: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...shadow,
-  },
   appIcon: {
-    width: 88,
-    height: 88,
+    width: 104,
+    height: 104,
+    borderRadius: 28,
   },
   badge: {
     marginTop: 18,
@@ -125,23 +110,6 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     fontWeight: '700',
     textAlign: 'center',
-  },
-  tipCard: {
-    marginTop: 22,
-    width: '100%',
-    borderRadius: 20,
-    borderWidth: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  tipText: {
-    flex: 1,
-    fontSize: 13,
-    lineHeight: 20,
-    fontWeight: '800',
   },
   retryButton: {
     marginTop: 22,
