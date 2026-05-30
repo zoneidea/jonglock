@@ -1,6 +1,5 @@
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
-import {FlatList, Image, Pressable, RefreshControl, StyleSheet, Text, View} from 'react-native';
-import LinearGradient from 'react-native-linear-gradient';
+import {FlatList, Pressable, RefreshControl, StyleSheet, Text, View} from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import ApiLoadingState from '../../components/ApiLoadingState';
@@ -156,25 +155,19 @@ const FloorPlanCard = React.memo(function FloorPlanCard({
 }) {
   return (
     <Pressable onPress={onPress} style={styles.planCard}>
-      <View style={styles.planImageWrap}>
-        {floorPlan.planImageUrl ? (
-          <Image source={{uri: floorPlan.planImageUrl}} style={styles.planImage} resizeMode="cover" />
-        ) : (
-          <LinearGradient colors={['#e8fbf7', '#ffffff']} style={styles.planFallback}>
-            <MaterialCommunityIcons name="map-marker-path" size={32} color={colors.tealDark} />
-          </LinearGradient>
-        )}
+      <View style={styles.planCardHeader}>
+        <View style={styles.planMark}>
+          <MaterialCommunityIcons name="map-marker-path" size={24} color={colors.tealDark} />
+        </View>
+        <View style={styles.planCardCopy}>
+          <Text style={styles.planName}>{floorPlan.name}</Text>
+          <Text style={styles.planDate}>{formatPlanDateRange(floorPlan.startDate, floorPlan.endDate)}</Text>
+        </View>
+        <View style={styles.planStatusBadge}>
+          <Text style={styles.planStatusText}>เปิดจอง</Text>
+        </View>
       </View>
       <View style={styles.planCardBody}>
-        <View style={styles.planCardHeader}>
-          <View style={styles.planCardCopy}>
-            <Text style={styles.planName}>{floorPlan.name}</Text>
-            <Text style={styles.planDate}>{formatPlanDateRange(floorPlan.startDate, floorPlan.endDate)}</Text>
-          </View>
-          <View style={styles.planStatusBadge}>
-            <Text style={styles.planStatusText}>เปิดจอง</Text>
-          </View>
-        </View>
         <View style={styles.planStatsRow}>
           <View style={styles.planStatPill}>
             <MaterialCommunityIcons name="storefront-outline" size={16} color={colors.tealDark} />
@@ -349,33 +342,27 @@ const styles = StyleSheet.create({
     height: 14,
   },
   planCard: {
-    borderRadius: 26,
+    borderRadius: 22,
     backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: colors.border,
-    overflow: 'hidden',
+    padding: 14,
     ...shadow,
   },
-  planImageWrap: {
-    height: 78,
+  planMark: {
+    width: 52,
+    height: 52,
+    borderRadius: 18,
     backgroundColor: colors.soft,
-  },
-  planImage: {
-    width: '100%',
-    height: '100%',
-  },
-  planFallback: {
-    width: '100%',
-    height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
   },
   planCardBody: {
-    padding: 12,
+    marginTop: 12,
   },
   planCardHeader: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     gap: 10,
   },
   planCardCopy: {
@@ -391,6 +378,7 @@ const styles = StyleSheet.create({
     marginTop: 5,
     color: colors.muted,
     fontSize: 12,
+    lineHeight: 17,
     fontWeight: '800',
   },
   planStatusBadge: {

@@ -74,6 +74,7 @@ function BoothSelectionStep({
   const [dialog, setDialog] = useState({visible: false, title: '', message: '', icon: 'information-outline'});
   const [marketModalOpen, setMarketModalOpen] = useState(false);
   const [floorPlanModalOpen, setFloorPlanModalOpen] = useState(false);
+  const [planPreviewOpen, setPlanPreviewOpen] = useState(false);
   const ownerId = user?.email || user?.name || 'anonymous-mobile-user';
   const marketItems = useMemo(() => markets.map(marketToSelectionItem), [markets]);
   const floorPlanItems = useMemo(() => floorPlans.map(floorPlanToSelectionItem), [floorPlans]);
@@ -159,7 +160,12 @@ function BoothSelectionStep({
         <ShortcutButton icon="calendar-edit" label="เปลี่ยนวันที่" onPress={onChangeDates} />
       </View>
 
-      <FloorPlanImagePreview imageUrl={floorPlan.planImageUrl} />
+      {floorPlan.planImageUrl ? (
+        <Pressable onPress={() => setPlanPreviewOpen(true)} style={styles.previewButton}>
+          <MaterialCommunityIcons name="image-search-outline" size={18} color={colors.tealDark} />
+          <Text style={styles.previewButtonText}>ดูแผนผัง</Text>
+        </Pressable>
+      ) : null}
 
       <View style={styles.boothLegendRow}>
         <LegendDot color="#14b879" label="ว่างทุกวัน" />
@@ -252,6 +258,12 @@ function BoothSelectionStep({
         onClose={closeSelectedBooth}
         onBook={handleReserveBooth}
       />
+      <FloorPlanLightbox
+        open={planPreviewOpen}
+        imageUrl={floorPlan.planImageUrl}
+        title={floorPlan.name}
+        onClose={() => setPlanPreviewOpen(false)}
+      />
       <AppDialog
         visible={dialog.visible}
         icon={dialog.icon}
@@ -315,30 +327,49 @@ const ShortcutButton = React.memo(function ShortcutButton({
   );
 });
 
-const FloorPlanImagePreview = React.memo(function FloorPlanImagePreview({imageUrl}: {imageUrl?: string}) {
+const FloorPlanLightbox = React.memo(function FloorPlanLightbox({
+  open,
+  imageUrl,
+  title,
+  onClose,
+}: {
+  open: boolean;
+  imageUrl?: string;
+  title: string;
+  onClose: () => void;
+}) {
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     setFailed(false);
-  }, [imageUrl]);
+  }, [imageUrl, open]);
 
-  if (!imageUrl || failed) {
+  if (!open || !imageUrl || failed) {
     return null;
   }
 
   return (
-    <View style={styles.floorPlanImageCard}>
-      <View style={styles.floorPlanImageHeader}>
-        <MaterialCommunityIcons name="map-search-outline" size={16} color={colors.tealDark} />
-        <Text style={styles.floorPlanImageTitle}>แผนผังบูธ</Text>
-      </View>
-      <Image
-        source={{uri: imageUrl}}
-        style={styles.floorPlanImage}
-        resizeMode="contain"
-        onError={() => setFailed(true)}
-      />
-    </View>
+    <Modal visible transparent animationType="fade" hardwareAccelerated onRequestClose={onClose}>
+      <Pressable style={styles.lightboxBackdrop} onPress={onClose}>
+        <Pressable style={styles.lightboxCard} onPress={() => {}}>
+          <View style={styles.lightboxHeader}>
+            <View style={styles.planIntroCopy}>
+              <Text style={styles.lightboxTitle}>แผนผังบูธ</Text>
+              <Text style={styles.lightboxSubtitle}>{title}</Text>
+            </View>
+            <Pressable onPress={onClose} style={styles.sheetCloseButton}>
+              <MaterialCommunityIcons name="close" size={22} color={colors.ink} />
+            </Pressable>
+          </View>
+          <Image
+            source={{uri: imageUrl}}
+            style={styles.lightboxImage}
+            resizeMode="contain"
+            onError={() => setFailed(true)}
+          />
+        </Pressable>
+      </Pressable>
+    </Modal>
   );
 });
 
@@ -760,34 +791,23 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingHorizontal: 10,
   },
-  floorPlanImageCard: {
+  previewButton: {
     marginTop: 12,
-    borderRadius: 20,
+    minHeight: 42,
+    alignSelf: 'flex-start',
+    borderRadius: 16,
     backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: colors.border,
-    overflow: 'hidden',
-    ...shadow,
-  },
-  floorPlanImageHeader: {
-    minHeight: 38,
-    paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 7,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    backgroundColor: '#f7fffd',
+    paddingHorizontal: 14,
   },
-  floorPlanImageTitle: {
+  previewButtonText: {
     color: colors.tealDark,
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '900',
-  },
-  floorPlanImage: {
-    width: '100%',
-    height: 190,
-    backgroundColor: colors.background,
   },
   legendDot: {
     width: 9,
@@ -836,6 +856,41 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(7, 17, 31, 0.34)',
     justifyContent: 'flex-end',
+  },
+  lightboxBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(7, 17, 31, 0.82)',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  lightboxCard: {
+    borderRadius: 24,
+    backgroundColor: colors.white,
+    padding: 16,
+    ...shadow,
+  },
+  lightboxHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    marginBottom: 12,
+  },
+  lightboxTitle: {
+    color: colors.ink,
+    fontSize: 18,
+    fontWeight: '900',
+  },
+  lightboxSubtitle: {
+    marginTop: 4,
+    color: colors.muted,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  lightboxImage: {
+    width: '100%',
+    height: 420,
+    borderRadius: 18,
+    backgroundColor: colors.background,
   },
   detailSheetCard: {
     backgroundColor: colors.white,
