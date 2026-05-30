@@ -1,5 +1,5 @@
 import React, {useEffect, useRef} from 'react';
-import {Animated, Easing, Image, StatusBar, StyleSheet, Text} from 'react-native';
+import {Animated, Easing, Image, StatusBar, StyleSheet} from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 
 import {colors, shadow} from '../theme/colors';

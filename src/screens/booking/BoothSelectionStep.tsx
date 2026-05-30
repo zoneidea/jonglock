@@ -1,6 +1,7 @@
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {
   FlatList,
+  Image,
   Modal,
   Pressable,
   RefreshControl,
@@ -158,6 +159,8 @@ function BoothSelectionStep({
         <ShortcutButton icon="calendar-edit" label="เปลี่ยนวันที่" onPress={onChangeDates} />
       </View>
 
+      <FloorPlanImagePreview imageUrl={floorPlan.planImageUrl} />
+
       <View style={styles.boothLegendRow}>
         <LegendDot color="#14b879" label="ว่างทุกวัน" />
         <LegendDot color="#f5b93f" label="ว่างบางวัน" />
@@ -166,7 +169,7 @@ function BoothSelectionStep({
 
       {message ? <Text style={styles.messageText}>{message}</Text> : null}
     </>
-  ), [floorPlan.name, market.name, message, onBack, onChangeDates, selectedDates]);
+  ), [floorPlan.name, floorPlan.planImageUrl, market.name, message, onBack, onChangeDates, selectedDates]);
 
   const renderBoothEmpty = useCallback(() => (
     loading ? (
@@ -309,6 +312,33 @@ const ShortcutButton = React.memo(function ShortcutButton({
       <MaterialCommunityIcons name={icon} size={16} color={colors.tealDark} />
       <Text style={styles.shortcutText}>{label}</Text>
     </Pressable>
+  );
+});
+
+const FloorPlanImagePreview = React.memo(function FloorPlanImagePreview({imageUrl}: {imageUrl?: string}) {
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setFailed(false);
+  }, [imageUrl]);
+
+  if (!imageUrl || failed) {
+    return null;
+  }
+
+  return (
+    <View style={styles.floorPlanImageCard}>
+      <View style={styles.floorPlanImageHeader}>
+        <MaterialCommunityIcons name="map-search-outline" size={16} color={colors.tealDark} />
+        <Text style={styles.floorPlanImageTitle}>แผนผังบูธ</Text>
+      </View>
+      <Image
+        source={{uri: imageUrl}}
+        style={styles.floorPlanImage}
+        resizeMode="contain"
+        onError={() => setFailed(true)}
+      />
+    </View>
   );
 });
 
@@ -729,6 +759,35 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     paddingHorizontal: 10,
+  },
+  floorPlanImageCard: {
+    marginTop: 12,
+    borderRadius: 20,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: 'hidden',
+    ...shadow,
+  },
+  floorPlanImageHeader: {
+    minHeight: 38,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    backgroundColor: '#f7fffd',
+  },
+  floorPlanImageTitle: {
+    color: colors.tealDark,
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  floorPlanImage: {
+    width: '100%',
+    height: 190,
+    backgroundColor: colors.background,
   },
   legendDot: {
     width: 9,
