@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import NetInfo, {useNetInfo} from '@react-native-community/netinfo';
 import auth from '@react-native-firebase/auth';
 import {GoogleSignin} from '@react-native-google-signin/google-signin';
 import React, {useCallback, useEffect, useState} from 'react';
@@ -7,6 +8,7 @@ import {SafeAreaProvider} from 'react-native-safe-area-context';
 import {STORAGE_AUDIT_USER_KEY, STORAGE_USER_KEY} from './src/constants/storage';
 import AuditShell from './src/screens/AuditShell';
 import AppShell from './src/screens/AppShell';
+import OfflineScreen from './src/screens/OfflineScreen';
 import SplashScreen from './src/screens/SplashScreen';
 import {syncDynamicAppIcon} from './src/services/appIcon';
 import {ThemeProvider} from './src/theme/theme';
@@ -30,11 +32,13 @@ GoogleSignin.configure({
 });
 
 function App(): React.JSX.Element {
+  const netInfo = useNetInfo();
   const [booting, setBooting] = useState(true);
   const [user, setUser] = useState<MobileUser | null>(null);
   const [auditUser, setAuditUser] = useState<AuditUser | null>(null);
   const [activeExperience, setActiveExperience] = useState<'customer' | 'audit'>('customer');
   const [pendingDeepLink, setPendingDeepLink] = useState<AppDeepLink | null>(null);
+  const isOffline = netInfo.isConnected === false || netInfo.isInternetReachable === false;
 
   useEffect(() => {
     if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'test') {
@@ -90,6 +94,14 @@ function App(): React.JSX.Element {
     return () => subscription?.remove();
   }, [handleIncomingUrl]);
 
+  useEffect(() => {
+    if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'test') {
+      return undefined;
+    }
+    NetInfo.fetch().catch(() => undefined);
+    return undefined;
+  }, []);
+
   const persistUser = useCallback(async (nextUser: MobileUser) => {
     await AsyncStorage.setItem(STORAGE_USER_KEY, JSON.stringify(nextUser));
     setUser(nextUser);
@@ -135,6 +147,8 @@ function App(): React.JSX.Element {
       <ThemeProvider>
         {booting ? (
           <SplashScreen onReady={() => setBooting(false)} />
+        ) : isOffline ? (
+          <OfflineScreen />
         ) : activeExperience === 'audit' ? (
           <AuditShell
             user={auditUser}
