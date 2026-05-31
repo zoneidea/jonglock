@@ -23,6 +23,9 @@ export type Market = {
   email: string;
   openDate?: string | null;
   closeDate?: string | null;
+  openDays?: string[];
+  isHolidayToday?: boolean;
+  holidayTitleToday?: string;
   galleryImages: string[];
 };
 
@@ -322,9 +325,60 @@ function normalizeMarket(market: Market): Market {
 
   return {
     ...market,
+    openDays: Array.isArray(market.openDays) ? market.openDays : ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'],
+    isHolidayToday: Boolean(market.isHolidayToday),
+    holidayTitleToday: market.holidayTitleToday || '',
     mainImageUrl,
     galleryImages: galleryImages.length ? galleryImages : mainImageUrl ? [mainImageUrl] : [],
   };
+}
+
+function parseOpeningHours(openingHours: string) {
+  const match = String(openingHours || '').trim().match(/^(\d{1,2}):(\d{2})-(\d{1,2}):(\d{2})$/);
+  if (!match) return null;
+  const start = Number(match[1]) * 60 + Number(match[2]);
+  const end = Number(match[3]) * 60 + Number(match[4]);
+  return {start, end};
+}
+
+export function evaluateMarketOpenStatus(market: Market) {
+  if (market.isHolidayToday) {
+    return {
+      isOpen: false,
+      label: `ตลาดปิด${market.holidayTitleToday ? ` (วันหยุด: ${market.holidayTitleToday})` : ' (วันหยุด)'}`,
+      reason: 'holiday',
+    };
+  }
+
+  const now = new Date();
+  const todayIso = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  if (market.openDate && todayIso < market.openDate) {
+    return {isOpen: false, label: 'ตลาดปิด (ยังไม่ถึงวันเปิดตลาด)', reason: 'not_started'};
+  }
+  if (market.closeDate && todayIso > market.closeDate) {
+    return {isOpen: false, label: 'ตลาดปิด (พ้นช่วงวันเปิดตลาด)', reason: 'ended'};
+  }
+
+  const dayMap = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+  const todayKey = dayMap[now.getDay()];
+  const openDays = Array.isArray(market.openDays) && market.openDays.length ? market.openDays : dayMap;
+  if (!openDays.includes(todayKey)) {
+    return {isOpen: false, label: 'ตลาดปิด (ไม่ใช่วันเปิดตลาด)', reason: 'closed_day'};
+  }
+
+  const parsedHours = parseOpeningHours(market.openingHours || '');
+  if (!parsedHours) {
+    return {isOpen: true, label: 'ตลาดเปิด', reason: 'open'};
+  }
+
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  if (parsedHours.end >= parsedHours.start) {
+    const isOpen = nowMinutes >= parsedHours.start && nowMinutes <= parsedHours.end;
+    return {isOpen, label: isOpen ? 'ตลาดเปิด' : 'ตลาดปิด (นอกเวลาเปิดตลาด)', reason: isOpen ? 'open' : 'closed_time'};
+  }
+
+  const isOpen = nowMinutes >= parsedHours.start || nowMinutes <= parsedHours.end;
+  return {isOpen, label: isOpen ? 'ตลาดเปิด' : 'ตลาดปิด (นอกเวลาเปิดตลาด)', reason: isOpen ? 'open' : 'closed_time'};
 }
 
 function normalizeFloorPlan(floorPlan: FloorPlan): FloorPlan {

@@ -21,6 +21,7 @@ import type {AppDeepLink} from '../../App';
 import AppDialog from '../components/AppDialog';
 import ApiLoadingState from '../components/ApiLoadingState';
 import {
+  evaluateMarketOpenStatus,
   getMarket,
   getMarketFloorPlans,
   getMarkets,
@@ -509,12 +510,16 @@ function BookingScreen({
 }
 
 const MarketListCard = React.memo(function MarketListCard({market, onPress}: {market: Market; onPress: () => void}) {
+  const openStatus = evaluateMarketOpenStatus(market);
   return (
     <Pressable onPress={onPress} style={styles.listCard}>
       <MarketImage imageUrl={market.mainImageUrl} style={styles.listImage} />
       <LinearGradient colors={['transparent', 'rgba(7, 17, 31, 0.84)']} style={styles.listOverlay}>
         <Text style={styles.marketCode}>{market.code}</Text>
         <Text style={styles.listTitle}>{market.name}</Text>
+        <Text style={[styles.marketOpenStatus, openStatus.isOpen ? styles.marketOpenStatusOpen : styles.marketOpenStatusClosed]} numberOfLines={1}>
+          {openStatus.label}
+        </Text>
         <Text style={styles.listAddress} numberOfLines={1}>
           {market.address || 'แตะเพื่อดูรายละเอียดตลาด'}
         </Text>
@@ -563,6 +568,7 @@ function MarketDetailScreen({
   onClosePreview: () => void;
 }) {
   const gallery = market.galleryImages.length ? market.galleryImages : market.mainImageUrl ? [market.mainImageUrl] : [];
+  const openStatus = evaluateMarketOpenStatus(market);
   const [termsVisible, setTermsVisible] = useState(false);
   const [authPromptVisible, setAuthPromptVisible] = useState(false);
   const [doNotShowAgain, setDoNotShowAgain] = useState(false);
@@ -680,6 +686,7 @@ function MarketDetailScreen({
         <View style={styles.infoList}>
           <InfoRow icon="map-marker-outline" label="ที่อยู่" value={market.address || '-'} />
           <InfoRow icon="clock-outline" label="วันเวลาเปิด - ปิด" value={market.openingHours || 'ดูตามวันที่ตลาดเปิดจอง'} />
+          <InfoRow icon={openStatus.isOpen ? 'store-check-outline' : 'store-remove-outline'} label="สถานะตลาด" value={openStatus.label} />
           <InfoRow icon="phone-outline" label="เบอร์โทร" value={market.phone || '-'} />
           <InfoRow icon="email-outline" label="อีเมล" value={market.email || '-'} />
           <InfoRow icon="chat-outline" label="LINE ID" value={market.lineId || '-'} />
@@ -938,6 +945,17 @@ const styles = StyleSheet.create({
     color: '#dce7ee',
     fontSize: 12,
     fontWeight: '700',
+  },
+  marketOpenStatus: {
+    marginTop: 4,
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  marketOpenStatusOpen: {
+    color: '#7ff9de',
+  },
+  marketOpenStatusClosed: {
+    color: '#fecaca',
   },
   imageFallback: {
     alignItems: 'center',
