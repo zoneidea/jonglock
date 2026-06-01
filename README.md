@@ -4,7 +4,7 @@ React Native CLI application สำหรับ mobile booking app ของ Jon
 
 ## Stack
 
-- React Native `0.76.9`
+- React Native `0.77.3`
 - React `18.3.1`
 - TypeScript
 - Internal tab shell state for navigation
@@ -73,7 +73,10 @@ open ios/JonglockApp.xcworkspace
 npm run lint
 npm test -- --runInBand
 npx tsc --noEmit
+npm run android:check-16kb
 ```
+
+For Android 16 KB page size support, the native build uses Android Gradle Plugin `8.6.0`, NDK `28.2.13676358`, and uncompressed JNI libraries with 16 KB zip alignment verification. Build the APK before running `npm run android:check-16kb`.
 
 ## Current Scope
 

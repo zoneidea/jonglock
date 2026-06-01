@@ -49,6 +49,7 @@ npm install
 npm run lint
 npm test -- --runInBand
 npx tsc --noEmit
+npm run android:check-16kb
 cd ios && pod install
 ```
 
@@ -168,6 +169,7 @@ Before handing off a mobile change:
 - Run TypeScript check.
 - Run `pod install` after native dependency changes.
 - If changing native config, run at least one Android or iOS build when the local environment supports it.
+- For Android native changes, keep 16 KB page size compatibility intact: use NDK r28 or newer, keep JNI libraries uncompressed, build an APK, then run `npm run android:check-16kb`.
 
 ## Security Notes
 
