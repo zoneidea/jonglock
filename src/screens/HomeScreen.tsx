@@ -40,7 +40,7 @@ function HomeScreen({user}: {user: MobileUser | null}) {
     try {
       const [nextBanners, nextItems] = await Promise.all([
         getAnnouncements({type: 'banner', limit: 6}),
-        getAnnouncements({type: 'news', limit: 20}),
+        getAnnouncements({limit: 20}),
       ]);
       setBanners(nextBanners);
       setItems(nextItems);
