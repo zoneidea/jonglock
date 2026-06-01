@@ -76,7 +76,7 @@ npx tsc --noEmit
 npm run android:check-16kb
 ```
 
-For Android 16 KB page size support, the native build uses Android Gradle Plugin `8.6.0`, NDK `28.2.13676358`, and uncompressed JNI libraries with 16 KB zip alignment verification. Build the APK before running `npm run android:check-16kb`.
+For Android 16 KB page size support, the native build uses Android Gradle Plugin `8.6.0`, NDK `27.2.12479018`, VisionCamera flexible page-size CMake support, and uncompressed JNI libraries with 16 KB alignment verification. Build the APK before running `npm run android:check-16kb`.
 
 ## Current Scope
 

@@ -169,7 +169,7 @@ Before handing off a mobile change:
 - Run TypeScript check.
 - Run `pod install` after native dependency changes.
 - If changing native config, run at least one Android or iOS build when the local environment supports it.
-- For Android native changes, keep 16 KB page size compatibility intact: use NDK r28 or newer, keep JNI libraries uncompressed, build an APK, then run `npm run android:check-16kb`.
+- For Android native changes, keep 16 KB page size compatibility intact: use the pinned NDK version in `android/build.gradle`, keep JNI libraries uncompressed, build an APK, then run `npm run android:check-16kb`. Do not move VisionCamera back to NDK r28 without runtime testing because it can introduce `__cxa_init_primary_exception` loader failures on emulator/device builds.
 
 ## Security Notes
 
