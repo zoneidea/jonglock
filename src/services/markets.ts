@@ -11,6 +11,7 @@ type QueryParams = Record<string, string | number | null | undefined>;
 export type Market = {
   id: number;
   organizationId: number;
+  organizationCode?: string;
   code: string;
   name: string;
   description: string;

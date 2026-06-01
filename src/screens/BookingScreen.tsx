@@ -88,12 +88,39 @@ function parseMarketDeepLinkValue(value: string) {
       return null;
     }
     return {
+      organizationId: parsed.searchParams.get('organizationId') || '',
+      organizationCode: parsed.searchParams.get('organizationCode') || '',
       marketId: parsed.searchParams.get('marketId') || '',
       marketCode: parsed.searchParams.get('marketCode') || '',
     };
   } catch {
     return null;
   }
+}
+
+function marketMatchesDeepLink(
+  market: Market,
+  deepLink?: Pick<AppDeepLink, 'organizationCode' | 'organizationId' | 'marketCode' | 'marketId'> | null,
+) {
+  if (!deepLink) {
+    return false;
+  }
+  const organizationMatches = (
+    !deepLink.organizationId
+    || String(market.organizationId) === String(deepLink.organizationId)
+  ) && (
+    !deepLink.organizationCode
+    || String(market.organizationCode || '').toLowerCase() === String(deepLink.organizationCode).toLowerCase()
+  );
+
+  if (!organizationMatches) {
+    return false;
+  }
+
+  return Boolean(
+    (deepLink.marketId && String(market.id) === String(deepLink.marketId))
+    || (deepLink.marketCode && String(market.code).toLowerCase() === String(deepLink.marketCode).toLowerCase()),
+  );
 }
 
 function BookingScreen({
@@ -271,8 +298,7 @@ function BookingScreen({
 
     const deeplink = parseMarketDeepLinkValue(cleanValue);
     const matchedMarket = markets.find((market) =>
-      (deeplink?.marketId && String(market.id) === String(deeplink.marketId))
-      || (deeplink?.marketCode && market.code.toLowerCase() === deeplink.marketCode.toLowerCase())
+      marketMatchesDeepLink(market, deeplink)
       || cleanValue.toLowerCase().includes(market.code.toLowerCase())
       || cleanValue.toLowerCase().includes(String(market.id)),
     );
@@ -303,10 +329,7 @@ function BookingScreen({
     if (!deepLink || deepLink.type !== 'market' || !markets.length) {
       return;
     }
-    const matchedMarket = markets.find((market) =>
-      (deepLink.marketId && String(market.id) === String(deepLink.marketId))
-      || (deepLink.marketCode && String(market.code).toLowerCase() === String(deepLink.marketCode).toLowerCase()),
-    );
+    const matchedMarket = markets.find((market) => marketMatchesDeepLink(market, deepLink));
     if (matchedMarket) {
       selectMarket(matchedMarket);
     }
