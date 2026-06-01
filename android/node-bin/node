@@ -1,0 +1,23 @@
+#!/bin/sh
+
+if [ -n "$NODE_BINARY" ] && [ -x "$NODE_BINARY" ]; then
+  exec "$NODE_BINARY" "$@"
+fi
+
+if command -v node >/dev/null 2>&1; then
+  exec "$(command -v node)" "$@"
+fi
+
+for candidate in \
+  "$HOME/.nvm/versions/node/v18.20.8/bin/node" \
+  "$HOME/.nvm/versions/node/v20.19.0/bin/node" \
+  "/opt/homebrew/bin/node" \
+  "/usr/local/bin/node"
+do
+  if [ -x "$candidate" ]; then
+    exec "$candidate" "$@"
+  fi
+done
+
+echo "Unable to find Node.js executable. Set NODE_BINARY to an absolute node path." >&2
+exit 127

@@ -6,6 +6,8 @@ buildscript {
         targetSdkVersion = 34
         ndkVersion = "26.1.10909125"
         kotlinVersion = "1.9.25"
+        NODE_BINARY = file("${rootDir}/node-bin/node").absolutePath
+        REACT_NATIVE_NODE_MODULES_DIR = file("${rootDir}/../node_modules/react-native").absolutePath
     }
     repositories {
         google()
