@@ -20,7 +20,7 @@ const ENVIRONMENTS: Record<AppEnvironment, AppEnvironmentConfig> = {
     name: 'production',
     apiBaseUrl: 'https://api.jonglock.com/api',
     webBaseUrl: 'https://jonglock.com',
-    managementBaseUrl: 'https://mng.jonglock.com',
+    managementBaseUrl: 'https://management.jonglock.com',
     marketDeepLinkBaseUrl: 'https://jonglock.com/market',
   },
 };

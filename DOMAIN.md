@@ -11,7 +11,7 @@
 ## Production
 
 - Web/deep link host: `https://jonglock.com`
-- Management host: `https://mng.jonglock.com`
+- Management host: `https://management.jonglock.com`
 - API base URL: `https://api.jonglock.com/api`
 - Market universal link: `https://jonglock.com/market?...`
 - Custom scheme fallback: `jonglock://market?...`
