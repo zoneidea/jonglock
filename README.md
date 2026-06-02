@@ -140,7 +140,7 @@ iOS is configured with:
 
 ## API Integration
 
-Current API base URL is defined in `src/config/api.ts` and defaults to `https://jonglockapi.zonedevnode.com/api`.
+Current API base URL is defined in `src/config/environment.ts`. Debug builds use UAT (`https://jonglockapi.zonedevnode.com/api`) and release builds use Production (`https://api.jonglock.com/api`).
 
 Implemented API areas:
 

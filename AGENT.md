@@ -41,6 +41,7 @@ The mobile app currently supports:
 - Use platform-native secure storage before production authentication.
 - Android package/application id is `th.co.zoneidea.jonglock`.
 - iOS bundle identifier is `th.co.zoneidea`, matching `ios/JonglockApp/GoogleService-Info.plist`.
+- Runtime domains are split in `src/config/environment.ts`: debug builds use UAT and release builds use Production. Keep `DOMAIN.md` updated when changing API, web, management, or deep link hosts.
 
 ## Commands
 
