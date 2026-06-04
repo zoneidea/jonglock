@@ -9,10 +9,23 @@
       "client_info": {
         "mobilesdk_app_id": "1:1087957238231:android:d4d316ca8936ec5054cb92",
         "android_client_info": {
-          "package_name": "th.co.zoneidea.jonglock"
+          "package_name": "com.jonglockapp"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "1087957238231-20roqkmo6o7rlovlhfrapn4hl34f68oi.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.jonglockapp",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "1087957238231-4mv90nlc1fkl0bv32rakoq3tue8k4h0c.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyANw3wQpa4KC3ToU9ZZeuHLcPVdkAhMGPs"
@@ -20,7 +33,123 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1087957238231-4mv90nlc1fkl0bv32rakoq3tue8k4h0c.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1087957238231-3o7hcpka4kll9r1i3qumq1vuk1tovai2.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "th.co.zoneidea"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1087957238231:android:60611d51a546ec3c54cb92",
+        "android_client_info": {
+          "package_name": "th.co.zoneidea"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1087957238231-jdve8vm6c5befe90ad03bsu97ghu2h5e.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "th.co.zoneidea",
+            "certificate_hash": "0288d4eb12c8fad7fc74b3efd26544d56a3f2154"
+          }
+        },
+        {
+          "client_id": "1087957238231-pt0223617vtkriitk0054d8gn6lu5ke0.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "th.co.zoneidea",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "1087957238231-4mv90nlc1fkl0bv32rakoq3tue8k4h0c.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyANw3wQpa4KC3ToU9ZZeuHLcPVdkAhMGPs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1087957238231-4mv90nlc1fkl0bv32rakoq3tue8k4h0c.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1087957238231-3o7hcpka4kll9r1i3qumq1vuk1tovai2.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "th.co.zoneidea"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1087957238231:android:a3ea0944640dafcf54cb92",
+        "android_client_info": {
+          "package_name": "th.co.zoneidea.jonglock"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1087957238231-af0o1hqev38l5buk4k78ltjqni8n2kn0.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "th.co.zoneidea.jonglock",
+            "certificate_hash": "0288d4eb12c8fad7fc74b3efd26544d56a3f2154"
+          }
+        },
+        {
+          "client_id": "1087957238231-dgobnsfs2kbachf0ua94kef391ejf5lh.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "th.co.zoneidea.jonglock",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "1087957238231-4mv90nlc1fkl0bv32rakoq3tue8k4h0c.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyANw3wQpa4KC3ToU9ZZeuHLcPVdkAhMGPs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1087957238231-4mv90nlc1fkl0bv32rakoq3tue8k4h0c.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1087957238231-3o7hcpka4kll9r1i3qumq1vuk1tovai2.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "th.co.zoneidea"
+              }
+            }
+          ]
         }
       }
     }
