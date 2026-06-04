@@ -29,6 +29,8 @@ type LinkingModule = {
 
 GoogleSignin.configure({
   scopes: ['profile', 'email'],
+  webClientId: '1087957238231-4mv90nlc1fkl0bv32rakoq3tue8k4h0c.apps.googleusercontent.com',
+  offlineAccess: false,
 });
 
 function App(): React.JSX.Element {
