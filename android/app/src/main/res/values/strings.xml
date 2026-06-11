@@ -1,3 +1,6 @@
 <resources>
     <string name="app_name">Jonglock</string>
+    <string name="default_notification_channel_id">jonglock-default</string>
+    <string name="default_notification_channel_name">Jonglock Notifications</string>
+    <string name="default_notification_channel_description">การแจ้งเตือนรายการจอง ชำระเงิน และข่าวสารจาก Jonglock</string>
 </resources>

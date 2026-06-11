@@ -1,6 +1,9 @@
 package th.co.zoneidea.jonglock
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.app.Application
+import android.os.Build
 import com.facebook.react.PackageList
 import com.facebook.react.ReactApplication
 import com.facebook.react.ReactHost
@@ -35,10 +38,25 @@ class MainApplication : Application(), ReactApplication {
 
   override fun onCreate() {
     super.onCreate()
+    createNotificationChannel()
     SoLoader.init(this, OpenSourceMergedSoMapping)
     if (BuildConfig.IS_NEW_ARCHITECTURE_ENABLED) {
       // If you opted-in for the New Architecture, we load the native entry point for this app.
       load()
     }
+  }
+
+  private fun createNotificationChannel() {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+      return
+    }
+    val channel = NotificationChannel(
+      getString(R.string.default_notification_channel_id),
+      getString(R.string.default_notification_channel_name),
+      NotificationManager.IMPORTANCE_DEFAULT,
+    ).apply {
+      description = getString(R.string.default_notification_channel_description)
+    }
+    getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
   }
 }

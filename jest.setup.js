@@ -33,6 +33,15 @@ jest.mock('@react-native-google-signin/google-signin', () => ({
   },
 }));
 
+jest.mock('@react-native-community/netinfo', () => ({
+  __esModule: true,
+  default: {
+    addEventListener: jest.fn(() => jest.fn()),
+    fetch: jest.fn(() => Promise.resolve({isConnected: true, isInternetReachable: true})),
+  },
+  useNetInfo: jest.fn(() => ({isConnected: true, isInternetReachable: true})),
+}));
+
 jest.mock('@react-native-firebase/app', () => ({
   __esModule: true,
   default: {
@@ -88,9 +97,15 @@ jest.mock('@react-native-firebase/firestore', () => {
 
 jest.mock('@react-native-firebase/messaging', () => {
   const messaging = jest.fn(() => ({
+    isDeviceRegisteredForRemoteMessages: true,
+    registerDeviceForRemoteMessages: jest.fn(() => Promise.resolve()),
     requestPermission: jest.fn(() => Promise.resolve(1)),
     getToken: jest.fn(() => Promise.resolve('mock-fcm-token')),
     onMessage: jest.fn(() => jest.fn()),
+    onNotificationOpenedApp: jest.fn(() => jest.fn()),
+    getInitialNotification: jest.fn(() => Promise.resolve(null)),
+    onTokenRefresh: jest.fn(() => jest.fn()),
+    setBackgroundMessageHandler: jest.fn(),
   }));
   messaging.AuthorizationStatus = {
     AUTHORIZED: 1,

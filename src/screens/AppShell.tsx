@@ -5,7 +5,13 @@ import type {AppDeepLink} from '../../App';
 import AppDialog from '../components/AppDialog';
 import BottomTabItem from '../components/BottomTabItem';
 import {getCartBookings} from '../services/markets';
-import {subscribeToForegroundPushMessages} from '../services/notifications';
+import {
+  registerLatestPushDeviceToken,
+  subscribeToForegroundPushMessages,
+  subscribeToNotificationOpenEvents,
+  subscribeToPushTokenRefresh,
+  type PushNotificationMessage,
+} from '../services/notifications';
 import {colors} from '../theme/colors';
 import {useTheme} from '../theme/theme';
 import {TabKey, tabs} from '../types/tabs';
@@ -39,7 +45,7 @@ function AppShell({
   const [renderedTab, setRenderedTab] = useState<TabKey>('home');
   const [bookingTabHidden, setBookingTabHidden] = useState(false);
   const [cartItemCount, setCartItemCount] = useState(0);
-  const [pushMessage, setPushMessage] = useState<{title: string; body: string} | null>(null);
+  const [pushMessage, setPushMessage] = useState<PushNotificationMessage | null>(null);
   const contentOpacity = useRef(new Animated.Value(1)).current;
   const transitionTaskRef = useRef<{cancel: () => void} | null>(null);
   const {palette, resolvedTheme} = useTheme();
@@ -65,13 +71,6 @@ function AppShell({
     transitionTaskRef.current?.cancel();
   }, []);
 
-  useEffect(() => {
-    if (!user?.email) {
-      return undefined;
-    }
-    return subscribeToForegroundPushMessages(setPushMessage);
-  }, [user?.email]);
-
   const changeTab = useCallback((nextTab: TabKey) => {
     if (nextTab === activeTab) {
       return;
@@ -89,6 +88,42 @@ function AppShell({
       }).start();
     });
   }, [activeTab, contentOpacity]);
+
+  const handlePushMessageOpen = useCallback((message: PushNotificationMessage) => {
+    setPushMessage(message);
+    const route = (message.data.route || message.data.screen || '').toLowerCase();
+    const entityType = (message.data.entityType || message.data.type || '').toLowerCase();
+    if (route.includes('cart') || route.includes('payment') || entityType.includes('payment')) {
+      changeTab('cart');
+      return;
+    }
+    if (route.includes('checkin') || route.includes('audit')) {
+      changeTab('checkin');
+      return;
+    }
+    if (route.includes('profile')) {
+      changeTab('profile');
+      return;
+    }
+    if (route.includes('booking') || route.includes('market') || message.data.marketId || message.data.marketCode) {
+      changeTab('booking');
+    }
+  }, [changeTab]);
+
+  useEffect(() => {
+    if (!user?.email) {
+      return undefined;
+    }
+    registerLatestPushDeviceToken().catch(() => undefined);
+    const unsubscribeForeground = subscribeToForegroundPushMessages(setPushMessage);
+    const unsubscribeOpened = subscribeToNotificationOpenEvents(handlePushMessageOpen);
+    const unsubscribeTokenRefresh = subscribeToPushTokenRefresh();
+    return () => {
+      unsubscribeForeground();
+      unsubscribeOpened();
+      unsubscribeTokenRefresh();
+    };
+  }, [handlePushMessageOpen, user?.email]);
 
   useEffect(() => {
     if (!deepLink) {
