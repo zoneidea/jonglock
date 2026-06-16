@@ -338,7 +338,7 @@ function BookingScreen({
 
   useEffect(() => {
     const organizationId = selectedMarket?.organizationId || floorPlanMarket?.organizationId;
-    if (!user?.email || !organizationId) {
+    if (!user?.email || !organizationId || user.notificationEnabled === false) {
       return;
     }
     registerPushDeviceToken({user, organizationId}).catch(() => undefined);

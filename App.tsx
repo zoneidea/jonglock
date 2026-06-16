@@ -11,6 +11,7 @@ import AppShell from './src/screens/AppShell';
 import OfflineScreen from './src/screens/OfflineScreen';
 import SplashScreen from './src/screens/SplashScreen';
 import {syncDynamicAppIcon} from './src/services/appIcon';
+import {unregisterPushDeviceToken} from './src/services/notifications';
 import {ThemeProvider} from './src/theme/theme';
 import type {AuditUser, MobileUser} from './src/types/user';
 
@@ -116,6 +117,7 @@ function App(): React.JSX.Element {
   }, []);
 
   const logout = useCallback(async () => {
+    await unregisterPushDeviceToken().catch(() => undefined);
     await AsyncStorage.removeItem(STORAGE_USER_KEY);
     try {
       await GoogleSignin.signOut();

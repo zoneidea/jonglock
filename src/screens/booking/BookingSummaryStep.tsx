@@ -170,7 +170,9 @@ function BookingSummaryStep({
     setMessage('');
     try {
       const confirmed = await confirmBooking(hold.bookingId, {email: user.email, name: user.name});
-      registerPushDeviceToken({user, organizationId: market.organizationId}).catch(() => undefined);
+      if (user.notificationEnabled !== false) {
+        registerPushDeviceToken({user, organizationId: market.organizationId}).catch(() => undefined);
+      }
       const expiresAtMs = getLockExpiryMs(confirmed.expiresAt || hold.expiresAt);
       try {
         await saveBoothTempLocks({

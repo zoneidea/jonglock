@@ -6,10 +6,12 @@ import AppDialog from '../components/AppDialog';
 import BottomTabItem from '../components/BottomTabItem';
 import {getCartBookings} from '../services/markets';
 import {
+  primePushNotifications,
   registerLatestPushDeviceToken,
   subscribeToForegroundPushMessages,
   subscribeToNotificationOpenEvents,
   subscribeToPushTokenRefresh,
+  unregisterPushDeviceToken,
   type PushNotificationMessage,
 } from '../services/notifications';
 import {colors} from '../theme/colors';
@@ -114,6 +116,11 @@ function AppShell({
     if (!user?.email) {
       return undefined;
     }
+    if (user.notificationEnabled === false) {
+      unregisterPushDeviceToken().catch(() => undefined);
+      return undefined;
+    }
+    primePushNotifications().catch(() => undefined);
     registerLatestPushDeviceToken().catch(() => undefined);
     const unsubscribeForeground = subscribeToForegroundPushMessages(setPushMessage);
     const unsubscribeOpened = subscribeToNotificationOpenEvents(handlePushMessageOpen);
@@ -123,7 +130,7 @@ function AppShell({
       unsubscribeOpened();
       unsubscribeTokenRefresh();
     };
-  }, [handlePushMessageOpen, user?.email]);
+  }, [handlePushMessageOpen, user?.email, user?.notificationEnabled]);
 
   useEffect(() => {
     if (!deepLink) {
