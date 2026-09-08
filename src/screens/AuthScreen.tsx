@@ -199,6 +199,7 @@ const styles = StyleSheet.create({
     padding: 22,
   },
   authHeader: {
+    flexShrink: 0,
     marginBottom: 24,
   },
   miniLogo: {
@@ -225,7 +226,8 @@ const styles = StyleSheet.create({
     marginTop: 10,
     color: colors.ink,
     fontSize: 34,
-    lineHeight: 41,
+    lineHeight: 52,
+    paddingVertical: 4,
     fontWeight: '900',
   },
   authDescription: {
@@ -278,7 +280,9 @@ const styles = StyleSheet.create({
     color: colors.ink,
   },
   gmailButton: {
-    height: 58,
+    minHeight: 58,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     borderRadius: 18,
     backgroundColor: colors.white,
     borderWidth: 1,
@@ -290,6 +294,9 @@ const styles = StyleSheet.create({
     ...shadow,
   },
   gmailButtonText: {
+    flexShrink: 1,
+    lineHeight: 26,
+    textAlign: 'center',
     color: colors.ink,
     fontSize: 16,
     fontWeight: '900',
@@ -323,7 +330,9 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   primaryButton: {
-    height: 56,
+    minHeight: 56,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     borderRadius: 18,
     backgroundColor: colors.teal,
     alignItems: 'center',
@@ -331,6 +340,8 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   primaryButtonText: {
+    lineHeight: 26,
+    textAlign: 'center',
     color: colors.white,
     fontSize: 16,
     fontWeight: '900',

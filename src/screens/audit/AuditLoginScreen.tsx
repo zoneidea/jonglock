@@ -156,6 +156,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   heroCard: {
+    flexShrink: 0,
     borderRadius: 30,
     padding: 24,
     minHeight: 172,
@@ -184,7 +185,9 @@ const styles = StyleSheet.create({
   title: {
     color: '#ffffff',
     fontSize: 31,
-    lineHeight: 38,
+    lineHeight: 48,
+    paddingVertical: 4,
+    alignSelf: 'stretch',
     fontWeight: '900',
   },
   formCard: {
@@ -195,6 +198,8 @@ const styles = StyleSheet.create({
     ...shadow,
   },
   formTitle: {
+    lineHeight: 36,
+    marginBottom: 12,
     fontSize: 23,
     fontWeight: '900',
   },
@@ -206,13 +211,18 @@ const styles = StyleSheet.create({
   },
   auditButton: {
     marginTop: 18,
-    height: 56,
+    minHeight: 56,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     borderRadius: 18,
     backgroundColor: '#0f2238',
     alignItems: 'center',
     justifyContent: 'center',
   },
   auditButtonText: {
+    lineHeight: 26,
+    textAlign: 'center',
+    flexShrink: 1,
     color: '#ffffff',
     fontSize: 16,
     fontWeight: '900',
@@ -225,6 +235,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   backLinkText: {
+    flexShrink: 1,
+    lineHeight: 22,
+    textAlign: 'center',
     fontSize: 13,
     fontWeight: '700',
   },

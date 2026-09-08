@@ -1442,6 +1442,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   guestHero: {
+    flexShrink: 0,
     minHeight: 250,
     borderRadius: 34,
     padding: 24,
@@ -1463,10 +1464,14 @@ const styles = StyleSheet.create({
   guestTitle: {
     color: colors.ink,
     fontSize: 31,
-    lineHeight: 38,
+    lineHeight: 48,
+    paddingVertical: 4,
+    alignSelf: 'stretch',
     fontWeight: '900',
   },
   guestText: {
+    alignSelf: 'stretch',
+    paddingBottom: 4,
     marginTop: 10,
     color: colors.muted,
     fontSize: 15,
@@ -1487,6 +1492,8 @@ const styles = StyleSheet.create({
     paddingTop: 10,
   },
   auditPortalButton: {
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     minHeight: 58,
     borderRadius: 20,
     backgroundColor: '#0d2238',
@@ -1499,12 +1506,17 @@ const styles = StyleSheet.create({
     ...shadow,
   },
   auditPortalButtonText: {
+    flexShrink: 1,
+    lineHeight: 26,
+    textAlign: 'center',
     color: '#ffffff',
     fontSize: 15,
     fontWeight: '900',
   },
   gmailButton: {
-    height: 58,
+    minHeight: 58,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     borderRadius: 19,
     backgroundColor: colors.white,
     borderWidth: 1,
@@ -1515,6 +1527,9 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   gmailButtonText: {
+    flexShrink: 1,
+    lineHeight: 26,
+    textAlign: 'center',
     color: colors.ink,
     fontSize: 16,
     fontWeight: '900',
