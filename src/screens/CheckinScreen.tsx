@@ -4,6 +4,7 @@ import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityI
 import qrcode from 'qrcode-generator';
 
 import ApiLoadingState from '../components/ApiLoadingState';
+import {useNotice} from '../notice/NoticeProvider';
 import {
   checkinBookingItem,
   getCheckinBookings,
@@ -21,12 +22,12 @@ function CheckinScreen({
   onRequireAuth: () => void;
 }) {
   const {palette} = useTheme();
+  const {showSuccess, showError} = useNotice();
   const [items, setItems] = useState<CheckinBookingItem[]>([]);
   const [selectedItem, setSelectedItem] = useState<CheckinBookingItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [checkingInId, setCheckingInId] = useState<number | null>(null);
-  const [message, setMessage] = useState('');
 
   const userIdentity = useMemo(
     () => (user?.email ? {email: user.email, name: user.name} : null),
@@ -40,15 +41,14 @@ function CheckinScreen({
       return;
     }
     setLoading(true);
-    setMessage('');
     try {
       setItems(await getCheckinBookings(userIdentity));
     } catch (error) {
-      setMessage((error as Error).message || 'ยังไม่สามารถโหลดรายการ check-in ได้');
+      showError((error as Error).message || 'ยังไม่สามารถโหลดรายการ check-in ได้');
     } finally {
       setLoading(false);
     }
-  }, [userIdentity]);
+  }, [showError, userIdentity]);
 
   useEffect(() => {
     loadItems();
@@ -68,7 +68,6 @@ function CheckinScreen({
       return;
     }
     setCheckingInId(item.bookingItemId);
-    setMessage('');
     try {
       const updatedItem = await checkinBookingItem(item.bookingItemId, userIdentity);
       setItems((currentItems) =>
@@ -79,13 +78,13 @@ function CheckinScreen({
       setSelectedItem((currentItem) =>
         currentItem?.bookingItemId === updatedItem.bookingItemId ? updatedItem : currentItem,
       );
-      setMessage('Check-in สำเร็จ');
+      showSuccess('Check-in สำเร็จ');
     } catch (error) {
-      setMessage((error as Error).message || 'ยังไม่สามารถ check-in ได้');
+      showError((error as Error).message || 'ยังไม่สามารถ check-in ได้');
     } finally {
       setCheckingInId(null);
     }
-  }, [userIdentity]);
+  }, [showError, showSuccess, userIdentity]);
 
   if (!userIdentity) {
     return (
@@ -109,7 +108,6 @@ function CheckinScreen({
       <CheckinDetail
         item={selectedItem}
         checkingIn={checkingInId === selectedItem.bookingItemId}
-        message={message}
         onBack={() => setSelectedItem(null)}
         onCheckin={() => handleCheckin(selectedItem)}
       />
@@ -136,7 +134,6 @@ function CheckinScreen({
             <Text style={[styles.eyebrow, {color: palette.accent}]}>CHECK-IN</Text>
             <Text style={[styles.title, {color: palette.text}]}>รายการจองที่ชำระเงินแล้ว</Text>
             <Text style={[styles.subtitle, {color: palette.muted}]}>เรียงจากวันที่ขายใกล้ที่สุดไปไกลที่สุด</Text>
-            {message ? <Text style={[styles.messageText, {color: message.includes('สำเร็จ') ? palette.accent : palette.danger}]}>{message}</Text> : null}
           </View>
         )}
         ListEmptyComponent={
@@ -204,13 +201,11 @@ const CheckinCard = React.memo(function CheckinCard({
 function CheckinDetail({
   item,
   checkingIn,
-  message,
   onBack,
   onCheckin,
 }: {
   item: CheckinBookingItem;
   checkingIn: boolean;
-  message: string;
   onBack: () => void;
   onCheckin: () => void;
 }) {
@@ -237,8 +232,6 @@ function CheckinDetail({
           <InfoRow label="ยอดชำระ" value={formatMoney(item.unitPrice)} />
           <BookingQrCode item={item} />
         </View>
-
-        {message ? <Text style={[styles.messageText, {color: message.includes('สำเร็จ') ? palette.accent : palette.danger}]}>{message}</Text> : null}
 
         <Pressable
           disabled={checkedIn || checkingIn || !canCheckinToday}

@@ -13,6 +13,7 @@ import {
   type AuditInspectionFilter,
   type AuditInspectionItem,
 } from '../../services/audit';
+import {useNotice} from '../../notice/NoticeProvider';
 import {colors} from '../../theme/colors';
 import type {AuditUser} from '../../types/user';
 
@@ -42,9 +43,9 @@ function AuditDashboardScreen({
   user: AuditUser;
   onLogout: () => void;
 }) {
+  const {showSuccess, showWarning, showError} = useNotice();
   const [selectedDate, setSelectedDate] = useState(() => toIsoDate(new Date()));
   const [loading, setLoading] = useState(Boolean(user.token));
-  const [message, setMessage] = useState('');
   const [scannerOpen, setScannerOpen] = useState(false);
   const [scannerLocked, setScannerLocked] = useState(false);
   const [inspectionFilter, setInspectionFilter] = useState<AuditInspectionFilter | null>(null);
@@ -73,13 +74,12 @@ function AuditDashboardScreen({
   useEffect(() => {
     if (!user.token) {
       setLoading(false);
-      setMessage('ไม่พบ session สำหรับโหลดข้อมูลสรุป');
+      showError('ไม่พบ session สำหรับโหลดข้อมูลสรุป');
       return;
     }
 
     let cancelled = false;
     setLoading(true);
-    setMessage('');
     fetchAuditSummary({token: user.token, date: selectedDate})
       .then((nextSummary) => {
         if (cancelled) {
@@ -96,7 +96,7 @@ function AuditDashboardScreen({
         if (cancelled) {
           return;
         }
-        setMessage((error as Error).message || 'ยังไม่สามารถโหลดข้อมูลสรุปได้');
+        showError((error as Error).message || 'ยังไม่สามารถโหลดข้อมูลสรุปได้');
         setSummary({
           totalJobs: 0,
           pendingJobs: 0,
@@ -113,7 +113,7 @@ function AuditDashboardScreen({
     return () => {
       cancelled = true;
     };
-  }, [selectedDate, user.token]);
+  }, [selectedDate, showError, user.token]);
 
   useEffect(() => {
     if (!inspectionFilter || !user.token) {
@@ -190,7 +190,7 @@ function AuditDashboardScreen({
     if (!hasPermission) {
       const granted = await requestPermission();
       if (!granted) {
-        setMessage('กรุณาอนุญาตใช้กล้องเพื่อสแกนคิวอาร์โค้ด');
+        showWarning('กรุณาอนุญาตใช้กล้องเพื่อสแกนคิวอาร์โค้ด');
         return;
       }
     }
@@ -216,15 +216,14 @@ function AuditDashboardScreen({
   function openInspectionFormFromScan(value: string) {
     const bookingItemId = extractBookingItemIdFromScan(value);
     if (!bookingItemId) {
-      setMessage('QR Code ไม่ถูกต้อง หรือไม่พบรหัสรายการจอง');
+      showWarning('QR Code ไม่ถูกต้อง หรือไม่พบรหัสรายการจอง');
       return;
     }
     if (!user.token) {
-      setMessage('ไม่พบ session สำหรับโหลดข้อมูลตรวจสอบ');
+      showError('ไม่พบ session สำหรับโหลดข้อมูลตรวจสอบ');
       return;
     }
 
-    setMessage('');
     setSelectedInspection(null);
     setInspectionForm(null);
     setFormMessage('');
@@ -234,7 +233,7 @@ function AuditDashboardScreen({
         setSelectedInspection(form.item);
         setInspectionForm(form);
       })
-      .catch((error) => setMessage((error as Error).message || 'ยังไม่สามารถโหลดข้อมูลตรวจสอบจาก QR Code ได้'))
+      .catch((error) => showError((error as Error).message || 'ยังไม่สามารถโหลดข้อมูลตรวจสอบจาก QR Code ได้'))
       .finally(() => setFormLoading(false));
   }
 
@@ -287,7 +286,7 @@ function AuditDashboardScreen({
         bookingItemId: selectedInspection.bookingItemId,
         payload,
       });
-      setFormMessage(payload.fineAmount || payload.accessories.some((item) => item.quantity > 0)
+      showSuccess(payload.fineAmount || payload.accessories.some((item) => item.quantity > 0)
         ? 'บันทึกแล้ว และส่งรายการไปยังตะกร้าลูกค้าแล้ว'
         : 'บันทึกผลการตรวจแล้ว');
       const nextSummary = await fetchAuditSummary({token: user.token, date: selectedDate});
@@ -302,7 +301,7 @@ function AuditDashboardScreen({
         setInspectionItems(nextList.items);
       }
     } catch (error) {
-      setFormMessage((error as Error).message || 'ยังไม่สามารถบันทึกผลตรวจได้');
+      showError((error as Error).message || 'ยังไม่สามารถบันทึกผลตรวจได้');
     } finally {
       setFormSaving(false);
     }
@@ -344,7 +343,6 @@ function AuditDashboardScreen({
               <MaterialCommunityIcons name="chevron-right" size={20} color="#d8edf5" />
             </Pressable>
           </View>
-          {message ? <Text style={styles.messageText}>{message}</Text> : null}
         </View>
 
         <View style={styles.cardRow}>

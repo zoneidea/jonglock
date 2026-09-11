@@ -3,6 +3,7 @@ import {FlatList, Pressable, RefreshControl, StyleSheet, Text, View} from 'react
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import ApiLoadingState from '../../components/ApiLoadingState';
+import {useNotice} from '../../notice/NoticeProvider';
 import {getMarketFloorPlans, type FloorPlan, type Market} from '../../services/markets';
 import {colors, shadow} from '../../theme/colors';
 import BookingSelectionModal, {marketToSelectionItem} from './BookingSelectionModal';
@@ -23,21 +24,20 @@ function FloorPlanSelectionStep({
   const [floorPlans, setFloorPlans] = useState<FloorPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [message, setMessage] = useState('');
+  const {showError} = useNotice();
   const [marketModalOpen, setMarketModalOpen] = useState(false);
   const marketItems = useMemo(() => markets.map(marketToSelectionItem), [markets]);
 
   const loadFloorPlans = useCallback(async () => {
     setLoading(true);
-    setMessage('');
     try {
       setFloorPlans(await getMarketFloorPlans(market.id));
     } catch {
-      setMessage('ยังไม่สามารถโหลดแผนผังหรือโซนได้');
+      showError('ยังไม่สามารถโหลดแผนผังหรือโซนได้');
     } finally {
       setLoading(false);
     }
-  }, [market.id]);
+  }, [market.id, showError]);
 
   useEffect(() => {
     loadFloorPlans();
@@ -82,9 +82,8 @@ function FloorPlanSelectionStep({
 
       <Text style={styles.planHelpText}>เลือกโซนที่ต้องการ ก่อนเข้าสู่ขั้นตอนการเลือกบูธ</Text>
 
-      {message ? <Text style={styles.messageText}>{message}</Text> : null}
     </>
-  ), [market.code, market.name, message, onBack]);
+  ), [market.code, market.name, onBack]);
 
   const renderEmpty = useCallback(() => (
     loading ? (

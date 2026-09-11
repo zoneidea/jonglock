@@ -11,17 +11,18 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StatusBar,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import {SafeAreaView} from 'react-native-safe-area-context';
 
 import GoogleIcon from '../components/GoogleIcon';
 import LabeledInput from '../components/LabeledInput';
 import {STORAGE_USER_KEY} from '../constants/storage';
+import {useNotice} from '../notice/NoticeProvider';
 import {colors, shadow} from '../theme/colors';
 import type {MobileUser} from '../types/user';
 
@@ -32,7 +33,7 @@ function AuthScreen({onAuthenticated}: {onAuthenticated: (user: MobileUser) => v
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState('');
+  const {showWarning, showError} = useNotice();
 
   async function persistUser(user: MobileUser) {
     await AsyncStorage.setItem(STORAGE_USER_KEY, JSON.stringify(user));
@@ -41,18 +42,17 @@ function AuthScreen({onAuthenticated}: {onAuthenticated: (user: MobileUser) => v
 
   async function continueWithGmail() {
     setLoading(true);
-    setMessage('');
     try {
       if (Platform.OS === 'android') {
         await GoogleSignin.hasPlayServices({showPlayServicesUpdateDialog: true});
       }
       const result = await GoogleSignin.signIn();
       if (isCancelledResponse(result)) {
-        setMessage('ยกเลิกการเข้าสู่ระบบด้วย Gmail');
+        showWarning('ยกเลิกการเข้าสู่ระบบด้วย Gmail');
         return;
       }
       if (!isSuccessResponse(result)) {
-        setMessage('ยังไม่สามารถเข้าสู่ระบบด้วย Gmail ได้');
+        showError('ยังไม่สามารถเข้าสู่ระบบด้วย Gmail ได้');
         return;
       }
       const user = result.data.user;
@@ -65,17 +65,17 @@ function AuthScreen({onAuthenticated}: {onAuthenticated: (user: MobileUser) => v
         });
         return;
       }
-      setMessage('ไม่พบข้อมูล Gmail สำหรับเข้าสู่ระบบ');
+      showError('ไม่พบข้อมูล Gmail สำหรับเข้าสู่ระบบ');
     } catch (error) {
       const code = isErrorWithCode(error) ? String(error.code) : '';
       if (code === statusCodes.SIGN_IN_CANCELLED) {
-        setMessage('ยกเลิกการเข้าสู่ระบบด้วย Gmail');
+        showWarning('ยกเลิกการเข้าสู่ระบบด้วย Gmail');
       } else if (code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
-        setMessage('Google Play Services ยังไม่พร้อมใช้งาน');
+        showError('Google Play Services ยังไม่พร้อมใช้งาน');
       } else if (code === '10' || code === 'DEVELOPER_ERROR') {
-        setMessage('ตั้งค่า Google Sign-In ยังไม่ครบ กรุณาตรวจสอบ SHA-1/SHA-256 ใน Firebase');
+        showError('ตั้งค่า Google Sign-In ยังไม่ครบ กรุณาตรวจสอบ SHA-1/SHA-256 ใน Firebase');
       } else {
-        setMessage('ยังไม่สามารถเข้าสู่ระบบด้วย Gmail ได้');
+        showError('ยังไม่สามารถเข้าสู่ระบบด้วย Gmail ได้');
       }
     } finally {
       setLoading(false);
@@ -85,7 +85,7 @@ function AuthScreen({onAuthenticated}: {onAuthenticated: (user: MobileUser) => v
   async function continueWithEmail() {
     const trimmedEmail = email.trim().toLowerCase();
     if (!trimmedEmail.includes('@')) {
-      setMessage('กรุณากรอกอีเมลให้ถูกต้อง');
+      showWarning('กรุณากรอกอีเมลให้ถูกต้อง');
       return;
     }
     await persistUser({
@@ -169,8 +169,6 @@ function AuthScreen({onAuthenticated}: {onAuthenticated: (user: MobileUser) => v
               keyboardType="email-address"
               autoCapitalize="none"
             />
-
-            {message ? <Text style={styles.messageText}>{message}</Text> : null}
 
             <Pressable onPress={continueWithEmail} style={styles.primaryButton}>
               <Text style={styles.primaryButtonText}>
@@ -322,12 +320,6 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontSize: 12,
     fontWeight: '700',
-  },
-  messageText: {
-    color: colors.danger,
-    fontSize: 13,
-    fontWeight: '700',
-    marginBottom: 12,
   },
   primaryButton: {
     minHeight: 56,

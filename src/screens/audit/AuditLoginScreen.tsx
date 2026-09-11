@@ -3,7 +3,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -12,7 +11,9 @@ import {
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import {SafeAreaView} from 'react-native-safe-area-context';
 
+import AppDialog from '../../components/AppDialog';
 import LabeledInput from '../../components/LabeledInput';
 import {loginAudit} from '../../services/audit';
 import {colors, shadow} from '../../theme/colors';
@@ -33,6 +34,7 @@ function AuditLoginScreen({
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const [accessDeniedVisible, setAccessDeniedVisible] = useState(false);
   const {palette, resolvedTheme} = useTheme();
 
   const gradientColors = useMemo(
@@ -69,8 +71,8 @@ function AuditLoginScreen({
         password: password.trim(),
       });
       onAuthenticated(user);
-    } catch (error) {
-      setMessage((error as Error).message || 'ยังไม่สามารถเข้าสู่ระบบเจ้าหน้าที่ได้');
+    } catch {
+      setAccessDeniedVisible(true);
     } finally {
       setLoading(false);
     }
@@ -140,6 +142,17 @@ function AuditLoginScreen({
           <Text style={styles.poweredByText}>{POWERED_BY_TEXT}</Text>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <AppDialog
+        visible={accessDeniedVisible}
+        icon="shield-alert-outline"
+        title="ไม่สามารถเข้าสู่ระบบได้"
+        message="สิทธิ์ของคุณไม่สามารถใช้งานระบบนี้ได้"
+        cancelLabel="ปิด"
+        confirmLabel="ตกลง"
+        onCancel={() => setAccessDeniedVisible(false)}
+        onConfirm={() => setAccessDeniedVisible(false)}
+      />
     </SafeAreaView>
   );
 }

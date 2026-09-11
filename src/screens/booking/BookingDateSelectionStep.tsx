@@ -1,8 +1,8 @@
-import React, {useCallback, useMemo, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View} from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
-import {type FloorPlan, type Market} from '../../services/markets';
+import {getMarketHolidays, type FloorPlan, type Market, type MarketHoliday} from '../../services/markets';
 import {colors, shadow} from '../../theme/colors';
 import BookingSelectionModal, {floorPlanToSelectionItem, marketToSelectionItem} from './BookingSelectionModal';
 
@@ -35,6 +35,25 @@ function BookingDateSelectionStep({
   const [rangeEnd, setRangeEnd] = useState('');
   const [marketModalOpen, setMarketModalOpen] = useState(false);
   const [floorPlanModalOpen, setFloorPlanModalOpen] = useState(false);
+  const [holidays, setHolidays] = useState<MarketHoliday[]>([]);
+
+  useEffect(() => {
+    let active = true;
+    getMarketHolidays(market.id, market.organizationId)
+      .then((result) => {
+        if (active) {
+          setHolidays(result);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setHolidays([]);
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [market.id, market.organizationId]);
 
   const calendarWidth = useMemo(() => Math.min(width - 88, 320), [width]);
   const calendarGap = 4;
@@ -134,7 +153,7 @@ function BookingDateSelectionStep({
                 key={`${cell.date}-${index}`}
                 date={cell.date}
                 currentMonth={cell.currentMonth}
-                disabled={cell.date < today || isDateOutsideRange(cell.date, minDate, maxDate)}
+                disabled={cell.date < today || isDateOutsideRange(cell.date, minDate, maxDate) || isDateHoliday(cell.date, holidays)}
                 size={daySize}
                 today={cell.date === today}
                 rangeStart={rangeStart}
@@ -286,6 +305,10 @@ function laterIsoDate(dateA: string, dateB: string) {
 
 function isDateOutsideRange(date: string, minDate: string, maxDate: string) {
   return Boolean((minDate && date < minDate) || (maxDate && date > maxDate));
+}
+
+function isDateHoliday(date: string, holidays: MarketHoliday[]) {
+  return holidays.some((holiday) => date >= holiday.startDate && date <= holiday.endDate);
 }
 
 function addDays(date: Date, days: number) {

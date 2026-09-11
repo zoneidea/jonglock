@@ -18,7 +18,7 @@ export type BoothTempLock = {
 export type BoothTempLockMap = Map<string, BoothTempLock>;
 
 const TEMP_LOCK_COLLECTION = 'booth_temp_locks';
-const TEMP_LOCK_TTL_MS = 10 * 60 * 1000;
+const TEMP_LOCK_TTL_MS = 30 * 1000;
 
 export function tempLockKey(boothId: number, date: string) {
   return `${boothId}:${date}`;

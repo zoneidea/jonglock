@@ -1,5 +1,6 @@
 import React, {useCallback, useEffect, useRef, useState} from 'react';
-import {Animated, InteractionManager, SafeAreaView, StatusBar, StyleSheet, Text, View} from 'react-native';
+import {Animated, InteractionManager, StatusBar, StyleSheet, Text, View} from 'react-native';
+import {SafeAreaView} from 'react-native-safe-area-context';
 
 import type {AppDeepLink} from '../../App';
 import AppDialog from '../components/AppDialog';
@@ -187,7 +188,7 @@ function AppShell({
       {!(activeTab === 'booking' && bookingTabHidden) ? (
         <>
           <View style={[styles.bottomBar, {backgroundColor: palette.surface, borderColor: palette.border}]}>
-            {tabs.map((tab) => (
+            {tabs.filter((tab) => tab.key !== 'checkin').map((tab) => (
               <BottomTabItem
                 key={tab.key}
                 item={tab}

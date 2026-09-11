@@ -10,6 +10,7 @@ import AuditShell from './src/screens/AuditShell';
 import AppShell from './src/screens/AppShell';
 import OfflineScreen from './src/screens/OfflineScreen';
 import SplashScreen from './src/screens/SplashScreen';
+import {NoticeProvider} from './src/notice/NoticeProvider';
 import {syncDynamicAppIcon} from './src/services/appIcon';
 import {unregisterPushDeviceToken} from './src/services/notifications';
 import {ThemeProvider} from './src/theme/theme';
@@ -149,28 +150,30 @@ function App(): React.JSX.Element {
   return (
     <SafeAreaProvider>
       <ThemeProvider>
-        {booting ? (
-          <SplashScreen onReady={() => setBooting(false)} />
-        ) : isOffline ? (
-          <OfflineScreen />
-        ) : activeExperience === 'audit' ? (
-          <AuditShell
-            user={auditUser}
-            onAuthenticated={persistAuditUser}
-            onLogout={logoutAudit}
-            onBackToCustomer={returnToCustomer}
-          />
-        ) : (
-          <AppShell
-            user={user}
-            onLogout={logout}
-            onAuthenticated={persistUser}
-            onUserChange={persistUser}
-            onOpenAuditPortal={openAuditPortal}
-            deepLink={pendingDeepLink}
-            onDeepLinkConsumed={() => setPendingDeepLink(null)}
-          />
-        )}
+        <NoticeProvider>
+          {booting ? (
+            <SplashScreen onReady={() => setBooting(false)} />
+          ) : isOffline ? (
+            <OfflineScreen />
+          ) : activeExperience === 'audit' ? (
+            <AuditShell
+              user={auditUser}
+              onAuthenticated={persistAuditUser}
+              onLogout={logoutAudit}
+              onBackToCustomer={returnToCustomer}
+            />
+          ) : (
+            <AppShell
+              user={user}
+              onLogout={logout}
+              onAuthenticated={persistUser}
+              onUserChange={persistUser}
+              onOpenAuditPortal={openAuditPortal}
+              deepLink={pendingDeepLink}
+              onDeepLinkConsumed={() => setPendingDeepLink(null)}
+            />
+          )}
+        </NoticeProvider>
       </ThemeProvider>
     </SafeAreaProvider>
   );

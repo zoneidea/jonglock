@@ -30,6 +30,15 @@ export type Market = {
   galleryImages: string[];
 };
 
+export type MarketHoliday = {
+  id: number;
+  organizationId: number;
+  marketId: number;
+  title: string;
+  startDate: string;
+  endDate: string;
+};
+
 export type FloorPlan = {
   id: number;
   organizationId: number;
@@ -275,6 +284,7 @@ const AVAILABILITY_CACHE_TTL_MS = 30 * 1000;
 const marketsCache = new Map<string, CachedValue<Market[]>>();
 const marketCache = new Map<number, CachedValue<Market | null>>();
 const floorPlansCache = new Map<number, CachedValue<FloorPlan[]>>();
+const marketHolidaysCache = new Map<string, CachedValue<MarketHoliday[]>>();
 const boothAvailabilityCache = new Map<string, CachedValue<Booth[]>>();
 
 function readCache<T>(cache: Map<string | number, CachedValue<T>>, key: string | number) {
@@ -534,6 +544,38 @@ export async function getMarketFloorPlans(marketId: number) {
   const floorPlans = await request<FloorPlan[]>(`/public/markets/${marketId}/floor-plans`);
   const normalized = floorPlans.map(normalizeFloorPlan);
   writeCache(floorPlansCache, marketId, normalized, STATIC_CACHE_TTL_MS);
+  return normalized;
+}
+
+type RawMarketHoliday = {
+  id: number;
+  organization_id: number;
+  market_id: number;
+  title: string;
+  start_date: string;
+  end_date: string;
+};
+
+function normalizeMarketHoliday(holiday: RawMarketHoliday): MarketHoliday {
+  return {
+    id: holiday.id,
+    organizationId: holiday.organization_id,
+    marketId: holiday.market_id,
+    title: holiday.title,
+    startDate: holiday.start_date,
+    endDate: holiday.end_date,
+  };
+}
+
+export async function getMarketHolidays(marketId: number, organizationId: number) {
+  const cacheKey = `${marketId}:${organizationId}`;
+  const cached = readCache(marketHolidaysCache, cacheKey);
+  if (cached) {
+    return cached;
+  }
+  const holidays = await request<RawMarketHoliday[]>(`/public/markets/${marketId}/holidays`, {organizationId});
+  const normalized = holidays.map(normalizeMarketHoliday);
+  writeCache(marketHolidaysCache, cacheKey, normalized, STATIC_CACHE_TTL_MS);
   return normalized;
 }
 

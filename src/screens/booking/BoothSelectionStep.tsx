@@ -13,8 +13,8 @@ import {
 } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
-import AppDialog from '../../components/AppDialog';
 import ApiLoadingState from '../../components/ApiLoadingState';
+import {useNotice} from '../../notice/NoticeProvider';
 import {
   clearBoothAvailabilityCache,
   getFloorPlanBoothAvailability,
@@ -67,11 +67,10 @@ function BoothSelectionStep({
   const [booths, setBooths] = useState<Booth[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [message, setMessage] = useState('');
+  const {showWarning, showError} = useNotice();
   const [selectedBooth, setSelectedBooth] = useState<Booth | null>(null);
   const [tempLocks, setTempLocks] = useState<BoothTempLockMap>(new Map());
   const [bookingInProgress, setBookingInProgress] = useState(false);
-  const [dialog, setDialog] = useState({visible: false, title: '', message: '', icon: 'information-outline'});
   const [marketModalOpen, setMarketModalOpen] = useState(false);
   const [floorPlanModalOpen, setFloorPlanModalOpen] = useState(false);
   const [planPreviewOpen, setPlanPreviewOpen] = useState(false);
@@ -81,15 +80,14 @@ function BoothSelectionStep({
 
   const loadBooths = useCallback(async () => {
     setLoading(true);
-    setMessage('');
     try {
       setBooths(await getFloorPlanBoothAvailability(floorPlan.id, selectedDates));
     } catch {
-      setMessage('ยังไม่สามารถโหลดสถานะบูธได้');
+      showError('ยังไม่สามารถโหลดสถานะบูธได้');
     } finally {
       setLoading(false);
     }
-  }, [floorPlan.id, selectedDates]);
+  }, [floorPlan.id, selectedDates, showError]);
 
   useEffect(() => {
     loadBooths();
@@ -124,7 +122,6 @@ function BoothSelectionStep({
   }, []);
 
   const handleBoothPress = useCallback((booth: Booth) => {
-    setMessage('');
     setSelectedBooth(booth);
   }, []);
 
@@ -172,9 +169,8 @@ function BoothSelectionStep({
         <LegendDot color="#ef4444" label="ไม่ว่างเลย" />
       </View>
 
-      {message ? <Text style={styles.messageText}>{message}</Text> : null}
     </>
-  ), [floorPlan.name, floorPlan.planImageUrl, market.name, message, onBack, onChangeDates, selectedDates]);
+  ), [floorPlan.name, floorPlan.planImageUrl, market.name, onBack, onChangeDates, selectedDates]);
 
   const renderBoothEmpty = useCallback(() => (
     loading ? (
@@ -186,21 +182,11 @@ function BoothSelectionStep({
 
   const handleReserveBooth = useCallback(async (booth: Booth, availableDates: string[]) => {
     if (!user?.email) {
-      setDialog({
-        visible: true,
-        icon: 'account-lock-outline',
-        title: 'กรุณาเข้าสู่ระบบ',
-        message: 'ต้องเข้าสู่ระบบด้วย Gmail ก่อนจองบูธ',
-      });
+      showWarning('ต้องเข้าสู่ระบบด้วย Gmail ก่อนจองบูธ', 'กรุณาเข้าสู่ระบบ');
       return;
     }
     if (!availableDates.length) {
-      setDialog({
-        visible: true,
-        icon: 'calendar-alert',
-        title: 'ไม่มีวันที่ว่าง',
-        message: 'วันที่เลือกไม่ว่างแล้ว กรุณาเลือกวันหรือบูธใหม่',
-      });
+      showWarning('วันที่เลือกไม่ว่างแล้ว กรุณาเลือกวันหรือบูธใหม่', 'ไม่มีวันที่ว่าง');
       return;
     }
 
@@ -219,16 +205,11 @@ function BoothSelectionStep({
       clearBoothAvailabilityCache();
       setSelectedBooth(null);
       await loadBooths();
-      setDialog({
-        visible: true,
-        icon: 'alert-circle-outline',
-        title: 'บูธไม่ว่างแล้ว',
-        message: 'มีผู้ใช้งานจองบูธหรือวันที่นี้ไปก่อน ระบบอัปเดตสถานะล่าสุดให้แล้ว กรุณาเลือกวันที่หรือบูธใหม่',
-      });
+      showError('มีผู้ใช้งานจองบูธหรือวันที่นี้ไปก่อน ระบบอัปเดตสถานะล่าสุดให้แล้ว กรุณาเลือกวันที่หรือบูธใหม่', 'บูธไม่ว่างแล้ว');
     } finally {
       setBookingInProgress(false);
     }
-  }, [loadBooths, onReserved, user]);
+  }, [loadBooths, onReserved, showError, showWarning, user]);
 
   return (
     <View style={styles.flex}>
@@ -262,16 +243,6 @@ function BoothSelectionStep({
         imageUrl={floorPlan.planImageUrl}
         title={floorPlan.name}
         onClose={() => setPlanPreviewOpen(false)}
-      />
-      <AppDialog
-        visible={dialog.visible}
-        icon={dialog.icon}
-        title={dialog.title}
-        message={dialog.message}
-        cancelLabel="ปิด"
-        confirmLabel="ตกลง"
-        onCancel={() => setDialog((current) => ({...current, visible: false}))}
-        onConfirm={() => setDialog((current) => ({...current, visible: false}))}
       />
       <BookingSelectionModal
         open={marketModalOpen}

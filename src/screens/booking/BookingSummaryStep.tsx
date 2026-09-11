@@ -13,6 +13,7 @@ import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityI
 
 import AppDialog from '../../components/AppDialog';
 import ApiLoadingState from '../../components/ApiLoadingState';
+import {useNotice} from '../../notice/NoticeProvider';
 import {
   confirmBooking,
   clearBoothAvailabilityCache,
@@ -29,6 +30,8 @@ import {saveBoothTempLocks} from '../../services/boothTempLocks';
 import {registerPushDeviceToken} from '../../services/notifications';
 import {colors, shadow} from '../../theme/colors';
 import type {MobileUser} from '../../types/user';
+
+const DRAFT_COUNTDOWN_SECONDS = 30;
 
 function BookingSummaryStep({
   market,
@@ -58,10 +61,12 @@ function BookingSummaryStep({
   const [refreshing, setRefreshing] = useState(false);
   const [calculating, setCalculating] = useState(false);
   const [confirming, setConfirming] = useState(false);
-  const [message, setMessage] = useState('');
+  const {showWarning, showError} = useNotice();
   const [dialogVisible, setDialogVisible] = useState(false);
+  const [draftCountdown, setDraftCountdown] = useState(DRAFT_COUNTDOWN_SECONDS);
 
   const actionDisabled = !summary || calculating || confirming;
+  const isDraft = summary?.status === 'draft';
 
   const selectedAccessories = useMemo(
     () => Object.entries(quantities)
@@ -72,12 +77,11 @@ function BookingSummaryStep({
 
   const refreshSummary = useCallback(async (couponCode = appliedCouponCode) => {
     if (!user?.email) {
-      setMessage('กรุณาเข้าสู่ระบบก่อนสรุปรายการจอง');
+      showWarning('กรุณาเข้าสู่ระบบก่อนสรุปรายการจอง');
       return;
     }
 
     setCalculating(true);
-    setMessage('');
     try {
       const nextSummary = await updateBookingSummary(
         hold.bookingId,
@@ -87,14 +91,14 @@ function BookingSummaryStep({
       );
       setSummary(nextSummary);
     } catch (error) {
-      setMessage((error as Error).message || 'ยังไม่สามารถคำนวณยอดรวมได้');
+      showError((error as Error).message || 'ยังไม่สามารถคำนวณยอดรวมได้');
       if (couponCode) {
         setAppliedCouponCode('');
       }
     } finally {
       setCalculating(false);
     }
-  }, [appliedCouponCode, hold.bookingId, selectedAccessories, user]);
+  }, [appliedCouponCode, hold.bookingId, selectedAccessories, showError, showWarning, user]);
 
   useEffect(() => {
     let active = true;
@@ -102,7 +106,7 @@ function BookingSummaryStep({
     Promise.all([
       getMarketAccessories(market.id).catch((error) => {
         if (active) {
-          setMessage((error as Error).message || 'ยังไม่สามารถโหลดบริการเสริมได้');
+          showError((error as Error).message || 'ยังไม่สามารถโหลดบริการเสริมได้');
         }
         return [];
       }),
@@ -121,7 +125,7 @@ function BookingSummaryStep({
       })
       .catch((error) => {
         if (active) {
-          setMessage((error as Error).message || 'ยังไม่สามารถโหลดสรุปรายการได้');
+          showError((error as Error).message || 'ยังไม่สามารถโหลดสรุปรายการได้');
         }
       })
       .finally(() => {
@@ -133,7 +137,7 @@ function BookingSummaryStep({
     return () => {
       active = false;
     };
-  }, [hold.bookingId, market.id, user]);
+  }, [hold.bookingId, market.id, showError, user]);
 
   useEffect(() => {
     if (loading) {
@@ -144,6 +148,23 @@ function BookingSummaryStep({
     }, 280);
     return () => clearTimeout(timer);
   }, [loading, refreshSummary]);
+
+  useEffect(() => {
+    if (!isDraft || dialogVisible) {
+      return;
+    }
+    setDraftCountdown(DRAFT_COUNTDOWN_SECONDS);
+    const interval = setInterval(() => {
+      setDraftCountdown((seconds) => Math.max(0, seconds - 1));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [isDraft, dialogVisible]);
+
+  useEffect(() => {
+    if (isDraft && !dialogVisible && draftCountdown === 0) {
+      onContinueBooking?.();
+    }
+  }, [isDraft, dialogVisible, draftCountdown, onContinueBooking]);
 
   const updateQuantity = useCallback((accessoryId: number, nextQuantity: number) => {
     setQuantities((current) => ({
@@ -160,14 +181,13 @@ function BookingSummaryStep({
 
   const confirmReservation = useCallback(async () => {
     if (!user?.email) {
-      setMessage('กรุณาเข้าสู่ระบบก่อนยืนยันการจอง');
+      showWarning('กรุณาเข้าสู่ระบบก่อนยืนยันการจอง');
       return;
     }
     if (!summary) {
       return;
     }
     setConfirming(true);
-    setMessage('');
     try {
       const confirmed = await confirmBooking(hold.bookingId, {email: user.email, name: user.name});
       if (user.notificationEnabled !== false) {
@@ -191,11 +211,11 @@ function BookingSummaryStep({
       clearBoothAvailabilityCache();
       setDialogVisible(true);
     } catch (error) {
-      setMessage((error as Error).message || 'ยังไม่สามารถยืนยันการจองได้');
+      showError((error as Error).message || 'ยังไม่สามารถยืนยันการจองได้');
     } finally {
       setConfirming(false);
     }
-  }, [booth.id, floorPlan.id, floorPlan.marketId, floorPlan.organizationId, hold.bookingId, hold.expiresAt, hold.lockedDates, market.organizationId, summary, user]);
+  }, [booth.id, floorPlan.id, floorPlan.marketId, floorPlan.organizationId, hold.bookingId, hold.expiresAt, hold.lockedDates, market.organizationId, showError, showWarning, summary, user]);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -232,6 +252,15 @@ function BookingSummaryStep({
           </View>
         </View>
 
+        {isDraft && !dialogVisible ? (
+          <View style={styles.draftTimerCard}>
+            <MaterialCommunityIcons name="timer-sand" size={18} color={colors.danger} />
+            <Text style={styles.draftTimerText}>
+              {`สถานะ Draft • กรุณายืนยันภายใน ${draftCountdown} วินาที`}
+            </Text>
+          </View>
+        ) : null}
+
         {hold.unavailableDates.length ? (
           <View style={styles.noticeCard}>
             <MaterialCommunityIcons name="calendar-alert" size={19} color={colors.tealDark} />
@@ -240,8 +269,6 @@ function BookingSummaryStep({
             </Text>
           </View>
         ) : null}
-
-        {message ? <Text style={styles.messageText}>{message}</Text> : null}
 
         {loading ? (
           <ApiLoadingState label="กำลังโหลดสรุปรายการ" />
@@ -500,6 +527,24 @@ const styles = StyleSheet.create({
     marginTop: 2,
     color: colors.muted,
     fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '800',
+  },
+  draftTimerCard: {
+    marginTop: 12,
+    borderRadius: 18,
+    backgroundColor: '#fdeeed',
+    borderWidth: 1,
+    borderColor: '#f6c9c5',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 12,
+  },
+  draftTimerText: {
+    flex: 1,
+    color: colors.danger,
+    fontSize: 12,
     lineHeight: 18,
     fontWeight: '800',
   },

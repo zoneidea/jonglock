@@ -1,6 +1,7 @@
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
+  Dimensions,
   FlatList,
   Image,
   Modal,
@@ -20,6 +21,7 @@ import {Camera, useCameraDevice, useCameraPermission, useCodeScanner} from 'reac
 import type {AppDeepLink} from '../../App';
 import AppDialog from '../components/AppDialog';
 import ApiLoadingState from '../components/ApiLoadingState';
+import {useNotice} from '../notice/NoticeProvider';
 import {
   evaluateMarketOpenStatus,
   getMarket,
@@ -155,7 +157,7 @@ function BookingScreen({
   const [scannerLocked, setScannerLocked] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [message, setMessage] = useState('');
+  const {showWarning, showError} = useNotice();
   const device = useCameraDevice('back');
   const {hasPermission, requestPermission} = useCameraPermission();
 
@@ -173,15 +175,14 @@ function BookingScreen({
 
   const loadMarkets = useCallback(async () => {
     setLoading(true);
-    setMessage('');
     try {
       setMarkets(await getMarkets());
     } catch {
-      setMessage('ยังไม่สามารถโหลดรายการตลาดได้');
+      showError('ยังไม่สามารถโหลดรายการตลาดได้');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [showError]);
 
   useEffect(() => {
     loadMarkets();
@@ -279,13 +280,13 @@ function BookingScreen({
     if (!hasPermission) {
       const granted = await requestPermission();
       if (!granted) {
-        setMessage('กรุณาอนุญาตใช้กล้องเพื่อสแกนคิวอาร์โค้ด');
+        showWarning('กรุณาอนุญาตใช้กล้องเพื่อสแกนคิวอาร์โค้ด');
         return;
       }
     }
     setScannerLocked(false);
     setScannerOpen(true);
-  }, [hasPermission, requestPermission]);
+  }, [hasPermission, requestPermission, showWarning]);
 
   const handleScannedValue = useCallback((value: string) => {
     const cleanValue = value.trim();
@@ -364,14 +365,12 @@ function BookingScreen({
         </Pressable>
       </View>
 
-      {message ? <Text style={styles.messageText}>{message}</Text> : null}
-
       <View style={styles.sectionHeaderRow}>
         <Text style={styles.sectionTitle}>ตลาดทั้งหมด</Text>
         <Text style={styles.sectionCaption}>{`${filteredMarkets.length} ตลาด`}</Text>
       </View>
     </>
-  ), [filteredMarkets.length, message, openScanner, query]);
+  ), [filteredMarkets.length, openScanner, query]);
 
   const renderMarketEmpty = useCallback(() => (
     loading ? <ApiLoadingState label="กำลังโหลดรายการตลาด" /> : <EmptyCard text="ไม่มีรายการตลาด" />
@@ -392,18 +391,10 @@ function BookingScreen({
         hold={bookingHold}
         user={user}
         onBack={() => {
-          setSelectedMarket(null);
-          setFloorPlanMarket(null);
-          setSelectedFloorPlan(null);
-          setSelectedBookingDates([]);
           setBookingHold(null);
           setReservedBooth(null);
         }}
         onContinueBooking={() => {
-          setSelectedMarket(null);
-          setFloorPlanMarket(null);
-          setSelectedFloorPlan(null);
-          setSelectedBookingDates([]);
           setBookingHold(null);
           setReservedBooth(null);
         }}
@@ -737,12 +728,19 @@ function MarketDetailScreen({
       </Modal>
 
       <Modal visible={termsVisible} transparent animationType="slide" onRequestClose={() => setTermsVisible(false)}>
-        <Pressable style={styles.sheetBackdrop} onPress={() => setTermsVisible(false)}>
-          <Pressable style={styles.sheetCard} onPress={() => {}}>
+        <View style={styles.sheetBackdrop}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setTermsVisible(false)} />
+          <View style={styles.sheetCard}>
             <View style={styles.sheetHandle} />
             <Text style={styles.sheetTitle}>เงื่อนไขการจอง</Text>
             <Text style={styles.sheetMarketName}>{market.name}</Text>
-            <ScrollView style={styles.sheetBody} contentContainerStyle={styles.sheetBodyContent}>
+            <ScrollView
+              style={styles.sheetBody}
+              contentContainerStyle={styles.sheetBodyContent}
+              nestedScrollEnabled
+              showsVerticalScrollIndicator
+              persistentScrollbar
+              overScrollMode="always">
               <Text style={styles.sheetTermsText}>
                 {plainTerms || 'ยังไม่มีการกำหนดเงื่อนไขการจองสำหรับตลาดนี้'}
               </Text>
@@ -759,8 +757,8 @@ function MarketDetailScreen({
             <Pressable style={styles.sheetActionButton} onPress={handleTermsAccept}>
               <Text style={styles.sheetActionButtonText}>ตกลง</Text>
             </Pressable>
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
 
       <AppDialog
@@ -858,6 +856,8 @@ function EmptyCard({text, large}: {text: string; large?: boolean}) {
     </View>
   );
 }
+
+const TERMS_SHEET_HEIGHT = Dimensions.get('window').height * 0.78;
 
 const styles = StyleSheet.create({
   flex: {
@@ -1157,8 +1157,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 22,
     paddingTop: 12,
     paddingBottom: 26,
-    minHeight: 380,
-    maxHeight: '78%',
+    height: TERMS_SHEET_HEIGHT,
   },
   sheetHandle: {
     alignSelf: 'center',
@@ -1180,12 +1179,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   sheetBody: {
+    flex: 1,
     marginTop: 18,
     borderRadius: 20,
     backgroundColor: colors.background,
     borderWidth: 1,
     borderColor: colors.border,
-    maxHeight: 260,
   },
   sheetBodyContent: {
     padding: 16,

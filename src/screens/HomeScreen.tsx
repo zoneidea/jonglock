@@ -4,6 +4,7 @@ import LinearGradient from 'react-native-linear-gradient';
 
 import ApiLoadingState from '../components/ApiLoadingState';
 import PromoCard from '../components/PromoCard';
+import {useNotice} from '../notice/NoticeProvider';
 import {getAnnouncements, type Announcement} from '../services/announcements';
 import {colors, shadow} from '../theme/colors';
 import {useTheme} from '../theme/theme';
@@ -32,11 +33,10 @@ function HomeScreen({user}: {user: MobileUser | null}) {
   const [selectedAnnouncement, setSelectedAnnouncement] = useState<Announcement | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [message, setMessage] = useState('');
+  const {showError} = useNotice();
 
   const loadAnnouncements = useCallback(async () => {
     setLoading(true);
-    setMessage('');
     try {
       const [nextBanners, nextItems] = await Promise.all([
         getAnnouncements({type: 'banner', limit: 6}),
@@ -46,11 +46,11 @@ function HomeScreen({user}: {user: MobileUser | null}) {
       setItems(nextItems);
     } catch {
       setBanners([]);
-      setMessage('ยังไม่สามารถโหลดข้อมูลหน้าหลักได้');
+      showError('ยังไม่สามารถโหลดข้อมูลหน้าหลักได้');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [showError]);
 
   useEffect(() => {
     loadAnnouncements();
@@ -115,9 +115,8 @@ function HomeScreen({user}: {user: MobileUser | null}) {
       </ScrollView>
 
       <Text style={[styles.sectionTitle, {color: palette.text}]}>ข่าวสารและโปรโมชั่น</Text>
-      {message ? <Text style={[styles.messageText, {color: palette.danger}]}>{message}</Text> : null}
     </>
-  ), [bannerItems, banners.length, loading, message, openAnnouncement, palette, user]);
+  ), [bannerItems, banners.length, loading, openAnnouncement, palette, user]);
 
   const renderEmptyFeed = useCallback(() => (
     loading ? (

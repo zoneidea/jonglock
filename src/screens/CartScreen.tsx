@@ -1,5 +1,5 @@
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
-import {Alert, FlatList, Image, Modal, PermissionsAndroid, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View} from 'react-native';
+import {FlatList, Image, Modal, PermissionsAndroid, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View} from 'react-native';
 import {CameraRoll} from '@react-native-camera-roll/camera-roll';
 import RNFS from 'react-native-fs';
 import {launchImageLibrary} from 'react-native-image-picker';
@@ -8,6 +8,7 @@ import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityI
 import AppDialog from '../components/AppDialog';
 import ApiLoadingState from '../components/ApiLoadingState';
 import PlaceholderPanel from '../components/PlaceholderPanel';
+import {useNotice} from '../notice/NoticeProvider';
 import {
   cancelCartBooking,
   getCartPaymentInfo,
@@ -71,6 +72,7 @@ function CartScreen({
   onCountChange?: (count: number) => void;
 }) {
   const {palette} = useTheme();
+  const {showSuccess, showWarning, showError} = useNotice();
   const [bookings, setBookings] = useState<CartBooking[]>([]);
   const [selectedBookingIds, setSelectedBookingIds] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
@@ -85,7 +87,6 @@ function CartScreen({
   const [uploadingProof, setUploadingProof] = useState(false);
   const [savingQrCode, setSavingQrCode] = useState(false);
   const [nowMs, setNowMs] = useState(() => Date.now());
-  const [message, setMessage] = useState('');
 
   const loadCart = useCallback(async () => {
     if (!user?.email) {
@@ -96,7 +97,6 @@ function CartScreen({
     }
 
     setLoading(true);
-    setMessage('');
     try {
       const loadedAtMs = Date.now();
       const nextBookings = (await getCartBookings({email: user.email, name: user.name})).filter(
@@ -108,11 +108,11 @@ function CartScreen({
       );
       onCountChange?.(nextBookings.length);
     } catch (error) {
-      setMessage((error as Error).message || 'ยังไม่สามารถโหลดตะกร้าได้');
+      showError((error as Error).message || 'ยังไม่สามารถโหลดตะกร้าได้');
     } finally {
       setLoading(false);
     }
-  }, [onCountChange, user]);
+  }, [onCountChange, showError, user]);
 
   useEffect(() => {
     loadCart();
@@ -145,8 +145,8 @@ function CartScreen({
 
     setBookings((current) => current.filter((booking) => !expiredBookingIds.includes(booking.bookingId)));
     setSelectedBookingIds((current) => current.filter((bookingId) => !expiredBookingIds.includes(bookingId)));
-    setMessage('มีรายการหมดเวลาถูกนำออกจากตะกร้าแล้ว');
-  }, [bookings, nowMs, paymentBookings.length]);
+    showWarning('มีรายการหมดเวลาถูกนำออกจากตะกร้าแล้ว');
+  }, [bookings, nowMs, paymentBookings.length, showWarning]);
 
   useEffect(() => {
     onCountChange?.(bookings.length);
@@ -192,33 +192,31 @@ function CartScreen({
       return;
     }
     setCancellingBookingId(cancelTarget.bookingId);
-    setMessage('');
     try {
       await cancelCartBooking(cancelTarget.bookingId, {email: user.email, name: user.name});
       setCancelTarget(null);
-      setMessage('ยกเลิกรายการนี้แล้ว');
+      showSuccess('ยกเลิกรายการนี้แล้ว');
       await loadCart();
     } catch (error) {
-      setMessage((error as Error).message || 'ยังไม่สามารถยกเลิกรายการได้');
+      showError((error as Error).message || 'ยังไม่สามารถยกเลิกรายการได้');
     } finally {
       setCancellingBookingId(null);
     }
-  }, [cancelTarget, loadCart, user?.email, user?.name]);
+  }, [cancelTarget, loadCart, showError, showSuccess, user?.email, user?.name]);
 
   const proceedToCheckout = useCallback(() => {
     if (!selectedBookings.length) {
-      setMessage('กรุณาเลือกรายการที่ต้องการชำระเงิน');
+      showWarning('กรุณาเลือกรายการที่ต้องการชำระเงิน');
       return;
     }
     const organizationId = selectedBookings[0]?.organizationId;
     const hasMixedOrganization = selectedBookings.some((booking) => booking.organizationId !== organizationId);
     if (hasMixedOrganization) {
-      setMessage('กรุณาเลือกรายการจากองค์กรเดียวกันเท่านั้น เพื่อให้ใช้บัญชีรับเงินเดียวกัน');
+      showWarning('กรุณาเลือกรายการจากองค์กรเดียวกันเท่านั้น เพื่อให้ใช้บัญชีรับเงินเดียวกัน');
       return;
     }
-    setMessage('');
     setCheckoutMode(true);
-  }, [selectedBookings]);
+  }, [selectedBookings, showWarning]);
 
   const openPayment = useCallback(async (targetBookings: CartBooking[]) => {
     if (!user?.email) {
@@ -226,19 +224,18 @@ function CartScreen({
     }
     const firstBooking = targetBookings[0];
     if (!firstBooking) {
-      setMessage('กรุณาเลือกรายการที่ต้องการชำระเงิน');
+      showWarning('กรุณาเลือกรายการที่ต้องการชำระเงิน');
       return;
     }
     const organizationId = firstBooking.organizationId;
     if (targetBookings.some((booking) => booking.organizationId !== organizationId)) {
-      setMessage('กรุณาเลือกรายการจากองค์กรเดียวกันเท่านั้น เพื่อให้ใช้บัญชีรับเงินเดียวกัน');
+      showWarning('กรุณาเลือกรายการจากองค์กรเดียวกันเท่านั้น เพื่อให้ใช้บัญชีรับเงินเดียวกัน');
       return;
     }
     setPaymentBookings(targetBookings);
     setPaymentInfo(null);
     setProofImage(null);
     setPaymentLoading(true);
-    setMessage('');
     try {
       const paymentInfos = await Promise.all(
         targetBookings.map((booking) => getCartPaymentInfo(booking, {email: user.email, name: user.name})),
@@ -246,12 +243,12 @@ function CartScreen({
       const info = paymentInfos[0] || null;
       setPaymentInfo(info);
     } catch (error) {
-      setMessage((error as Error).message || 'ยังไม่สามารถโหลดข้อมูลชำระเงินได้');
+      showError((error as Error).message || 'ยังไม่สามารถโหลดข้อมูลชำระเงินได้');
       setPaymentBookings([]);
     } finally {
       setPaymentLoading(false);
     }
-  }, [user]);
+  }, [showError, showWarning, user]);
 
   const closePayment = useCallback(() => {
     if (uploadingProof) {
@@ -273,7 +270,7 @@ function CartScreen({
     }
     const asset = result.assets?.[0];
     if (!asset?.uri) {
-      setMessage('ไม่พบไฟล์รูปภาพที่เลือก');
+      showWarning('ไม่พบไฟล์รูปภาพที่เลือก');
       return;
     }
     setProofImage({
@@ -281,18 +278,17 @@ function CartScreen({
       name: asset.fileName || 'payment-proof.jpg',
       type: asset.type || 'image/jpeg',
     });
-  }, []);
+  }, [showWarning]);
 
   const submitProof = useCallback(async () => {
     if (!paymentBookings.length || !user?.email) {
       return;
     }
     if (!proofImage) {
-      setMessage('กรุณาเลือกรูปสลิปก่อนอัปโหลด');
+      showWarning('กรุณาเลือกรูปสลิปก่อนอัปโหลด');
       return;
     }
     setUploadingProof(true);
-    setMessage('');
     try {
       for (const booking of paymentBookings) {
         await uploadCartPaymentProof(
@@ -304,14 +300,14 @@ function CartScreen({
       closePayment();
       setCheckoutMode(false);
       setSelectedBookingIds([]);
-      setMessage('ส่งหลักฐานการชำระเงินแล้ว กรุณารอการตรวจสอบ');
+      showSuccess('ส่งหลักฐานการชำระเงินแล้ว กรุณารอการตรวจสอบ');
       await loadCart();
     } catch (error) {
-      setMessage((error as Error).message || 'ยังไม่สามารถอัปโหลดหลักฐานได้');
+      showError((error as Error).message || 'ยังไม่สามารถอัปโหลดหลักฐานได้');
     } finally {
       setUploadingProof(false);
     }
-  }, [closePayment, loadCart, paymentBookings, proofImage, user]);
+  }, [closePayment, loadCart, paymentBookings, proofImage, showError, showSuccess, showWarning, user]);
 
   const savePaymentQrCode = useCallback(async () => {
     const qrCodeImageUrl = paymentInfo?.paymentMethod?.qrCodeImageUrl;
@@ -321,13 +317,13 @@ function CartScreen({
     setSavingQrCode(true);
     try {
       await saveRemoteQrToGallery(qrCodeImageUrl);
-      Alert.alert('บันทึก QR Code แล้ว', 'บันทึกรูป QR Code ลงในคลังรูปภาพเรียบร้อย');
+      showSuccess('บันทึกรูป QR Code ลงในคลังรูปภาพเรียบร้อย');
     } catch (error) {
-      Alert.alert('บันทึก QR Code ไม่สำเร็จ', (error as Error).message || 'กรุณาลองใหม่อีกครั้ง');
+      showError((error as Error).message || 'บันทึก QR Code ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง');
     } finally {
       setSavingQrCode(false);
     }
-  }, [paymentInfo?.paymentMethod?.qrCodeImageUrl, savingQrCode]);
+  }, [paymentInfo?.paymentMethod?.qrCodeImageUrl, savingQrCode, showError, showSuccess]);
 
   const renderCartBooking = useCallback(({item}: {item: CartBooking}) => (
     <CartBookingCard
@@ -376,14 +372,12 @@ function CartScreen({
         </Pressable>
       ) : null}
 
-      {message ? <Text style={[styles.messageText, {color: palette.danger}]}>{message}</Text> : null}
     </>
   ), [
     allSelected,
     bookings.length,
     handleRefresh,
     loading,
-    message,
     palette,
     proceedToCheckout,
     selectedCount,
@@ -431,7 +425,6 @@ function CartScreen({
           </Pressable>
         </View>
 
-        {message ? <Text style={[styles.messageText, {color: palette.danger}]}>{message}</Text> : null}
         <CheckoutSummary
           bookings={selectedBookings}
           totalAmount={selectedTotal}
@@ -862,12 +855,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     ...shadow,
-  },
-  messageText: {
-    marginBottom: 12,
-    color: colors.danger,
-    fontSize: 13,
-    fontWeight: '800',
   },
   selectionBar: {
     marginBottom: 12,
