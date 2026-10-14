@@ -1,3 +1,31 @@
+diff --git a/node_modules/react-native/scripts/react_native_pods_utils/script_phases.rb b/node_modules/react-native/scripts/react_native_pods_utils/script_phases.rb
+--- a/node_modules/react-native/scripts/react_native_pods_utils/script_phases.rb
++++ b/node_modules/react-native/scripts/react_native_pods_utils/script_phases.rb
+@@ -45,4 +45,4 @@
+         SCRIPT_PHASES_SCRIPT="$RCT_SCRIPT_RN_DIR/scripts/react_native_pods_utils/script_phases.sh"
+         WITH_ENVIRONMENT="$RCT_SCRIPT_RN_DIR/scripts/xcode/with-environment.sh"
+-        /bin/sh -c "$WITH_ENVIRONMENT $SCRIPT_PHASES_SCRIPT"
++        /bin/bash "$WITH_ENVIRONMENT" "$SCRIPT_PHASES_SCRIPT"
+         EOS
+diff --git a/node_modules/react-native/scripts/xcode/with-environment.sh b/node_modules/react-native/scripts/xcode/with-environment.sh
+--- a/node_modules/react-native/scripts/xcode/with-environment.sh
++++ b/node_modules/react-native/scripts/xcode/with-environment.sh
+@@ -43,4 +43,4 @@
+ # Execute argument, if present
+ if [ -n "$1" ]; then
+-  $1
++  "$@"
+ fi
+diff --git a/node_modules/react-native/scripts/react-native-xcode.sh b/node_modules/react-native/scripts/react-native-xcode.sh
+--- a/node_modules/react-native/scripts/react-native-xcode.sh
++++ b/node_modules/react-native/scripts/react-native-xcode.sh
+@@ -149,5 +149,5 @@
+   EXTRA_ARGS+=("--config-cmd" "$CONFIG_CMD")
+ else
+-  EXTRA_ARGS+=("--config-cmd" "$NODE_BINARY $NODE_ARGS $REACT_NATIVE_DIR/cli.js config")
++  EXTRA_ARGS+=("--config-cmd" "\"$NODE_BINARY\" $NODE_ARGS \"$REACT_NATIVE_DIR/cli.js\" config")
+ fi
+ 
 diff --git a/node_modules/react-native/sdks/hermes-engine/utils/replace_hermes_version.js b/node_modules/react-native/sdks/hermes-engine/utils/replace_hermes_version.js
 --- a/node_modules/react-native/sdks/hermes-engine/utils/replace_hermes_version.js
 +++ b/node_modules/react-native/sdks/hermes-engine/utils/replace_hermes_version.js
