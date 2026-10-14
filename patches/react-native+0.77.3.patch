@@ -1,0 +1,35 @@
+diff --git a/node_modules/react-native/sdks/hermes-engine/utils/replace_hermes_version.js b/node_modules/react-native/sdks/hermes-engine/utils/replace_hermes_version.js
+--- a/node_modules/react-native/sdks/hermes-engine/utils/replace_hermes_version.js
++++ b/node_modules/react-native/sdks/hermes-engine/utils/replace_hermes_version.js
+@@ -9,7 +9,7 @@
+ 
+ 'use strict';
+ 
+-const {execSync} = require('child_process');
++const {execFileSync} = require('child_process');
+ const fs = require('fs');
+ const yargs = require('yargs');
+ 
+@@ -28,6 +28,13 @@
+ }
+ 
+ function shouldReplaceHermesConfiguration(configuration) {
++  const deviceFramework =
++    'hermes-engine/destroot/Library/Frameworks/universal/hermes.xcframework/ios-arm64/hermes.framework/hermes';
++  if (!fs.existsSync(deviceFramework)) {
++    console.log('Hermes framework missing. Restoring requested configuration');
++    return true;
++  }
++
+   const fileExists = fs.existsSync(LAST_BUILD_FILENAME);
+ 
+   if (fileExists) {
+@@ -61,7 +68,7 @@ function replaceHermesConfiguration(configuration, version, podsRoot) {
+   fs.mkdirSync(finalLocation, {recursive: true});
+ 
+   console.log('Extracting the tarball');
+-  execSync(`tar -xf ${tarballURLPath} -C ${finalLocation}`);
++  execFileSync('tar', ['-xf', tarballURLPath, '-C', finalLocation]);
+ }
+ 
+ function updateLastBuildConfiguration(configuration) {
