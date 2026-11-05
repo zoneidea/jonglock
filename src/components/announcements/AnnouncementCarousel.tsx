@@ -1,6 +1,5 @@
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {AccessibilityInfo, AppState, Image, Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
-import LinearGradient from 'react-native-linear-gradient';
 import type {Announcement} from '../../services/announcements';
 import {colors} from '../../theme/colors';
 
@@ -41,11 +40,11 @@ export default function AnnouncementCarousel({items, onPress}: {items: Announcem
         <Pressable accessibilityRole="button" accessibilityLabel={`${item.marketName}: ${item.title}`} onPress={() => onPress(item)} style={styles.card}>
           {item.imageUrl ? <Image source={{uri: item.imageUrl}} style={StyleSheet.absoluteFillObject} resizeMode="cover" /> : null}
           <View style={styles.badge}><Text style={styles.badgeText}>แนะนำตลาด</Text></View>
-          <LinearGradient colors={['transparent', 'rgba(7, 24, 39, 0.94)']} style={styles.overlay}>
+          <View style={styles.overlay}>
             <Text style={styles.market}>{item.marketName}</Text>
             <Text style={styles.title} numberOfLines={2}>{item.title}</Text>
             <Text style={styles.description} numberOfLines={2}>{item.description}</Text>
-          </LinearGradient>
+          </View>
         </Pressable>
       </View>)}
     </ScrollView>
@@ -63,8 +62,8 @@ const styles = StyleSheet.create({
   wrapper: {width: '100%'}, card: {height: 220, borderRadius: 24, overflow: 'hidden', backgroundColor: colors.navy},
   badge: {position: 'absolute', top: 14, right: 14, borderRadius: 12, backgroundColor: '#ffffffeb', paddingVertical: 5, paddingHorizontal: 10},
   badgeText: {fontSize: 11, fontWeight: '700', color: colors.tealDark},
-  overlay: {position: 'absolute', bottom: 0, left: 0, right: 0, padding: 18, paddingTop: 36},
-  market: {color: '#dff8f4', fontSize: 12, fontWeight: '800'}, title: {marginTop: 4, color: colors.white, fontSize: 22, lineHeight: 28, fontWeight: '900'},
+  overlay: {position: 'absolute', bottom: 0, left: 0, right: 0, padding: 16, backgroundColor: 'rgba(7,24,39,0.85)'},
+  market: {color: '#dff8f4', fontSize: 12, fontWeight: '800'}, title: {marginTop: 4, color: colors.white, fontSize: 20, lineHeight: 26, fontWeight: '900'},
   description: {marginTop: 6, color: '#dce7ee', fontSize: 13, lineHeight: 19},
   controls: {flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, paddingHorizontal: 4},
   dots: {flexDirection: 'row', gap: 8}, dot: {width: 8, height: 8, borderRadius: 4, backgroundColor: '#c6d7da'}, dotActive: {width: 22, backgroundColor: colors.teal},
