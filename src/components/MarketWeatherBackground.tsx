@@ -1,5 +1,6 @@
 import React, {useEffect, useRef, useState} from 'react';
-import {AccessibilityInfo, Animated, AppState, Easing, Linking, Pressable, StyleSheet, View} from 'react-native';
+import {AccessibilityInfo, Animated, AppState, Easing, Linking, Pressable, StatusBar, StyleSheet, View} from 'react-native';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import {Text} from './AppText';
@@ -31,6 +32,7 @@ export function useMarketWeather(latitude?: number | null, longitude?: number | 
 }
 
 export default function MarketWeatherBackground({weather}: {weather: MarketWeather | null}) {
+  const insets = useSafeAreaInsets();
   const phase = useRef(new Animated.Value(0)).current;
   const [reduceMotion, setReduceMotion] = useState(true);
   const [active, setActive] = useState(AppState.currentState === 'active');
@@ -55,7 +57,9 @@ export default function MarketWeatherBackground({weather}: {weather: MarketWeath
   if (!weather) { return null; }
   const rain = scene === 'rain';
   const cloudy = rain || scene === 'cloudy';
-  return <View style={StyleSheet.absoluteFill} pointerEvents="none" importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
+  // Extend only the decorative layer behind the status bar; keep content in its safe area.
+  return <View style={[StyleSheet.absoluteFill, {top: -insets.top}]} pointerEvents="none" importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
+    <StatusBar translucent backgroundColor="transparent" barStyle={scene === 'night' || rain ? 'light-content' : 'dark-content'} />
     <LinearGradient colors={palettes[weather.scene]} style={StyleSheet.absoluteFill} />
     {cloudy ? <View style={styles.clouds}>
       {[0, 1, 2].map((i) => <Animated.View key={i} style={[styles.cloud, {top: i * 46, left: `${i * 25 - 8}%`}, rain ? styles.darkCloud : styles.lightCloud, {
