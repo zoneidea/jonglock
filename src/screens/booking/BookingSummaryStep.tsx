@@ -166,11 +166,13 @@ function BookingSummaryStep({
   }, [isDraft, dialogVisible, draftCountdown, onContinueBooking]);
 
   const updateQuantity = useCallback((accessoryId: number, nextQuantity: number) => {
+    const stock = accessories.find(item => item.id === accessoryId)?.stockQuantity || 0;
+    const maximum = stock > 0 ? Math.min(stock, 99) : 99;
     setQuantities((current) => ({
       ...current,
-      [accessoryId]: Math.max(0, Math.min(99, nextQuantity)),
+      [accessoryId]: Math.max(0, Math.min(maximum, nextQuantity)),
     }));
-  }, []);
+  }, [accessories]);
 
   const applyCoupon = useCallback(() => {
     const code = couponInput.trim().toUpperCase();
@@ -391,14 +393,14 @@ function AccessoryCard({
       )}
       <View style={styles.accessoryCopy}>
         <Text style={styles.accessoryName}>{accessory.name}</Text>
-        <Text style={styles.accessoryPrice}>{`${formatMoney(accessory.price)} บาท/วัน`}</Text>
+        <Text style={styles.accessoryPrice}>{`${formatMoney(accessory.price)} บาท/วัน${accessory.stockQuantity > 0 ? ` • สูงสุด ${accessory.stockQuantity} ชิ้น` : ''}`}</Text>
       </View>
       <View style={styles.stepper}>
         <Pressable onPress={onDecrease} style={[styles.stepperButton, quantity === 0 && styles.stepperButtonDisabled]}>
           <MaterialCommunityIcons name="minus" size={16} color={quantity === 0 ? '#9fafbf' : colors.ink} />
         </Pressable>
         <Text style={styles.stepperValue}>{quantity}</Text>
-        <Pressable onPress={onIncrease} style={styles.stepperButton}>
+        <Pressable onPress={onIncrease} disabled={quantity >= (accessory.stockQuantity > 0 ? Math.min(99, accessory.stockQuantity) : 99)} style={[styles.stepperButton, quantity >= (accessory.stockQuantity > 0 ? Math.min(99, accessory.stockQuantity) : 99) && styles.stepperButtonDisabled]}>
           <MaterialCommunityIcons name="plus" size={16} color={colors.ink} />
         </Pressable>
       </View>

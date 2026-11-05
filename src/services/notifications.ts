@@ -1,6 +1,7 @@
+import {notifyPaymentUpdate} from './paymentUpdates';
 import messaging from '@react-native-firebase/messaging';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {PermissionsAndroid, Platform} from 'react-native';
+import {Alert, PermissionsAndroid, Platform} from 'react-native';
 
 import {API_BASE_URL} from '../config/api';
 import type {MobileUser} from '../types/user';
@@ -299,9 +300,21 @@ export async function unregisterPushDeviceToken() {
   await clearPushRegistrationContext();
 }
 
+const shownPaymentNotifications = new Set<string>();
+
 export function subscribeToForegroundPushMessages(onMessage: (message: PushNotificationMessage) => void) {
   return messaging().onMessage(async (remoteMessage) => {
-    onMessage(mapRemoteMessage(remoteMessage));
+    const message = mapRemoteMessage(remoteMessage);
+    if (message.data.type === 'payment_status') {
+      notifyPaymentUpdate();
+      const key = message.data.notificationId || `${message.data.attemptId}:${message.data.paymentStatus}`;
+      if (shownPaymentNotifications.has(key)) {return;}
+      shownPaymentNotifications.add(key);
+      if (shownPaymentNotifications.size > 200) {shownPaymentNotifications.delete(shownPaymentNotifications.values().next().value as string);}
+      Alert.alert(message.title || 'สถานะการชำระเงิน', message.body);
+      return;
+    }
+    onMessage(message);
   });
 }
 

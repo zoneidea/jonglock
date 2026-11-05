@@ -230,6 +230,7 @@ export type BookingCancelResult = {
 };
 
 export type BookingPaymentInfo = {
+  paymentMode?: 'legacy' | 'manual' | 'gateway';
   bookingId: number;
   publicId: string;
   organizationId: number;

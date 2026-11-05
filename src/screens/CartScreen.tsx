@@ -1,6 +1,6 @@
 import {Text} from '../components/AppText';
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
-import {FlatList, Image, Modal, PermissionsAndroid, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, View} from 'react-native';
+import {AppState, FlatList, Image, Modal, PermissionsAndroid, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, View} from 'react-native';
 import {CameraRoll} from '@react-native-camera-roll/camera-roll';
 import RNFS from 'react-native-fs';
 import {launchImageLibrary} from 'react-native-image-picker';
@@ -22,6 +22,8 @@ import {
   uploadCartPaymentProof,
 } from '../services/markets';
 import {getReservepayConfig, type ReservepayConfig} from '../services/reservepay';
+import {subscribeToPaymentUpdates} from '../services/paymentUpdates';
+import {canModifyCartBooking} from '../utils/cartPaymentState';
 import {colors, shadow} from '../theme/colors';
 import {useTheme} from '../theme/theme';
 import type {MobileUser} from '../types/user';
@@ -93,7 +95,7 @@ function CartScreen({
   const [savingQrCode, setSavingQrCode] = useState(false);
   const [nowMs, setNowMs] = useState(() => Date.now());
 
-  const loadCart = useCallback(async () => {
+  const loadCart = useCallback(async (quiet = false) => {
     if (!user?.email) {
       setBookings([]);
       onCountChange?.(0);
@@ -101,7 +103,7 @@ function CartScreen({
       return;
     }
 
-    setLoading(true);
+    if (!quiet) {setLoading(true);}
     try {
       const loadedAtMs = Date.now();
       const nextBookings = (await getCartBookings({email: user.email, name: user.name})).filter(
@@ -109,11 +111,11 @@ function CartScreen({
       );
       setBookings(nextBookings);
       setSelectedBookingIds((current) =>
-        current.filter((bookingId) => nextBookings.some((booking) => booking.bookingId === bookingId)),
+        current.filter((bookingId) => nextBookings.some((booking) => booking.bookingId === bookingId && canModifyCartBooking(booking))),
       );
       onCountChange?.(nextBookings.length);
     } catch (error) {
-      showError((error as Error).message || 'ยังไม่สามารถโหลดตะกร้าได้');
+      if (!quiet) {showError((error as Error).message || 'ยังไม่สามารถโหลดตะกร้าได้');}
     } finally {
       setLoading(false);
     }
@@ -166,24 +168,35 @@ function CartScreen({
     }
   }, [loadCart]);
 
+  useEffect(() => {
+    const refresh = () => {loadCart(true);};
+    const unsubscribe = subscribeToPaymentUpdates(refresh);
+    const app = AppState.addEventListener('change', state => {if (state === 'active') {refresh();}});
+    const timer = setInterval(() => {
+      if (AppState.currentState === 'active' && bookings.some(booking => !canModifyCartBooking(booking))) {refresh();}
+    }, 5000);
+    return () => {unsubscribe(); app.remove(); clearInterval(timer);};
+  }, [bookings, loadCart]);
+
   const toggleBookingSelection = useCallback((bookingId: number) => {
+    if (!bookings.some(booking => booking.bookingId === bookingId && canModifyCartBooking(booking))) {return;}
     setSelectedBookingIds((current) =>
       current.includes(bookingId)
         ? current.filter((item) => item !== bookingId)
         : [...current, bookingId],
     );
-  }, []);
+  }, [bookings]);
 
   const toggleSelectAll = useCallback(() => {
     setSelectedBookingIds((current) =>
-      current.length === bookings.length ? [] : bookings.map((booking) => booking.bookingId),
+      current.length === bookings.filter(canModifyCartBooking).length ? [] : bookings.filter(canModifyCartBooking).map((booking) => booking.bookingId),
     );
   }, [bookings]);
 
-  const selectedCount = selectedBookingIds.length;
-  const allSelected = bookings.length > 0 && selectedCount === bookings.length;
+  const selectedCount = bookings.filter(booking => selectedBookingIds.includes(booking.bookingId) && canModifyCartBooking(booking)).length;
+  const allSelected = bookings.filter(canModifyCartBooking).length > 0 && selectedCount === bookings.filter(canModifyCartBooking).length;
   const selectedBookings = useMemo(
-    () => bookings.filter((booking) => selectedBookingIds.includes(booking.bookingId)),
+    () => bookings.filter((booking) => selectedBookingIds.includes(booking.bookingId) && canModifyCartBooking(booking)),
     [bookings, selectedBookingIds],
   );
   const selectedBookingSet = useMemo(() => new Set(selectedBookingIds), [selectedBookingIds]);
@@ -193,7 +206,7 @@ function CartScreen({
   );
 
   const handleCancelBooking = useCallback(async () => {
-    if (!cancelTarget || !user?.email) {
+    if (!cancelTarget || !user?.email || !canModifyCartBooking(cancelTarget)) {
       return;
     }
     setCancellingBookingId(cancelTarget.bookingId);
@@ -215,9 +228,9 @@ function CartScreen({
       return;
     }
     const organizationId = selectedBookings[0]?.organizationId;
-    const hasMixedOrganization = selectedBookings.some((booking) => booking.organizationId !== organizationId);
+    const hasMixedOrganization = selectedBookings.some((booking) => booking.organizationId !== organizationId || booking.marketId !== selectedBookings[0]?.marketId);
     if (hasMixedOrganization) {
-      showWarning('กรุณาเลือกรายการจากองค์กรเดียวกันเท่านั้น เพื่อให้ใช้บัญชีรับเงินเดียวกัน');
+      showWarning('กรุณาเลือกรายการจากตลาดเดียวกัน เพื่อให้ใช้ช่องทางและบัญชีรับเงินเดียวกัน');
       return;
     }
     setCheckoutMode(true);
@@ -232,9 +245,10 @@ function CartScreen({
       showWarning('กรุณาเลือกรายการที่ต้องการชำระเงิน');
       return;
     }
+    if (targetBookings.some(booking => !canModifyCartBooking(booking))) {return;}
     const organizationId = firstBooking.organizationId;
-    if (targetBookings.some((booking) => booking.organizationId !== organizationId)) {
-      showWarning('กรุณาเลือกรายการจากองค์กรเดียวกันเท่านั้น เพื่อให้ใช้บัญชีรับเงินเดียวกัน');
+    if (targetBookings.some((booking) => booking.organizationId !== organizationId || booking.marketId !== firstBooking.marketId)) {
+      showWarning('กรุณาเลือกรายการจากตลาดเดียวกัน เพื่อให้ใช้ช่องทางและบัญชีรับเงินเดียวกัน');
       return;
     }
     setPaymentBookings(targetBookings);
@@ -262,7 +276,8 @@ function CartScreen({
     setPaymentBookings([]);
     setPaymentInfo(null);
     setProofImage(null);
-  }, [uploadingProof]);
+    loadCart(true);
+  }, [loadCart, uploadingProof]);
 
   const chooseProofImage = useCallback(async () => {
     const result = await launchImageLibrary({
@@ -523,9 +538,9 @@ const CartBookingCard = React.memo(function CartBookingCard({
   const isAuditCharge = booking.cartItemType === 'audit_check';
   const countdownText = formatBookingCountdown(booking, nowMs);
   return (
-    <Pressable onPress={onToggleSelect} style={[styles.bookingCard, selected && styles.bookingCardSelected]}>
+    <Pressable onPress={onToggleSelect} disabled={isProcessing} accessibilityState={{disabled: isProcessing}} style={[styles.bookingCard, selected && styles.bookingCardSelected]}>
       <View style={styles.cardTopRow}>
-        <Pressable onPress={onToggleSelect} style={styles.checkboxWrap}>
+        <Pressable onPress={onToggleSelect} disabled={isProcessing} style={styles.checkboxWrap}>
           <View style={[styles.checkbox, selected && styles.checkboxActive]}>
             {selected ? (
               <MaterialCommunityIcons name="check" size={14} color={colors.white} />
@@ -552,7 +567,7 @@ const CartBookingCard = React.memo(function CartBookingCard({
               {isProcessing ? 'กำลังตรวจสอบการชำระ' : 'รอชำระ'}
             </Text>
           </View>
-          {!isAuditCharge ? (
+          {!isAuditCharge && !isProcessing ? (
             <Pressable onPress={onCancel} disabled={cancelling} style={[styles.cancelButton, cancelling && styles.cancelButtonDisabled]}>
               <MaterialCommunityIcons name="trash-can-outline" size={16} color={colors.danger} />
             </Pressable>
@@ -678,7 +693,7 @@ function PaymentProofModal({
   onGatewayPaid: () => void;
 }) {
   const method = paymentInfo?.paymentMethod;
-  const hasPaymentMethod = Boolean(method?.qrCodeImageUrl || method?.promptpayId || method?.bankAccountNo);
+  const hasPaymentMethod = paymentInfo?.paymentMode !== 'gateway' && Boolean(method?.qrCodeImageUrl || method?.promptpayId || method?.bankAccountNo);
   const firstBooking = bookings[0] || null;
 
   // ReservePay channels enabled for this app installation (fetched via our backend).
@@ -687,7 +702,7 @@ function PaymentProofModal({
   const [gatewayError, setGatewayError] = useState('');
   const [selectedMethod, setSelectedMethod] = useState('');
   const [gatewayBusy, setGatewayBusy] = useState(false);
-  const gatewayGroups = useMemo(() => groupPaymentMethods(gatewayConfig?.methods || []), [gatewayConfig]);
+  const gatewayGroups = useMemo(() => groupPaymentMethods(paymentInfo?.paymentMode === 'manual' ? [] : gatewayConfig?.methods || []), [gatewayConfig, paymentInfo?.paymentMode]);
   const gatewayOptions = useMemo(() => [...gatewayGroups.primary, ...gatewayGroups.banking], [gatewayGroups]);
   const selectedGatewayOption = gatewayOptions.find((option) => option.name === selectedMethod) || null;
   const hasAuditItems = bookings.some((booking) => booking.cartItemType === 'audit_check');

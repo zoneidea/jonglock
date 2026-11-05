@@ -1,0 +1,22 @@
+import {Alert} from 'react-native';
+import messaging, {type FirebaseMessagingTypes} from '@react-native-firebase/messaging';
+import {subscribeToForegroundPushMessages} from '../src/services/notifications';
+import {subscribeToPaymentUpdates} from '../src/services/paymentUpdates';
+test('foreground settlement refreshes the cart and shows one Alert per notification', async () => {
+  let listener!: (message: FirebaseMessagingTypes.RemoteMessage) => Promise<void>;
+  const register = jest.fn(callback => {listener = callback; return jest.fn();});
+  jest.mocked(messaging).mockReturnValue({onMessage: register} as unknown as ReturnType<typeof messaging>);
+  const alert = jest.spyOn(Alert, 'alert');
+  const refresh = jest.fn();
+  const unsubscribe = subscribeToPaymentUpdates(refresh);
+  const otherNotification = jest.fn();
+  const stop = subscribeToForegroundPushMessages(otherNotification);
+  const payment = {fcmOptions: {}, notification: {title: 'ชำระเงินสำเร็จ', body: 'ได้รับเงินแล้ว'}, data: {type: 'payment_status', notificationId: '101', attemptId: 'RPA1', paymentStatus: 'paid'}};
+  await listener(payment); await listener(payment);
+  expect(refresh).toHaveBeenCalledTimes(2);
+  expect(alert).toHaveBeenCalledTimes(1);
+  expect(otherNotification).not.toHaveBeenCalled();
+  await listener({fcmOptions: {}, notification: {title: 'ข่าวตลาด'}});
+  expect(otherNotification).toHaveBeenCalledTimes(1);
+  stop(); unsubscribe(); alert.mockRestore();
+});
