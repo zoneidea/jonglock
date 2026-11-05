@@ -27,7 +27,7 @@ test('advances after five seconds, respects pause and opens the selected market'
   expect(dot(1).props.accessibilityState.selected).toBe(true);
   await act(async () => {await jest.advanceTimersByTimeAsync(5000);});
   expect(dot(2).props.accessibilityState.selected).toBe(true);
-  const pause = tree.root.findAll(node => node.props.accessibilityLabel === 'พักสไลด์' && node.props.onPress)[0];
+  const pause = tree.root.findAll(node => node.props.accessibilityLabel === 'หยุดเลื่อนแบนเนอร์ชั่วคราว' && node.props.onPress)[0];
   act(() => pause.props.onPress());
   await act(async () => {await jest.advanceTimersByTimeAsync(15000);});
   expect(dot(2).props.accessibilityState.selected).toBe(true);

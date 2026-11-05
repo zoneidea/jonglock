@@ -167,4 +167,6 @@ Still planned:
 
 Channels are discovered separately for iOS and Android. Checkout uses `/mobile/auth/google` (existing Google ID token, no extra email verification screen), then authenticated `/mobile/payments/reservepay/{active,initiate,status}`. The AsyncStorage email identifies the current user in the UI; backend authorization uses verified Google claims. Email-only local test sessions must sign in through Google before using the gateway.
 
+When the restored app profile has no active native Google user, checkout restores the saved Google credential with `signInSilently` before exchanging a token. A rejected identity gets one silent refresh; an expired customer JWT is renewed while retaining the same attempt, initiation body and idempotency key. Network/server failures do not trigger logout or interactive sign-in. Only a missing saved Google credential requires the user to sign in again.
+
 Card details are collected by ReservePay-hosted fields in a WebView. Only single-use tokens enter the app. QR, redirect, 3DS, backend-confirmed settlement and interrupted-flow recovery share the same durable payment attempt. Only backend `paid` shows success; local timeouts do not expire financial transactions. See backend `docs/RESERVEPAY_INTEGRATION_CONTRACT.md` for the full payload/response contract and migration 054 for channel reports.

@@ -35,9 +35,18 @@ export function useReservepayCheckout() {
     const group = `${args.user.email.trim().toLowerCase()}:${args.organizationId}:${[...args.bookingIds].sort((a, b) => a - b).join(',')}`;
     setState({phase: 'starting'});
     try {
-      const token = await paymentAccessToken(args.organizationId, args.user.email);
+      let token = await paymentAccessToken(args.organizationId, args.user.email);
+      const authorized = async <T,>(operation: (credential: string) => Promise<T>): Promise<T> => {
+        try {return await operation(token);}
+        catch (error) {
+          if (cancelled() || !(error instanceof ReservepayError) || !['UNAUTHORIZED', 'HTTP_401'].includes(error.code)) {throw error;}
+          token = await paymentAccessToken(args.organizationId, args.user.email);
+          if (cancelled()) {throw error;}
+          return operation(token);
+        }
+      };
       if (cancelled()) {return;}
-      let attempt = (await getActiveReservepayAttempt(token, args.bookingIds)).attempt;
+      let attempt = (await authorized(credential => getActiveReservepayAttempt(credential, args.bookingIds))).attempt;
       if (cancelled()) {return;}
       if (!attempt) {
         let request = pendingRequests.get(group);
@@ -52,9 +61,10 @@ export function useReservepayCheckout() {
           request = {body: {bookingIds: args.bookingIds, paymentSessionId, amount}, key: `JL-${Date.now()}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`};
           pendingRequests.set(group, request);
         }
+        const preparedRequest = request;
         // An HTTP timeout may follow a committed attempt. Retry only this exact body and key.
         for (let retry = 0; retry < 3 && !cancelled(); retry += 1) {
-          try {attempt = await initiateReservepayPayment(token, request.body, request.key); break;}
+          try {attempt = await authorized(credential => initiateReservepayPayment(credential, preparedRequest.body, preparedRequest.key)); break;}
           catch (error) {
             if (error instanceof ReservepayError && !error.code.startsWith('HTTP_5')) {throw error;}
             if (retry === 2) {throw new Error('ยังยืนยันผลเริ่มชำระไม่ได้ กรุณาตรวจสอบรายการเดิมอีกครั้ง');}
@@ -68,7 +78,8 @@ export function useReservepayCheckout() {
       while (!cancelled() && Date.now() < deadline) {
         if (AppState.currentState && AppState.currentState !== 'active') {await sleep(1000); continue;}
         try {
-          attempt = await getReservepayPaymentStatus(token, attempt.attemptId);
+          const attemptId: string = attempt.attemptId;
+          attempt = await authorized(credential => getReservepayPaymentStatus(credential, attemptId));
           if (cancelled()) {return;}
           if (finished(attempt)) {break;}
           if (!actionHandled && attempt.paymentId) {

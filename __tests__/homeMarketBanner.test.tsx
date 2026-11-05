@@ -1,0 +1,26 @@
+import React from 'react';
+import renderer, {act} from 'react-test-renderer';
+import {Linking, Text} from 'react-native';
+import HomeScreen from '../src/screens/HomeScreen';
+import AnnouncementCarousel from '../src/components/announcements/AnnouncementCarousel';
+import {getAnnouncements, type Announcement} from '../src/services/announcements';
+jest.mock('../src/theme/theme', () => ({useTheme: () => ({palette: {text: '#07111f', muted: '#607086', background: '#f7fbfb', surface: '#fff', border: '#dbe7ef', accent: '#14a997', accentDark: '#087b70'}})}));
+jest.mock('../src/components/announcements/AnnouncementCarousel', () => jest.fn(() => null));
+jest.mock('../src/services/announcements', () => ({getAnnouncements: jest.fn()}));
+const banner = {id: 8, organizationId: 34, marketId: 33, marketName: 'ตลาดกล้วย', type: 'banner', title: 'เปิดร้านที่ตลาดกล้วย', description: '', imageUrl: '', createdAt: ''} as Announcement;
+test('home greets the user without provider badges and the banner opens its scoped market details', async () => {
+  jest.mocked(getAnnouncements).mockImplementation(async query => query?.type === 'banner' ? [banner] : []);
+  const open = jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined);
+  let tree!: renderer.ReactTestRenderer;
+  await act(async () => {tree = renderer.create(<HomeScreen user={{name: 'ผู้ใช้ตัวอย่าง', email: 'customer@example.test', provider: 'gmail'}} />);});
+  const labels = tree.root.findAllByType(Text).map(node => node.props.children);
+  expect(labels).toContain('สวัสดี');
+  expect(labels).toContain('ผู้ใช้ตัวอย่าง');
+  expect(labels).not.toContain('Gmail');
+  expect(labels).not.toContain('Guest');
+  expect(getAnnouncements).toHaveBeenCalledWith({type: 'news', limit: 20});
+  act(() => tree.root.findByType(AnnouncementCarousel).props.onPress(banner));
+  expect(open).toHaveBeenCalledWith('jonglock://market?organizationId=34&marketId=33');
+  act(() => tree.unmount());
+  open.mockRestore();
+});

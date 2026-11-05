@@ -1,5 +1,5 @@
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
-import {Alert, FlatList, RefreshControl, StyleSheet, Text, View} from 'react-native';
+import {Alert, FlatList, Linking, RefreshControl, StyleSheet, Text, View} from 'react-native';
 
 import ApiLoadingState from '../components/ApiLoadingState';
 import PromoCard from '../components/PromoCard';
@@ -66,29 +66,30 @@ function HomeScreen({user}: {user: MobileUser | null}) {
     />
   ), []);
 
-  const openAnnouncement = useCallback((announcement: Announcement) => {
-    setSelectedAnnouncement(announcement);
+  const openBannerMarket = useCallback((announcement: Announcement) => {
+    if (!announcement.marketId || !announcement.organizationId) {
+      setSelectedAnnouncement(announcement);
+      return;
+    }
+    // Reuse the app's existing market deep-link flow and market detail screen.
+    const url = `jonglock://market?organizationId=${encodeURIComponent(announcement.organizationId)}&marketId=${encodeURIComponent(announcement.marketId)}`;
+    Linking.openURL(url).catch(() => Alert.alert('ข้อมูลตลาด', 'เปิดรายละเอียดตลาดไม่สำเร็จ กรุณาลองใหม่', [{text: 'ตกลง'}]));
   }, []);
 
   const renderHeader = useCallback(() => (
     <>
       <View style={styles.homeTopbar}>
-        <View>
-          <Text style={[styles.homeHello, {color: palette.muted}]}>สวัสดี</Text>
-          <Text style={[styles.homeName, {color: palette.text}]}>{user?.name || 'ผู้ใช้งาน'}</Text>
-        </View>
-        <View style={[styles.userChip, {backgroundColor: palette.surface, borderColor: palette.border}]}>
-          <Text style={[styles.userChipText, {color: palette.accentDark}]}>{user ? 'Gmail' : 'Guest'}</Text>
-        </View>
+        <Text style={[styles.homeHello, {color: palette.text}]}>สวัสดี</Text>
+        <Text style={[styles.homeName, {color: palette.text}]} numberOfLines={1}>{user?.name || 'ผู้ใช้งาน'}</Text>
       </View>
 
       {loading && banners.length === 0 ? (
         <ApiLoadingState label="กำลังโหลดแบนเนอร์" style={styles.bannerLoadingCard} />
-      ) : <AnnouncementCarousel items={banners} onPress={openAnnouncement} />}
+      ) : <AnnouncementCarousel items={banners} onPress={openBannerMarket} />}
 
       <Text style={[styles.sectionTitle, {color: palette.text}]}>ข่าวสารและโปรโมชั่น</Text>
     </>
-  ), [banners, loading, openAnnouncement, palette, user]);
+  ), [banners, loading, openBannerMarket, palette, user]);
 
   const renderEmptyFeed = useCallback(() => (
     loading ? (
@@ -169,31 +170,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 16,
     marginBottom: 18,
   },
   homeHello: {
     color: colors.muted,
-    fontSize: 13,
+    fontSize: 15,
+    flexShrink: 0,
     fontWeight: '800',
   },
   homeName: {
-    marginTop: 4,
+    flex: 1,
+    textAlign: 'right',
     color: colors.ink,
-    fontSize: 25,
-    fontWeight: '900',
-  },
-  userChip: {
-    height: 38,
-    paddingHorizontal: 14,
-    borderRadius: 14,
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.border,
-    justifyContent: 'center',
-  },
-  userChipText: {
-    color: colors.tealDark,
-    fontSize: 12,
+    fontSize: 15,
     fontWeight: '900',
   },
   bannerLoadingCard: {width: '100%', height: 220},

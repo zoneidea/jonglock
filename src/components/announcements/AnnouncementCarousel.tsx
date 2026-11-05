@@ -1,5 +1,6 @@
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {AccessibilityInfo, AppState, Image, Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import type {Announcement} from '../../services/announcements';
 import {colors} from '../../theme/colors';
 
@@ -52,8 +53,8 @@ export default function AnnouncementCarousel({items, onPress}: {items: Announcem
       <View style={styles.dots}>{items.map((item, position) => <Pressable key={item.id}
         accessibilityRole="button" accessibilityLabel={`แบนเนอร์ ${position + 1} จาก ${items.length}`} accessibilityState={{selected: index === position}}
         hitSlop={8} onPress={() => goTo(position)} style={[styles.dot, index === position && styles.dotActive]} />)}</View>
-      {!reduceMotion ? <Pressable accessibilityRole="button" accessibilityLabel={paused ? 'เล่นสไลด์' : 'พักสไลด์'} onPress={() => setPaused(value => !value)} hitSlop={8}>
-        <Text style={styles.pause}>{paused ? 'เล่นสไลด์' : 'พักสไลด์'}</Text>
+      {!reduceMotion ? <Pressable accessibilityRole="button" accessibilityLabel={paused ? 'เริ่มเลื่อนแบนเนอร์อัตโนมัติ' : 'หยุดเลื่อนแบนเนอร์ชั่วคราว'} onPress={() => setPaused(value => !value)} hitSlop={8}>
+        <MaterialCommunityIcons name={paused ? 'play-circle-outline' : 'pause-circle-outline'} size={22} color={colors.tealDark} />
       </Pressable> : null}
     </View> : null}
   </View>;
@@ -67,5 +68,4 @@ const styles = StyleSheet.create({
   description: {marginTop: 6, color: '#dce7ee', fontSize: 13, lineHeight: 19},
   controls: {flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, paddingHorizontal: 4},
   dots: {flexDirection: 'row', gap: 8}, dot: {width: 8, height: 8, borderRadius: 4, backgroundColor: '#c6d7da'}, dotActive: {width: 22, backgroundColor: colors.teal},
-  pause: {fontSize: 12, fontWeight: '700', color: colors.tealDark},
 });
