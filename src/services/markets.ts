@@ -12,6 +12,8 @@ export type Market = {
   id: number;
   organizationId: number;
   organizationCode?: string;
+  latitude?: number | null;
+  longitude?: number | null;
   code: string;
   name: string;
   description: string;

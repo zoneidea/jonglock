@@ -20,6 +20,7 @@ import {Camera, useCameraDevice, useCameraPermission, useCodeScanner} from 'reac
 import type {AppDeepLink} from '../../App';
 import AppDialog from '../components/AppDialog';
 import ApiLoadingState from '../components/ApiLoadingState';
+import MarketWeatherBackground, {MarketWeatherSummary, useMarketWeather} from '../components/MarketWeatherBackground';
 import {useNotice} from '../notice/NoticeProvider';
 import {
   evaluateMarketOpenStatus,
@@ -580,6 +581,7 @@ function MarketDetailScreen({
   previewImage: string;
   onClosePreview: () => void;
 }) {
+  const weather = useMarketWeather(market.latitude, market.longitude);
   const gallery = market.galleryImages.length ? market.galleryImages : market.mainImageUrl ? [market.mainImageUrl] : [];
   const openStatus = evaluateMarketOpenStatus(market);
   const [termsVisible, setTermsVisible] = useState(false);
@@ -660,6 +662,7 @@ function MarketDetailScreen({
 
   return (
     <View style={styles.flex}>
+      <MarketWeatherBackground weather={weather} />
       <ScrollView
         contentContainerStyle={styles.screenScroll}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.teal} />}>
@@ -682,6 +685,7 @@ function MarketDetailScreen({
           </LinearGradient>
         </View>
 
+        <MarketWeatherSummary weather={weather} />
         <Text style={styles.detailSectionTitle}>แกลอรี่ตลาด</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.galleryTrack}>
           {gallery.map((imageUrl) => (

@@ -72,3 +72,6 @@ yarn-error.log
 !.yarn/releases
 !.yarn/sdks
 !.yarn/versions
+
+# Local WeatherAPI credential (included in app bundle; never commit)
+src/config/weather.local.ts

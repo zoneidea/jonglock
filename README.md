@@ -188,3 +188,11 @@ Organization payment settings are shared by all booking markets in one organizat
 Payment-info returns `paymentSettingsScope: organization` and `paymentMode`; the
 cart follows this server policy and permits mixed-market checkout within the same
 organization. Processing-payment locks remain enforced.
+
+## Market weather
+
+Before starting Metro on a fresh checkout, copy `src/config/weather.example.ts`
+to `src/config/weather.local.ts` and set `WEATHER_API_KEY`. The local credential
+file is ignored by Git and must also be provided on build/test hosts. Market details
+call WeatherAPI directly using saved market coordinates, with a 15-minute per-device
+cache. See `docs/WEATHER.md` for behavior and rollout.
