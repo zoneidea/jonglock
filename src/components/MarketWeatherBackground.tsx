@@ -4,7 +4,7 @@ import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import {Text} from './AppText';
-import {getMarketWeather, type MarketWeather} from '../services/weather';
+import {getMarketWeather, weatherLabel, type MarketWeather} from '../services/weather';
 
 const palettes = {
   clear: ['#B9E6FA', '#EAF8FE', '#F6FBFC'], hot: ['#FBE3A3', '#FFF5D7', '#F6FBFC'],
@@ -77,15 +77,18 @@ export default function MarketWeatherBackground({weather}: {weather: MarketWeath
 
 export function MarketWeatherSummary({weather}: {weather: MarketWeather | null}) {
   if (!weather) { return null; }
-  const time = new Date(weather.updatedAt).toLocaleTimeString('th-TH', {hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Bangkok'});
   const stale = Date.now() - weather.fetchedAt >= 15 * 60 * 1000;
-  return <View style={styles.summary}>
-    <Text style={styles.temperature}>{Math.round(weather.temperature)}°C · {weather.description}</Text>
-    <Text style={styles.caption}>{stale ? 'ข้อมูลล่าสุดที่มี · ' : ''}อัปเดต {time} น.</Text>
-    <Pressable accessibilityRole="link" accessibilityLabel="ข้อมูลอากาศจาก WeatherAPI.com" onPress={() => { Linking.openURL('https://www.weatherapi.com/').catch(() => {}); }}>
-      <Text style={styles.credit}>Powered by WeatherAPI.com</Text>
-    </Pressable>
+  return <View style={styles.summary} pointerEvents="none" accessibilityLabel={`${weatherLabel(weather)} ${Math.round(weather.temperature)} องศาเซลเซียส${stale ? ' ข้อมูลล่าสุดที่มี' : ''}`} accessible>
+    <Text style={styles.temperature} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{Math.round(weather.temperature)}°C</Text>
+    <Text style={styles.condition} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{weatherLabel(weather)}</Text>
   </View>;
+}
+
+export function MarketWeatherCredit({weather}: {weather: MarketWeather | null}) {
+  if (!weather) { return null; }
+  return <Pressable accessibilityRole="link" accessibilityLabel="ข้อมูลอากาศจาก WeatherAPI.com" onPress={() => { Linking.openURL('https://www.weatherapi.com/').catch(() => {}); }}>
+    <Text style={styles.credit}>WeatherAPI.com</Text>
+  </Pressable>;
 }
 
 const styles = StyleSheet.create({
@@ -96,8 +99,8 @@ const styles = StyleSheet.create({
   sun: {position: 'absolute', top: 25, right: 24},
   rain: {position: 'absolute', top: 0, left: 0, right: 0, height: 700, opacity: 0.3},
   drop: {position: 'absolute', width: 2, height: 21, borderRadius: 2, backgroundColor: '#FFF', transform: [{rotate: '15deg'}]},
-  summary: {padding: 16, marginTop: 12, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.94)'},
-  temperature: {fontSize: 15, fontWeight: '600', color: '#102E43'},
-  caption: {fontSize: 12, color: '#536779', marginTop: 4},
-  credit: {fontSize: 11, color: '#297D86', textDecorationLine: 'underline', paddingVertical: 8},
+  summary: {position: 'absolute', left: 80, right: 80, top: 0, height: 42, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.9)'},
+  temperature: {fontSize: 14, fontWeight: '700', color: '#102E43'},
+  condition: {fontSize: 11, fontWeight: '500', color: '#102E43'},
+  credit: {fontSize: 10, color: '#297D86', textAlign: 'center', textDecorationLine: 'underline', paddingVertical: 8},
 });

@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {getMarketWeather, weatherScene} from '../src/services/weather';
+import {getMarketWeather, weatherLabel, weatherScene} from '../src/services/weather';
 
 jest.mock('../src/config/weather.local', () => ({WEATHER_API_KEY: 'test-key'}));
 
@@ -12,6 +12,14 @@ describe('market weather', () => {
     expect(weatherScene(1000, false, 25)).toBe('night');
     expect(weatherScene(1000, true, 35)).toBe('hot');
     expect(weatherScene(1003, true, 30)).toBe('clear');
+  });
+  test('uses short Thai labels for provider codes and existing English cache', () => {
+    const base = {temperature: 30, isDay: true, updatedAt: 0, fetchedAt: 0};
+    expect(weatherLabel({...base, scene: 'rain', description: 'Light rain shower', conditionCode: 1240})).toBe('ฝนตก');
+    expect(weatherLabel({...base, scene: 'rain', description: '', conditionCode: 1195})).toBe('ฝนตกหนัก');
+    expect(weatherLabel({...base, scene: 'rain', description: 'Heavy rain'})).toBe('ฝนตกหนัก');
+    expect(weatherLabel({...base, scene: 'cloudy', description: 'Overcast'})).toBe('เมฆมาก');
+    expect(weatherLabel({...base, scene: 'hot', description: 'Sunny'})).toBe('ร้อนจัด');
   });
   test('uses market coordinates directly, coalesces requests and caches', async () => {
     global.fetch = jest.fn().mockResolvedValue({ok: true, json: async () => ({current: {

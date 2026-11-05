@@ -5,6 +5,7 @@ export type WeatherScene = 'clear' | 'hot' | 'cloudy' | 'rain' | 'night';
 export type MarketWeather = {
   temperature: number;
   description: string;
+  conditionCode?: number;
   scene: WeatherScene;
   isDay: boolean;
   updatedAt: number;
@@ -22,6 +23,17 @@ export function weatherScene(code: number, isDay: boolean, temperature: number):
   if ([1006, 1009, 1030, 1135, 1147, 1066, 1114, 1117, 1210, 1213, 1216, 1219, 1222, 1225, 1237, 1255, 1258, 1261, 1264, 1279, 1282].includes(code)) { return 'cloudy'; }
   if (!isDay) { return 'night'; }
   return temperature >= 35 ? 'hot' : 'clear';
+}
+
+export function weatherLabel(weather: MarketWeather): string {
+  if (weather.scene === 'rain') {
+    const heavy = [1192, 1195, 1246, 1276].includes(weather.conditionCode || 0)
+      || /heavy|torrential|ฝน.*หนัก/i.test(weather.description);
+    return heavy ? 'ฝนตกหนัก' : 'ฝนตก';
+  }
+  if (weather.scene === 'hot') { return 'ร้อนจัด'; }
+  if (weather.scene === 'cloudy') { return 'เมฆมาก'; }
+  return weather.scene === 'night' ? 'ท้องฟ้าโปร่ง' : 'แจ่มใส';
 }
 
 function validWeather(value: MarketWeather | null): value is MarketWeather {
@@ -65,7 +77,7 @@ export async function getMarketWeather(latitude?: number | null, longitude?: num
         || !Number.isFinite(current.condition?.code) || typeof current.condition?.text !== 'string'
         || ![0, 1].includes(current.is_day)) { throw new Error('Invalid weather response'); }
       const weather: MarketWeather = {
-        temperature: current.temp_c, description: current.condition.text,
+        temperature: current.temp_c, description: current.condition.text, conditionCode: current.condition.code,
         scene: weatherScene(current.condition.code, current.is_day === 1, current.temp_c),
         isDay: current.is_day === 1, updatedAt: current.last_updated_epoch * 1000, fetchedAt: Date.now(),
       };

@@ -20,7 +20,7 @@ import {Camera, useCameraDevice, useCameraPermission, useCodeScanner} from 'reac
 import type {AppDeepLink} from '../../App';
 import AppDialog from '../components/AppDialog';
 import ApiLoadingState from '../components/ApiLoadingState';
-import MarketWeatherBackground, {MarketWeatherSummary, useMarketWeather} from '../components/MarketWeatherBackground';
+import MarketWeatherBackground, {MarketWeatherCredit, MarketWeatherSummary, useMarketWeather} from '../components/MarketWeatherBackground';
 import {useNotice} from '../notice/NoticeProvider';
 import {
   evaluateMarketOpenStatus,
@@ -667,6 +667,7 @@ function MarketDetailScreen({
         contentContainerStyle={styles.screenScroll}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.teal} />}>
         <View style={styles.detailHeaderRow}>
+          <MarketWeatherSummary weather={weather} />
           <Pressable onPress={onBack} style={styles.backButton}>
             <MaterialCommunityIcons name="chevron-left" size={24} color={colors.ink} />
             <Text style={styles.backText}>กลับ</Text>
@@ -685,7 +686,6 @@ function MarketDetailScreen({
           </LinearGradient>
         </View>
 
-        <MarketWeatherSummary weather={weather} />
         <Text style={styles.detailSectionTitle}>แกลอรี่ตลาด</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.galleryTrack}>
           {gallery.map((imageUrl) => (
@@ -709,6 +709,7 @@ function MarketDetailScreen({
           <InfoRow icon="chat-outline" label="LINE ID" value={market.lineId || '-'} />
         </View>
 
+        <MarketWeatherCredit weather={weather} />
         <Pressable onPress={handleNextPress} style={styles.nextButton}>
           <Text style={styles.nextButtonText}>ถัดไป</Text>
           <MaterialCommunityIcons name="chevron-right" size={20} color={colors.white} />
