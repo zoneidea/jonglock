@@ -99,7 +99,7 @@ const styles = StyleSheet.create({
   sun: {position: 'absolute', top: 25, right: 24},
   rain: {position: 'absolute', top: 0, left: 0, right: 0, height: 700, opacity: 0.3},
   drop: {position: 'absolute', width: 2, height: 21, borderRadius: 2, backgroundColor: '#FFF', transform: [{rotate: '15deg'}]},
-  summary: {position: 'absolute', left: 80, right: 80, top: 0, height: 42, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.9)'},
+  summary: {position: 'absolute', left: 80, right: 80, top: 0, height: 42, alignItems: 'center', justifyContent: 'center'},
   temperature: {fontSize: 14, fontWeight: '700', color: '#102E43'},
   condition: {fontSize: 11, fontWeight: '500', color: '#102E43'},
   credit: {fontSize: 10, color: '#297D86', textAlign: 'center', textDecorationLine: 'underline', paddingVertical: 8},
