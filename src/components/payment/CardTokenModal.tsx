@@ -1,8 +1,10 @@
 import React, {useEffect, useRef, useState} from 'react';
 import {ActivityIndicator, Alert, Modal, Platform, Pressable, StyleSheet, Text, View} from 'react-native';
 import {WebView} from 'react-native-webview';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import {API_BASE_URL} from '../../config/api';
 import {paymentActivity} from '../../services/paymentActivity';
+import {colors} from '../../theme/colors';
 
 export default function CardTokenModal({visible, onToken, onCancel}: {visible: boolean; onToken: (token: string) => void; onCancel: () => void}) {
   const url = `${API_BASE_URL}/public/payments/reservepay/card-form?platform=${Platform.OS === 'ios' ? 'IOS' : 'ANDROID'}`;
@@ -20,7 +22,13 @@ export default function CardTokenModal({visible, onToken, onCancel}: {visible: b
   }, [visible, presented, loading]);
   return <Modal visible={visible} animationType="slide" onRequestClose={onCancel} onShow={() => setPresented(true)}>
     <View style={styles.frame}>
-      <Pressable accessibilityRole="button" onPress={onCancel} style={styles.close}><Text>กลับไปเลือกช่องทาง</Text></Pressable>
+      <View style={styles.header}>
+        <Pressable accessibilityRole="button" onPress={onCancel} style={styles.close}>
+          <MaterialCommunityIcons name="chevron-left" size={23} color={colors.tealDark} />
+          <Text style={styles.backText}>ช่องทางชำระเงิน</Text>
+        </Pressable>
+        <View style={styles.secure}><MaterialCommunityIcons name="lock-outline" size={14} color={colors.tealDark} /><Text style={styles.secureText}>ปลอดภัย</Text></View>
+      </View>
       {loading && presented ? <ActivityIndicator accessibilityLabel="กำลังโหลดฟอร์มบัตร" /> : null}
       {failed ? <View style={styles.error}>
         <Pressable accessibilityRole="button" onPress={() => {setFailed(false); setLoading(true); webView.current?.reload();}}><Text>โหลดใหม่</Text></Pressable></View> : null}
@@ -61,4 +69,12 @@ export default function CardTokenModal({visible, onToken, onCancel}: {visible: b
     </View>
   </Modal>;
 }
-const styles = StyleSheet.create({frame: {flex: 1, paddingTop: Platform.OS === 'ios' ? 54 : 16, paddingBottom: 20, backgroundColor: 'white'}, close: {padding: 18, alignItems: 'flex-end'}, webView: {flex: 1}, error: {padding: 20, gap: 12}});
+const styles = StyleSheet.create({
+  frame: {flex: 1, paddingTop: Platform.OS === 'ios' ? 54 : 16, backgroundColor: colors.white},
+  header: {minHeight: 58, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: colors.border},
+  close: {paddingVertical: 14, paddingRight: 8, flexDirection: 'row', alignItems: 'center', gap: 2},
+  backText: {color: colors.tealDark, fontSize: 14, fontWeight: '700'},
+  secure: {flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 20, backgroundColor: colors.soft, paddingVertical: 6, paddingHorizontal: 10},
+  secureText: {color: colors.tealDark, fontSize: 11, fontWeight: '700'},
+  webView: {flex: 1, backgroundColor: colors.background}, error: {padding: 20, gap: 12},
+});
