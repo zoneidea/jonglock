@@ -50,6 +50,9 @@ import {colors, shadow} from '../theme/colors';
 import {useTheme} from '../theme/theme';
 import type {MobileUser} from '../types/user';
 
+// Audit entry is hidden while the staff app is separated.
+const AUDIT_PORTAL_ENABLED = false;
+
 type ProfileTab = 'account' | 'address' | 'history' | 'settings';
 type HistoryFilter = 'all' | 'processing' | 'success' | 'cancelled' | 'expired';
 
@@ -691,12 +694,14 @@ function ProfileScreen({
               </View>
             </View>
 
+            {AUDIT_PORTAL_ENABLED ? (
             <View style={styles.guestAuditFooter}>
               <Pressable onPress={onOpenAuditPortal} style={styles.auditPortalButton}>
                 <MaterialCommunityIcons name="shield-search" size={18} color="#ffffff" />
                 <Text style={styles.auditPortalButtonText}>สำหรับเจ้าหน้าที่ตรวจตลาด</Text>
               </Pressable>
             </View>
+            ) : null}
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
