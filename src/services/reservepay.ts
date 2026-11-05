@@ -104,6 +104,8 @@ export type ReservepayAttempt = {
   paymentMethod: string | null;
   status: 'creating' | 'pending' | 'unknown' | 'paid' | 'failed' | 'expired' | 'cancelled' | 'review';
   providerStatus: string | null;
+  failureCode?: 'AMOUNT_BELOW_MINIMUM';
+  minimumAmount?: string;
   amount: string;
 };
 

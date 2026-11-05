@@ -53,3 +53,11 @@ test('unknown state and local timeout remain waiting, never expired or successfu
   expect(checkout.state.phase).toBe('waiting'); expect(args.onSuccess).not.toHaveBeenCalled();
   expect(gateway.selectPaymentMethod).not.toHaveBeenCalled();
 });
+test('provider minimum is explained without changing the booking amount or marking it paid', async () => {
+  jest.mocked(gateway.getActiveReservepayAttempt).mockResolvedValue({attempt: pending});
+  jest.mocked(gateway.getReservepayPaymentStatus).mockResolvedValue({...pending, status: 'failed', failureCode: 'AMOUNT_BELOW_MINIMUM', minimumAmount: '2000'});
+  await act(async () => {await checkout.start({...args, amountBaht: 3});});
+  expect(checkout.state.phase).toBe('failed');
+  expect(checkout.state.message).toContain('ขั้นต่ำ 20 บาท');
+  expect(args.onSuccess).not.toHaveBeenCalled();
+});

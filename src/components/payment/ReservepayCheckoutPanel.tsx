@@ -1,5 +1,5 @@
 import React, {useEffect, useRef, useState} from 'react';
-import {ActivityIndicator, Pressable, StyleSheet, Text, View} from 'react-native';
+import {ActivityIndicator, Alert, Pressable, StyleSheet, Text, View} from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import type {ReservepayConfig} from '../../services/reservepay';
@@ -34,6 +34,15 @@ function ReservepayCheckoutPanel({
   const {state, start, cancel} = useReservepayCheckout();
   const [cardVisible, setCardVisible] = useState(false);
   const cardRequest = useRef<{resolve: (token: string) => void; reject: (error: Error) => void} | null>(null);
+  const lastAlert = useRef('');
+  useEffect(() => {
+    const failed = ['failed', 'expired', 'error'].includes(state.phase);
+    if (!failed) {lastAlert.current = ''; return;}
+    if (state.message && lastAlert.current !== state.message) {
+      lastAlert.current = state.message;
+      Alert.alert('การชำระเงิน', state.message, [{text: 'ตกลง'}]);
+    }
+  }, [state.phase, state.message]);
   useEffect(() => () => {cardRequest.current?.reject(new Error('ปิดฟอร์มบัตร'));}, []);
   const busy = ['starting', 'qr', 'redirect', 'waiting'].includes(state.phase);
 
@@ -102,13 +111,7 @@ function ReservepayCheckoutPanel({
   return (
     <View style={styles.payBox}>
       <CardTokenModal visible={cardVisible} onToken={token => {cardRequest.current?.resolve(token); cardRequest.current = null; setCardVisible(false);}}
-        onCancel={() => {cardRequest.current?.reject(new Error('ยกเลิกการกรอกบัตร')); cardRequest.current = null; setCardVisible(false);}} />
-      {failed && state.message ? (
-        <View style={[styles.noticeBox, styles.errorBox]}>
-          <MaterialCommunityIcons name="alert-circle-outline" size={18} color={colors.danger} />
-          <Text style={[styles.noticeText, styles.errorText]}>{state.message}</Text>
-        </View>
-      ) : null}
+        onCancel={() => {cancel(); cardRequest.current?.reject(new Error('ยกเลิกการกรอกบัตร')); cardRequest.current = null; setCardVisible(false);}} />
       <Pressable
         onPress={pay}
         disabled={busy || !user?.email}

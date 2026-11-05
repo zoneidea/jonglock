@@ -3,6 +3,7 @@ import {Pressable, StyleSheet, Text, View} from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import {colors} from '../../theme/colors';
+import MobileBankingGrid from './MobileBankingGrid';
 import type {PaymentOption} from './paymentMethods';
 
 export const MANUAL_TRANSFER_OPTION = 'MANUAL_TRANSFER';
@@ -60,19 +61,7 @@ function PaymentMethodPicker({
             <MaterialCommunityIcons name={bankingOpen ? 'chevron-up' : 'chevron-down'} size={22} color={colors.muted} />
           </Pressable>
           {bankingOpen ? (
-            <View style={styles.subList}>
-              {banking.map((option) => (
-                <MethodRow
-                  key={option.name}
-                  compact
-                  icon={option.icon}
-                  label={option.label}
-                  selected={selected === option.name}
-                  disabled={disabled}
-                  onPress={() => onSelect(option.name)}
-                />
-              ))}
-            </View>
+            <MobileBankingGrid options={banking} selected={selected} disabled={disabled} onSelect={onSelect} />
           ) : null}
         </>
       ) : null}

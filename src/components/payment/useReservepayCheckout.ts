@@ -96,7 +96,9 @@ export function useReservepayCheckout() {
         pendingRequests.delete(group); setState({phase: 'success'}); args.onSuccess();
       } else if (['failed', 'expired', 'cancelled'].includes(attempt.status)) {
         pendingRequests.delete(group);
-        setState({phase: attempt.status === 'expired' ? 'expired' : 'failed', message: attempt.status === 'expired' ? 'รายการหมดอายุแล้ว สามารถเริ่มชำระใหม่ได้' : 'การชำระไม่สำเร็จ สามารถเลือกช่องทางและลองใหม่ได้'});
+        const minimumMessage = attempt.failureCode === 'AMOUNT_BELOW_MINIMUM' && /^\d{1,14}$/.test(attempt.minimumAmount || '')
+          ? `ช่องทางนี้รับชำระขั้นต่ำ ${(Number(attempt.minimumAmount) / 100).toLocaleString('th-TH')} บาท กรุณาเลือกช่องทางอื่นหรือโอนเงินแนบสลิป` : undefined;
+        setState({phase: attempt.status === 'expired' ? 'expired' : 'failed', message: minimumMessage || (attempt.status === 'expired' ? 'รายการหมดอายุแล้ว สามารถเริ่มชำระใหม่ได้' : 'การชำระไม่สำเร็จ สามารถเลือกช่องทางและลองใหม่ได้')});
       } else {
         setState({phase: 'waiting', message: attempt.status === 'review' ? 'รายการอยู่ระหว่างตรวจสอบ กรุณาติดต่อผู้ดูแล' : 'ยังรอยืนยันผลชำระเงิน สามารถกลับมาตรวจสอบรายการเดิมได้'});
       }
