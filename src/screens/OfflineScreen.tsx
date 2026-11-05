@@ -1,10 +1,10 @@
 import {Text} from '../components/AppText';
 import NetInfo from '@react-native-community/netinfo';
 import React, {useState} from 'react';
-import {ActivityIndicator, Image, Platform, Pressable, StyleSheet, View} from 'react-native';
+import {ActivityIndicator, Image, Platform, Pressable, ScrollView, StatusBar, StyleSheet, View} from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import {SafeAreaView} from 'react-native-safe-area-context';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
 import appIcon from '../assets/app-icon.png';
 import {shadow} from '../theme/colors';
@@ -13,6 +13,7 @@ import {useTheme} from '../theme/theme';
 function OfflineScreen() {
   const {palette, resolvedTheme} = useTheme();
   const [retrying, setRetrying] = useState(false);
+  const insets = useSafeAreaInsets();
   const iconSource = Platform.OS === 'android' ? {uri: 'ic_launcher_round'} : appIcon;
 
   async function handleRetry() {
@@ -26,11 +27,22 @@ function OfflineScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.safe, {backgroundColor: palette.background}]}>
-      <View style={styles.container}>
-        <LinearGradient
-          colors={resolvedTheme === 'dark' ? ['#102532', '#07131d'] : ['#def8f3', '#f7fbfb']}
-          style={[styles.heroCard, {borderColor: palette.border}]}>
+    <View style={[styles.safe, {backgroundColor: palette.background}]}>
+      <StatusBar translucent backgroundColor="transparent" barStyle={resolvedTheme === 'dark' ? 'light-content' : 'dark-content'} />
+      <LinearGradient
+        colors={resolvedTheme === 'dark' ? ['#102532', '#07131d'] : ['#def8f3', '#f7fbfb']}
+        style={StyleSheet.absoluteFill}
+        pointerEvents="none"
+      />
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.container, {
+          paddingTop: insets.top + 26,
+          paddingBottom: insets.bottom + 26,
+          paddingLeft: insets.left + 22,
+          paddingRight: insets.right + 22,
+        }]}>
+        <View style={styles.content}>
           <Image source={iconSource} style={styles.appIcon} resizeMode="cover" />
           <View style={[styles.badge, {backgroundColor: resolvedTheme === 'dark' ? palette.surface : '#ffffff'}]}>
             <MaterialCommunityIcons name="wifi-off" size={16} color={palette.danger} />
@@ -58,9 +70,9 @@ function OfflineScreen() {
               </>
             )}
           </Pressable>
-        </LinearGradient>
-      </View>
-    </SafeAreaView>
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -68,18 +80,18 @@ const styles = StyleSheet.create({
   safe: {
     flex: 1,
   },
-  container: {
+  scroll: {
     flex: 1,
-    paddingHorizontal: 22,
-    justifyContent: 'center',
   },
-  heroCard: {
-    borderRadius: 30,
-    borderWidth: 1,
-    paddingHorizontal: 22,
-    paddingVertical: 26,
+  container: {
+    flexGrow: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    ...shadow,
+  },
+  content: {
+    width: '100%',
+    maxWidth: 480,
+    alignItems: 'center',
   },
   appIcon: {
     width: 104,
@@ -100,6 +112,7 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   title: {
+    width: '100%',
     marginTop: 18,
     fontSize: 28,
     lineHeight: 34,
@@ -107,6 +120,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   message: {
+    width: '100%',
     marginTop: 10,
     fontSize: 15,
     lineHeight: 24,
