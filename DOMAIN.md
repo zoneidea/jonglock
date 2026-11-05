@@ -18,8 +18,8 @@
 
 ## Runtime Selection
 
-- Debug builds use UAT through `__DEV__`.
-- Release builds use Production.
+- Debug and Release builds both use Production, including bookings and payments.
+- UAT remains defined for an explicit environment change; it is not selected automatically by `__DEV__`.
 - Shared values are defined in `src/config/environment.ts`.
 
 ## Deep Link Notes

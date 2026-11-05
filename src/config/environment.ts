@@ -25,7 +25,7 @@ const ENVIRONMENTS: Record<AppEnvironment, AppEnvironmentConfig> = {
   },
 };
 
-const ACTIVE_ENVIRONMENT: AppEnvironment = __DEV__ ? 'uat' : 'production';
+const ACTIVE_ENVIRONMENT: AppEnvironment = 'production';
 
 export const APP_ENV = ENVIRONMENTS[ACTIVE_ENVIRONMENT];
 export const APP_ENVIRONMENTS = ENVIRONMENTS;
