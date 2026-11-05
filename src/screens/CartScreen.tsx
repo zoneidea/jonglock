@@ -1,6 +1,6 @@
 import {Text} from '../components/AppText';
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
-import {AppState, FlatList, Image, Modal, PermissionsAndroid, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, View} from 'react-native';
+import {Alert, AppState, FlatList, Image, Modal, PermissionsAndroid, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, View} from 'react-native';
 import {CameraRoll} from '@react-native-camera-roll/camera-roll';
 import RNFS from 'react-native-fs';
 import {launchImageLibrary} from 'react-native-image-picker';
@@ -228,9 +228,9 @@ function CartScreen({
       return;
     }
     const organizationId = selectedBookings[0]?.organizationId;
-    const hasMixedOrganization = selectedBookings.some((booking) => booking.organizationId !== organizationId || booking.marketId !== selectedBookings[0]?.marketId);
+    const hasMixedOrganization = selectedBookings.some((booking) => booking.organizationId !== organizationId);
     if (hasMixedOrganization) {
-      showWarning('กรุณาเลือกรายการจากตลาดเดียวกัน เพื่อให้ใช้ช่องทางและบัญชีรับเงินเดียวกัน');
+      showWarning('กรุณาเลือกรายการจากองค์กรเดียวกัน เพื่อให้ใช้ช่องทางและบัญชีรับเงินเดียวกัน');
       return;
     }
     setCheckoutMode(true);
@@ -247,8 +247,8 @@ function CartScreen({
     }
     if (targetBookings.some(booking => !canModifyCartBooking(booking))) {return;}
     const organizationId = firstBooking.organizationId;
-    if (targetBookings.some((booking) => booking.organizationId !== organizationId || booking.marketId !== firstBooking.marketId)) {
-      showWarning('กรุณาเลือกรายการจากตลาดเดียวกัน เพื่อให้ใช้ช่องทางและบัญชีรับเงินเดียวกัน');
+    if (targetBookings.some((booking) => booking.organizationId !== organizationId)) {
+      showWarning('กรุณาเลือกรายการจากองค์กรเดียวกัน เพื่อให้ใช้ช่องทางและบัญชีรับเงินเดียวกัน');
       return;
     }
     setPaymentBookings(targetBookings);
@@ -693,7 +693,7 @@ function PaymentProofModal({
   onGatewayPaid: () => void;
 }) {
   const method = paymentInfo?.paymentMethod;
-  const hasPaymentMethod = paymentInfo?.paymentMode !== 'gateway' && Boolean(method?.qrCodeImageUrl || method?.promptpayId || method?.bankAccountNo);
+  const hasPaymentMethod = paymentInfo?.paymentMode !== 'gateway' && paymentInfo?.paymentMode !== 'unavailable' && Boolean(method?.qrCodeImageUrl || method?.promptpayId || method?.bankAccountNo);
   const firstBooking = bookings[0] || null;
 
   // ReservePay channels enabled for this app installation (fetched via our backend).
@@ -702,7 +702,7 @@ function PaymentProofModal({
   const [gatewayError, setGatewayError] = useState('');
   const [selectedMethod, setSelectedMethod] = useState('');
   const [gatewayBusy, setGatewayBusy] = useState(false);
-  const gatewayGroups = useMemo(() => groupPaymentMethods(paymentInfo?.paymentMode === 'manual' ? [] : gatewayConfig?.methods || []), [gatewayConfig, paymentInfo?.paymentMode]);
+  const gatewayGroups = useMemo(() => groupPaymentMethods(paymentInfo?.paymentMode === 'manual' || paymentInfo?.paymentMode === 'unavailable' ? [] : gatewayConfig?.methods || []), [gatewayConfig, paymentInfo?.paymentMode]);
   const gatewayOptions = useMemo(() => [...gatewayGroups.primary, ...gatewayGroups.banking], [gatewayGroups]);
   const selectedGatewayOption = gatewayOptions.find((option) => option.name === selectedMethod) || null;
   const hasAuditItems = bookings.some((booking) => booking.cartItemType === 'audit_check');
@@ -714,6 +714,10 @@ function PaymentProofModal({
       setSelectedMethod('');
       setGatewayBusy(false);
       return;
+    }
+    if (loading || !paymentInfo) {return;}
+    if (paymentInfo?.paymentMode === 'manual' || paymentInfo?.paymentMode === 'unavailable') {
+      setGatewayConfig(null); setGatewayLoading(false); setGatewayError(''); return;
     }
     let active = true;
     setGatewayLoading(true);
@@ -734,9 +738,16 @@ function PaymentProofModal({
     return () => {
       active = false;
     };
-  }, [visible]);
+  }, [visible, loading, paymentInfo]);
 
-  // Default: bank transfer when the market has an account, otherwise the first online channel.
+  useEffect(() => {
+    if (visible && paymentInfo?.paymentMode === 'unavailable') {
+      Alert.alert('ยังไม่พร้อมรับชำระเงิน', 'องค์กรกำลังตรวจสอบการตั้งค่ารับเงิน กรุณาติดต่อผู้ดูแลองค์กร');
+    }
+  }, [visible, paymentInfo?.paymentMode]);
+
+  // Default: use only the channels allowed by the organization.
+
   useEffect(() => {
     if (!visible || loading || gatewayLoading || selectedMethod) {return;}
     const firstOnline = gatewayOptions.find((option) => !option.comingSoon);
@@ -780,7 +791,7 @@ function PaymentProofModal({
               </View>
 
               <View style={styles.channelSection}>
-                <Text style={styles.sectionTitle}>เลือกช่องทางการชำระเงิน</Text>
+                <Text style={styles.sectionTitle}>เลือกช่องทางชำระเงินขององค์กร</Text>
                 {gatewayLoading ? (
                   <Text style={styles.channelHint}>กำลังโหลดช่องทางการชำระเงิน…</Text>
                 ) : gatewayError ? (
@@ -810,7 +821,7 @@ function PaymentProofModal({
                 />
               ) : null}
 
-              {selectedMethod === MANUAL_TRANSFER_OPTION || (!hasPaymentMethod && !gatewayOptions.length && !gatewayLoading) ? (
+              {paymentInfo?.paymentMode !== 'unavailable' && (selectedMethod === MANUAL_TRANSFER_OPTION || (!hasPaymentMethod && !gatewayOptions.length && !gatewayLoading)) ? (
               <>
               <View style={styles.methodBox}>
                 <Text style={styles.sectionTitle}>บัญชีรับเงิน</Text>

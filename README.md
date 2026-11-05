@@ -183,3 +183,8 @@ its weighted `res/font/prompt.xml` family in `MainApplication`.
 Adding these native assets requires the next iOS/Android native build. Metro reload
 alone cannot install font files into an already installed app. Native system alerts,
 third-party apps, and provider-hosted web content use their own font settings.
+
+Organization payment settings are shared by all booking markets in one organization.
+Payment-info returns `paymentSettingsScope: organization` and `paymentMode`; the
+cart follows this server policy and permits mixed-market checkout within the same
+organization. Processing-payment locks remain enforced.
