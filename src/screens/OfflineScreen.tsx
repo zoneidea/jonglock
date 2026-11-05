@@ -1,6 +1,6 @@
 import {Text} from '../components/AppText';
 import NetInfo from '@react-native-community/netinfo';
-import React, {useState} from 'react';
+import React, {useEffect, useRef, useState} from 'react';
 import {ActivityIndicator, Image, Platform, Pressable, ScrollView, StatusBar, StyleSheet, View} from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -9,20 +9,49 @@ import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import appIcon from '../assets/app-icon.png';
 import {shadow} from '../theme/colors';
 import {useTheme} from '../theme/theme';
+import {useNotice} from '../notice/NoticeProvider';
 
 function OfflineScreen() {
   const {palette, resolvedTheme} = useTheme();
   const [retrying, setRetrying] = useState(false);
+  const checking = useRef(false);
+  const mounted = useRef(true);
+  const {showWarning, showError} = useNotice();
   const insets = useSafeAreaInsets();
   const iconSource = Platform.OS === 'android' ? {uri: 'ic_launcher_round'} : appIcon;
 
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
+
   async function handleRetry() {
+    if (checking.current) { return; }
+    checking.current = true;
     setRetrying(true);
+    let timeout: ReturnType<typeof setTimeout> | undefined;
     try {
-      await NetInfo.refresh();
-      await NetInfo.fetch();
+      // refresh also updates the useNetInfo subscription in App, which exits this screen online.
+      const state = await Promise.race([
+        NetInfo.refresh(),
+        new Promise<never>((_, reject) => {
+          timeout = setTimeout(() => reject(new Error('Connection check timed out')), 10000);
+        }),
+      ]);
+      if (!mounted.current) { return; }
+      if (state.isConnected === false || state.isInternetReachable === false) {
+        showWarning('ยังเชื่อมต่ออินเทอร์เน็ตไม่ได้ กรุณาเปิด Wi-Fi หรือข้อมูลมือถือ แล้วกดลองใหม่', 'ยังออฟไลน์');
+      } else if (state.isConnected !== true || state.isInternetReachable !== true) {
+        showWarning('ยังยืนยันการเชื่อมต่ออินเทอร์เน็ตไม่ได้ กรุณารอสักครู่แล้วลองใหม่', 'กำลังตรวจสอบเครือข่าย');
+      }
+    } catch {
+      if (mounted.current) {
+        showError('ตรวจสอบการเชื่อมต่อไม่สำเร็จ กรุณาตรวจสอบ Wi-Fi หรือข้อมูลมือถือ แล้วลองใหม่');
+      }
     } finally {
-      setRetrying(false);
+      if (timeout) { clearTimeout(timeout); }
+      checking.current = false;
+      if (mounted.current) { setRetrying(false); }
     }
   }
 
@@ -55,6 +84,8 @@ function OfflineScreen() {
 
           <Pressable
             onPress={handleRetry}
+            accessibilityRole="button"
+            accessibilityState={{disabled: retrying, busy: retrying}}
             disabled={retrying}
             style={[
               styles.retryButton,
@@ -62,7 +93,10 @@ function OfflineScreen() {
               retrying && styles.retryButtonDisabled,
             ]}>
             {retrying ? (
-              <ActivityIndicator color={palette.inverseText} />
+              <>
+                <ActivityIndicator color={palette.inverseText} />
+                <Text style={[styles.retryText, {color: palette.inverseText}]}>กำลังตรวจสอบ…</Text>
+              </>
             ) : (
               <>
                 <MaterialCommunityIcons name="refresh" size={18} color={palette.inverseText} />
