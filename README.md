@@ -80,7 +80,7 @@ For Android 16 KB page size support, the native build uses Android Gradle Plugin
 
 ## Current Scope
 
-This version is connected to the Jonglock public/mobile APIs for the main customer and audit workflows. Customer identity is still email/Gmail based and stored locally; a backend mobile auth token exchange and secure token storage are still planned before production authentication.
+This version is connected to the Jonglock public/mobile APIs for the main customer and audit workflows. Public booking/profile identity remains email/Gmail based. Gateway checkout uses the existing native Google session to obtain a short-lived, organization-scoped backend JWT; tokens and payment sessions are never stored in AsyncStorage.
 
 Implemented:
 
@@ -110,7 +110,7 @@ Production setup still needed:
 
 - Android: add SHA-1/SHA-256 to Google Cloud or Firebase project for package `th.co.zoneidea.jonglock`.
 - Android: `android/app/google-services.json` is installed for package `th.co.zoneidea.jonglock`.
-- iOS: `ios/JonglockApp/GoogleService-Info.plist` is installed and linked into the Xcode target. The app bundle identifier is `th.co.zoneidea`, matching the plist.
+- iOS: `ios/JonglockApp/GoogleService-Info.plist` is installed and linked into the Xcode target. The app bundle identifier is `th.co.zoneidea.jonglock`, matching the plist and ReservePay installation.
 - Configure `GoogleSignin.configure({ webClientId, iosClientId })`.
 - Replace local session fallback with backend mobile auth exchange.
 
@@ -136,7 +136,7 @@ iOS is configured with:
 - `ios/JonglockApp/GoogleService-Info.plist`
 - `GoogleService-Info.plist` linked in `JonglockApp.xcodeproj`
 - Google Sign-In reversed client ID URL scheme in `Info.plist`
-- Bundle identifier `th.co.zoneidea`
+- Bundle identifier `th.co.zoneidea.jonglock`
 
 ## API Integration
 
@@ -152,13 +152,19 @@ Implemented API areas:
 
 Still planned:
 
-- Gmail identity token exchange with backend mobile auth endpoint
-- Secure storage for backend mobile tokens
+- Extend the payment Google token exchange to remaining customer APIs
+- Secure storage if persistent backend mobile tokens are introduced
 - Environment/flavor config for dev/staging/production API URLs
-- Provider-backed payment gateway flow beyond manual payment proof review
+- Live merchant acceptance testing after sandbox/native checkout validation
 
 ## Notes
 
 - Keep this project Expo-free.
 - Use React Native CLI native modules and CocoaPods.
 - Do not commit production Google credentials or signing keys.
+
+## ReservePay checkout
+
+Channels are discovered separately for iOS and Android. Checkout uses `/mobile/auth/google` (existing Google ID token, no extra email verification screen), then authenticated `/mobile/payments/reservepay/{active,initiate,status}`. The AsyncStorage email identifies the current user in the UI; backend authorization uses verified Google claims. Email-only local test sessions must sign in through Google before using the gateway.
+
+Card details are collected by ReservePay-hosted fields in a WebView. Only single-use tokens enter the app. QR, redirect, 3DS, backend-confirmed settlement and interrupted-flow recovery share the same durable payment attempt. Only backend `paid` shows success; local timeouts do not expire financial transactions. See backend `docs/RESERVEPAY_INTEGRATION_CONTRACT.md` for the full payload/response contract and migration 054 for channel reports.

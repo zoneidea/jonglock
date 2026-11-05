@@ -3,9 +3,9 @@
 <plist version="1.0">
 <dict>
 	<key>CLIENT_ID</key>
-	<string>1087957238231-3o7hcpka4kll9r1i3qumq1vuk1tovai2.apps.googleusercontent.com</string>
+	<string>1087957238231-9igtur5f5qgdptcn52p65jb6f9e9qdtp.apps.googleusercontent.com</string>
 	<key>REVERSED_CLIENT_ID</key>
-	<string>com.googleusercontent.apps.1087957238231-3o7hcpka4kll9r1i3qumq1vuk1tovai2</string>
+	<string>com.googleusercontent.apps.1087957238231-9igtur5f5qgdptcn52p65jb6f9e9qdtp</string>
 	<key>ANDROID_CLIENT_ID</key>
 	<string>1087957238231-20roqkmo6o7rlovlhfrapn4hl34f68oi.apps.googleusercontent.com</string>
 	<key>API_KEY</key>
@@ -15,7 +15,7 @@
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>th.co.zoneidea</string>
+	<string>th.co.zoneidea.jonglock</string>
 	<key>PROJECT_ID</key>
 	<string>jonglock-87a24</string>
 	<key>STORAGE_BUCKET</key>
@@ -31,6 +31,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:1087957238231:ios:68ec25bf15570ec054cb92</string>
+	<string>1:1087957238231:ios:7d170b1dcc0b6f5554cb92</string>
 </dict>
 </plist>

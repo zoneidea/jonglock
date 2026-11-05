@@ -8,6 +8,9 @@ import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityI
 import AppDialog from '../components/AppDialog';
 import ApiLoadingState from '../components/ApiLoadingState';
 import PlaceholderPanel from '../components/PlaceholderPanel';
+import PaymentMethodPicker, {MANUAL_TRANSFER_OPTION} from '../components/payment/PaymentMethodPicker';
+import ReservepayCheckoutPanel from '../components/payment/ReservepayCheckoutPanel';
+import {groupPaymentMethods} from '../components/payment/paymentMethods';
 import {useNotice} from '../notice/NoticeProvider';
 import {
   cancelCartBooking,
@@ -17,6 +20,7 @@ import {
   type CartBooking,
   uploadCartPaymentProof,
 } from '../services/markets';
+import {getReservepayConfig, type ReservepayConfig} from '../services/reservepay';
 import {colors, shadow} from '../theme/colors';
 import {useTheme} from '../theme/theme';
 import type {MobileUser} from '../types/user';
@@ -309,6 +313,14 @@ function CartScreen({
     }
   }, [closePayment, loadCart, paymentBookings, proofImage, showError, showSuccess, showWarning, user]);
 
+  const handleGatewayPaid = useCallback(async () => {
+    closePayment();
+    setCheckoutMode(false);
+    setSelectedBookingIds([]);
+    showSuccess('ชำระเงินสำเร็จ');
+    await loadCart();
+  }, [closePayment, loadCart, showSuccess]);
+
   const savePaymentQrCode = useCallback(async () => {
     const qrCodeImageUrl = paymentInfo?.paymentMethod?.qrCodeImageUrl;
     if (!qrCodeImageUrl || savingQrCode) {
@@ -445,6 +457,8 @@ function CartScreen({
           onChooseImage={chooseProofImage}
           onSaveQrCode={savePaymentQrCode}
           onSubmit={submitProof}
+          user={user?.email ? {email: user.email, name: user.name} : null}
+          onGatewayPaid={handleGatewayPaid}
         />
       </ScrollView>
     );
@@ -534,7 +548,7 @@ const CartBookingCard = React.memo(function CartBookingCard({
         <View style={styles.cardActions}>
           <View style={[styles.statusPill, isProcessing && styles.statusPillProcessing]}>
             <Text style={[styles.statusText, isProcessing && styles.statusTextProcessing]}>
-              {isProcessing ? 'รอตรวจสลิป' : 'รอชำระ'}
+              {isProcessing ? 'กำลังตรวจสอบการชำระ' : 'รอชำระ'}
             </Text>
           </View>
           {!isAuditCharge ? (
@@ -644,6 +658,8 @@ function PaymentProofModal({
   onChooseImage,
   onSaveQrCode,
   onSubmit,
+  user,
+  onGatewayPaid,
 }: {
   visible: boolean;
   bookings: CartBooking[];
@@ -657,10 +673,69 @@ function PaymentProofModal({
   onChooseImage: () => void;
   onSaveQrCode: () => void;
   onSubmit: () => void;
+  user: {email: string; name?: string} | null;
+  onGatewayPaid: () => void;
 }) {
   const method = paymentInfo?.paymentMethod;
   const hasPaymentMethod = Boolean(method?.qrCodeImageUrl || method?.promptpayId || method?.bankAccountNo);
   const firstBooking = bookings[0] || null;
+
+  // ReservePay channels enabled for this app installation (fetched via our backend).
+  const [gatewayConfig, setGatewayConfig] = useState<ReservepayConfig | null>(null);
+  const [gatewayLoading, setGatewayLoading] = useState(false);
+  const [gatewayError, setGatewayError] = useState('');
+  const [selectedMethod, setSelectedMethod] = useState('');
+  const [gatewayBusy, setGatewayBusy] = useState(false);
+  const gatewayGroups = useMemo(() => groupPaymentMethods(gatewayConfig?.methods || []), [gatewayConfig]);
+  const gatewayOptions = useMemo(() => [...gatewayGroups.primary, ...gatewayGroups.banking], [gatewayGroups]);
+  const selectedGatewayOption = gatewayOptions.find((option) => option.name === selectedMethod) || null;
+  const hasAuditItems = bookings.some((booking) => booking.cartItemType === 'audit_check');
+  const hasProcessingPayment = bookings.some((booking) => booking.status === 'payment_processing');
+  const payableAmount = totalAmount || paymentInfo?.amount || firstBooking?.totalAmount || 0;
+
+  useEffect(() => {
+    if (!visible) {
+      setSelectedMethod('');
+      setGatewayBusy(false);
+      return;
+    }
+    let active = true;
+    setGatewayLoading(true);
+    setGatewayError('');
+    getReservepayConfig()
+      .then((config) => {
+        if (active) {setGatewayConfig(config);}
+      })
+      .catch(() => {
+        if (active) {
+          setGatewayConfig(null);
+          setGatewayError('ยังไม่สามารถโหลดช่องทางชำระเงินออนไลน์ได้');
+        }
+      })
+      .finally(() => {
+        if (active) {setGatewayLoading(false);}
+      });
+    return () => {
+      active = false;
+    };
+  }, [visible]);
+
+  // Default: bank transfer when the market has an account, otherwise the first online channel.
+  useEffect(() => {
+    if (!visible || loading || gatewayLoading || selectedMethod) {return;}
+    const firstOnline = gatewayOptions.find((option) => !option.comingSoon);
+    if (hasPaymentMethod && !hasProcessingPayment) {
+      setSelectedMethod(MANUAL_TRANSFER_OPTION);
+    } else if (firstOnline) {
+      setSelectedMethod(firstOnline.name);
+    }
+  }, [gatewayLoading, gatewayOptions, hasPaymentMethod, hasProcessingPayment, loading, selectedMethod, visible]);
+
+  const gatewayUnavailableReason = !gatewayConfig?.checkoutEnabled
+    ? 'ช่องทางนี้จะเปิดให้ใช้งานเร็ว ๆ นี้ ระหว่างนี้กรุณาเลือก "โอนเงินเข้าบัญชีตลาด / แนบสลิป"'
+    : hasAuditItems
+      ? 'รายการค่าปรับยังชำระผ่านช่องทางนี้ไม่ได้ กรุณาเลือก "โอนเงินเข้าบัญชีตลาด / แนบสลิป"'
+      : undefined;
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -673,7 +748,7 @@ function PaymentProofModal({
                 {bookings.length > 1 ? `${bookings.length} รายการ` : firstBooking?.publicId || paymentInfo?.publicId || '-'}
               </Text>
             </View>
-            <Pressable onPress={onClose} disabled={uploading} style={styles.modalCloseButton}>
+            <Pressable onPress={onClose} disabled={uploading || gatewayBusy} style={styles.modalCloseButton}>
               <MaterialCommunityIcons name="close" size={22} color={colors.ink} />
             </Pressable>
           </View>
@@ -684,10 +759,43 @@ function PaymentProofModal({
             <ScrollView style={styles.paymentScroll} contentContainerStyle={styles.paymentScrollContent}>
               <View style={styles.amountBox}>
                 <Text style={styles.amountLabel}>ยอดที่ต้องชำระ</Text>
-                <Text style={styles.amountValue}>{formatMoney(totalAmount || paymentInfo?.amount || firstBooking?.totalAmount || 0)} บาท</Text>
+                <Text style={styles.amountValue}>{formatMoney(payableAmount)} บาท</Text>
                 <Text style={styles.amountHint}>{`หมดเวลา ${formatShortDateTime(paymentInfo?.expiresAt || firstBooking?.expiresAt)}`}</Text>
               </View>
 
+              <View style={styles.channelSection}>
+                <Text style={styles.sectionTitle}>เลือกช่องทางการชำระเงิน</Text>
+                {gatewayLoading ? (
+                  <Text style={styles.channelHint}>กำลังโหลดช่องทางการชำระเงิน…</Text>
+                ) : gatewayError ? (
+                  <Text style={styles.channelHint}>{gatewayError}</Text>
+                ) : null}
+                <PaymentMethodPicker
+                  primary={gatewayGroups.primary}
+                  banking={gatewayGroups.banking}
+                  manualAvailable={hasPaymentMethod && !hasProcessingPayment}
+                  selected={selectedMethod}
+                  disabled={gatewayBusy || uploading}
+                  onSelect={setSelectedMethod}
+                />
+              </View>
+
+              {selectedGatewayOption && gatewayConfig ? (
+                <ReservepayCheckoutPanel
+                  config={gatewayConfig}
+                  option={selectedGatewayOption}
+                  amountBaht={payableAmount}
+                  bookingIds={bookings.map((booking) => booking.bookingId)}
+                  organizationId={firstBooking?.organizationId || 0}
+                  user={user}
+                  unavailableReason={gatewayUnavailableReason}
+                  onBusyChange={setGatewayBusy}
+                  onPaid={onGatewayPaid}
+                />
+              ) : null}
+
+              {selectedMethod === MANUAL_TRANSFER_OPTION || (!hasPaymentMethod && !gatewayOptions.length && !gatewayLoading) ? (
+              <>
               <View style={styles.methodBox}>
                 <Text style={styles.sectionTitle}>บัญชีรับเงิน</Text>
                 {hasPaymentMethod ? (
@@ -734,6 +842,8 @@ function PaymentProofModal({
                 <MaterialCommunityIcons name="cloud-upload-outline" size={19} color={colors.white} />
                 <Text style={styles.submitProofText}>{uploading ? 'กำลังอัปโหลด...' : 'ส่งหลักฐานการชำระเงิน'}</Text>
               </Pressable>
+              </>
+              ) : null}
             </ScrollView>
           )}
         </View>
@@ -1186,6 +1296,14 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(8, 20, 31, 0.45)',
     justifyContent: 'flex-end',
+  },
+  channelSection: {
+    gap: 10,
+  },
+  channelHint: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: '700',
   },
   paymentModal: {
     maxHeight: '88%',
