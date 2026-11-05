@@ -78,8 +78,9 @@ export default function MarketWeatherBackground({weather}: {weather: MarketWeath
 export function MarketWeatherSummary({weather}: {weather: MarketWeather | null}) {
   if (!weather) { return null; }
   const stale = Date.now() - weather.fetchedAt >= 15 * 60 * 1000;
-  return <View style={styles.summary} pointerEvents="none" accessibilityLabel={`${weatherLabel(weather)} ${Math.round(weather.temperature)} องศาเซลเซียส${stale ? ' ข้อมูลล่าสุดที่มี' : ''}`} accessible>
-    <Text style={styles.temperature} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{weatherLabel(weather)} · {Math.round(weather.temperature)}°C</Text>
+  return <View style={styles.summary} pointerEvents="box-none">
+    <Text style={styles.temperature} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} accessibilityLabel={`${weatherLabel(weather)} ${Math.round(weather.temperature)} องศาเซลเซียส${stale ? ' ข้อมูลล่าสุดที่มี' : ''}`}>{weatherLabel(weather)} · {Math.round(weather.temperature)}°C</Text>
+    <MarketWeatherCredit weather={weather} />
   </View>;
 }
 
@@ -100,5 +101,5 @@ const styles = StyleSheet.create({
   drop: {position: 'absolute', width: 2, height: 21, borderRadius: 2, backgroundColor: '#FFF', transform: [{rotate: '15deg'}]},
   summary: {position: 'absolute', left: 80, right: 80, top: 0, height: 42, alignItems: 'center', justifyContent: 'center'},
   temperature: {fontSize: 14, fontWeight: '700', color: '#102E43'},
-  credit: {fontSize: 10, color: '#297D86', textAlign: 'center', textDecorationLine: 'underline', paddingVertical: 8},
+  credit: {fontSize: 10, color: '#297D86', textAlign: 'center', textDecorationLine: 'underline', paddingVertical: 1},
 });
