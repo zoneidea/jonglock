@@ -1,5 +1,6 @@
+import {Text} from '../AppText';
 import React from 'react';
-import {Image, StyleSheet, Text, View} from 'react-native';
+import {Image, StyleSheet, View} from 'react-native';
 
 // Display exact cells from the supplied image without altering the bank artwork.
 const cells: Record<string, [number, number]> = {

@@ -1,5 +1,6 @@
+import {Text} from '../AppText';
 import React, {useEffect, useRef, useState} from 'react';
-import {ActivityIndicator, Alert, Pressable, StyleSheet, Text, View} from 'react-native';
+import {ActivityIndicator, Alert, Pressable, StyleSheet, View} from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import type {ReservepayConfig} from '../../services/reservepay';

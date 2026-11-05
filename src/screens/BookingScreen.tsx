@@ -1,3 +1,4 @@
+import {Text, TextInput} from '../components/AppText';
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
@@ -10,8 +11,6 @@ import {
   ScrollView,
   Switch,
   StyleSheet,
-  Text,
-  TextInput,
   View,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';

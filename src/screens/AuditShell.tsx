@@ -1,5 +1,6 @@
+import {Text} from '../components/AppText';
 import React from 'react';
-import {StyleSheet, Text} from 'react-native';
+import {StyleSheet} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 
 import {useTheme} from '../theme/theme';

@@ -1,5 +1,6 @@
+import {Text} from '../../components/AppText';
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
-import {Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View} from 'react-native';
+import {Pressable, ScrollView, StyleSheet, useWindowDimensions, View} from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import {getMarketHolidays, type FloorPlan, type Market, type MarketHoliday} from '../../services/markets';

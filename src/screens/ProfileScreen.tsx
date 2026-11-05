@@ -1,3 +1,4 @@
+import {Text} from '../components/AppText';
 import {
   GoogleSignin,
   isCancelledResponse,
@@ -17,7 +18,6 @@ import {
   ScrollView,
   StyleSheet,
   Switch,
-  Text,
   View,
 } from 'react-native';
 import {launchImageLibrary} from 'react-native-image-picker';

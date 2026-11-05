@@ -1,11 +1,10 @@
+import {Text, TextInput} from '../../components/AppText';
 import React, {useCallback, useMemo, useState} from 'react';
 import {
   FlatList,
   Modal,
   Pressable,
   StyleSheet,
-  Text,
-  TextInput,
   View,
 } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';

@@ -170,3 +170,16 @@ Channels are discovered separately for iOS and Android. Checkout uses `/mobile/a
 When the restored app profile has no active native Google user, checkout restores the saved Google credential with `signInSilently` before exchanging a token. A rejected identity gets one silent refresh; an expired customer JWT is renewed while retaining the same attempt, initiation body and idempotency key. Network/server failures do not trigger logout or interactive sign-in. Only a missing saved Google credential requires the user to sign in again.
 
 Card details are collected by ReservePay-hosted fields in a WebView. Only single-use tokens enter the app. QR, redirect, 3DS, backend-confirmed settlement and interrupted-flow recovery share the same durable payment attempt. Only backend `paid` shows success; local timeouts do not expire financial transactions. See backend `docs/RESERVEPAY_INTEGRATION_CONTRACT.md` for the full payload/response contract and migration 054 for channel reports.
+
+## App typography
+
+App-owned native text and inputs use the shared `Text`, `TextInput`, and
+`AnimatedText` exports from `src/components/AppText.tsx`. Import these instead of
+React Native text components for new screens. Existing sizes and weights are kept;
+Prompt weights 100–900 are bundled locally under the SIL Open Font License.
+iOS registers the fonts in its resource phase and `UIAppFonts`; Android registers
+its weighted `res/font/prompt.xml` family in `MainApplication`.
+
+Adding these native assets requires the next iOS/Android native build. Metro reload
+alone cannot install font files into an already installed app. Native system alerts,
+third-party apps, and provider-hosted web content use their own font settings.

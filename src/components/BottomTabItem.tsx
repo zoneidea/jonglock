@@ -1,3 +1,4 @@
+import {AnimatedText} from './AppText';
 import React, {useEffect, useRef} from 'react';
 import {Animated, Pressable, StyleSheet, View} from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -58,14 +59,14 @@ function BottomTabItem({
             color={active ? palette.inverseText : palette.text}
           />
         </Animated.View>
-        <Animated.Text style={[styles.bottomTabText, {color: palette.text, opacity: labelOpacity}]}>
+        <AnimatedText style={[styles.bottomTabText, {color: palette.text, opacity: labelOpacity}]}>
           {item.label}
-        </Animated.Text>
+        </AnimatedText>
         {badgeCount > 0 ? (
           <View style={[styles.badge, {borderColor: palette.surface}]}>
-            <Animated.Text style={[styles.badgeText, {color: palette.inverseText}]}>
+            <AnimatedText style={[styles.badgeText, {color: palette.inverseText}]}>
               {badgeCount > 99 ? '99+' : badgeCount}
-            </Animated.Text>
+            </AnimatedText>
           </View>
         ) : null}
       </View>

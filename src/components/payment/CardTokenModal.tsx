@@ -1,5 +1,6 @@
+import {Text} from '../AppText';
 import React, {useEffect, useRef, useState} from 'react';
-import {ActivityIndicator, Alert, Modal, Platform, Pressable, StyleSheet, Text, View} from 'react-native';
+import {ActivityIndicator, Alert, Modal, Platform, Pressable, StyleSheet, View} from 'react-native';
 import {WebView} from 'react-native-webview';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import {API_BASE_URL} from '../../config/api';

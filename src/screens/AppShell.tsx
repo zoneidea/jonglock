@@ -1,5 +1,6 @@
+import {Text} from '../components/AppText';
 import React, {useCallback, useEffect, useRef, useState} from 'react';
-import {Animated, InteractionManager, StatusBar, StyleSheet, Text, View} from 'react-native';
+import {Animated, InteractionManager, StatusBar, StyleSheet, View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 
 import type {AppDeepLink} from '../../App';

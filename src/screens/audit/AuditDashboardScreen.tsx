@@ -1,5 +1,6 @@
+import {Text, TextInput} from '../../components/AppText';
 import React, {useEffect, useMemo, useState} from 'react';
-import {ActivityIndicator, FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View} from 'react-native';
+import {ActivityIndicator, FlatList, Modal, Pressable, ScrollView, StyleSheet, View} from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import {Camera, useCameraDevice, useCameraPermission, useCodeScanner} from 'react-native-vision-camera';
 

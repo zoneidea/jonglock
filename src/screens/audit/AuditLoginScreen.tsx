@@ -1,3 +1,4 @@
+import {Text} from '../../components/AppText';
 import React, {useMemo, useState} from 'react';
 import {
   KeyboardAvoidingView,
@@ -6,7 +7,6 @@ import {
   ScrollView,
   StatusBar,
   StyleSheet,
-  Text,
   View,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';

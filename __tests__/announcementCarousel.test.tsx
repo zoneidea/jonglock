@@ -22,15 +22,15 @@ async function mount(onPress = jest.fn()) {
   return onPress;
 }
 function dot(position: number) {return tree.root.findAll(node => node.props.accessibilityLabel === `แบนเนอร์ ${position} จาก 2` && node.props.onPress)[0];}
-test('advances after five seconds, respects pause and opens the selected market', async () => {
+test('auto-slides without pause controls and opens the selected market', async () => {
   const onPress = await mount();
   expect(dot(1).props.accessibilityState.selected).toBe(true);
   await act(async () => {await jest.advanceTimersByTimeAsync(5000);});
   expect(dot(2).props.accessibilityState.selected).toBe(true);
-  const pause = tree.root.findAll(node => node.props.accessibilityLabel === 'หยุดเลื่อนแบนเนอร์ชั่วคราว' && node.props.onPress)[0];
-  act(() => pause.props.onPress());
-  await act(async () => {await jest.advanceTimersByTimeAsync(15000);});
-  expect(dot(2).props.accessibilityState.selected).toBe(true);
+  expect(tree.root.findAll(node => node.props.accessibilityLabel === 'หยุดเลื่อนแบนเนอร์ชั่วคราว')).toHaveLength(0);
+  await act(async () => {await jest.advanceTimersByTimeAsync(5000);});
+  expect(dot(1).props.accessibilityState.selected).toBe(true);
+  act(() => dot(2).props.onPress());
   const card = tree.root.findAll(node => node.props.accessibilityLabel === 'ตลาด 2: ข่าว 2' && node.props.onPress)[0];
   act(() => card.props.onPress());
   expect(onPress).toHaveBeenCalledWith(items[1]);

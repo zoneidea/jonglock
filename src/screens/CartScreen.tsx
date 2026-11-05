@@ -1,5 +1,6 @@
+import {Text} from '../components/AppText';
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
-import {FlatList, Image, Modal, PermissionsAndroid, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View} from 'react-native';
+import {FlatList, Image, Modal, PermissionsAndroid, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, View} from 'react-native';
 import {CameraRoll} from '@react-native-camera-roll/camera-roll';
 import RNFS from 'react-native-fs';
 import {launchImageLibrary} from 'react-native-image-picker';

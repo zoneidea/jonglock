@@ -1,3 +1,4 @@
+import {Text} from '../components/AppText';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   GoogleSignin,
@@ -14,7 +15,6 @@ import {
   ScrollView,
   StatusBar,
   StyleSheet,
-  Text,
   View,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';

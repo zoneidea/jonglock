@@ -17,6 +17,15 @@
 		9AEAF19BB79925B0C93D6AA7 /* Pods_JonglockApp_JonglockAppTests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 32131777AE0D819F96BA6C14 /* Pods_JonglockApp_JonglockAppTests.framework */; };
 		A1B2C3D42F00000100000001 /* IconSwitcher.m in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D42F00000100000002 /* IconSwitcher.m */; };
 		A6F5302B2D060B340078B001 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = A6F5302A2D060B340078B001 /* GoogleService-Info.plist */; };
+		B27DB8B4610A76CA2136A015 /* Prompt-Thin.ttf in Resources */ = {isa = PBXBuildFile; fileRef = BFDCFEF7A267243E3A55FAC3 /* Prompt-Thin.ttf */; };
+		67E94070212BE3DE99922499 /* Prompt-ExtraLight.ttf in Resources */ = {isa = PBXBuildFile; fileRef = C3CD80CB35C4F45DC54198FB /* Prompt-ExtraLight.ttf */; };
+		62E19F046148A339D24C7E4A /* Prompt-Light.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 95884303EA8730CF80253AAD /* Prompt-Light.ttf */; };
+		426EE9EC889A3346129785CE /* Prompt-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 4A85759F02317C05156D8771 /* Prompt-Regular.ttf */; };
+		EE9565E69A9A15F3DD0A4256 /* Prompt-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 8BA699D55EB91EE3C0D15EF7 /* Prompt-Medium.ttf */; };
+		0EAF302EE00CDC5257B814DF /* Prompt-SemiBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 0065B723121FBD2BDC11B054 /* Prompt-SemiBold.ttf */; };
+		A24AB68EF558B2878C08CBDC /* Prompt-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 805F1103706601FA07CB2BAD /* Prompt-Bold.ttf */; };
+		74408F83380CC07BCB26A090 /* Prompt-ExtraBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 216CBCBE12C81F97B5B7EA59 /* Prompt-ExtraBold.ttf */; };
+		050A8C32CA98F9284C9AAF1A /* Prompt-Black.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 857B0EC350CE475557CDDFC7 /* Prompt-Black.ttf */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -50,6 +59,15 @@
 		A1B2C3D42F00000100000002 /* IconSwitcher.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = IconSwitcher.m; path = JonglockApp/IconSwitcher.m; sourceTree = "<group>"; };
 		A6F5302A2D060B340078B001 /* GoogleService-Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = "GoogleService-Info.plist"; path = "JonglockApp/GoogleService-Info.plist"; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
+		BFDCFEF7A267243E3A55FAC3 /* Prompt-Thin.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "Prompt-Thin.ttf"; path = "../src/assets/fonts/Prompt-Thin.ttf"; sourceTree = SOURCE_ROOT; };
+		C3CD80CB35C4F45DC54198FB /* Prompt-ExtraLight.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "Prompt-ExtraLight.ttf"; path = "../src/assets/fonts/Prompt-ExtraLight.ttf"; sourceTree = SOURCE_ROOT; };
+		95884303EA8730CF80253AAD /* Prompt-Light.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "Prompt-Light.ttf"; path = "../src/assets/fonts/Prompt-Light.ttf"; sourceTree = SOURCE_ROOT; };
+		4A85759F02317C05156D8771 /* Prompt-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "Prompt-Regular.ttf"; path = "../src/assets/fonts/Prompt-Regular.ttf"; sourceTree = SOURCE_ROOT; };
+		8BA699D55EB91EE3C0D15EF7 /* Prompt-Medium.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "Prompt-Medium.ttf"; path = "../src/assets/fonts/Prompt-Medium.ttf"; sourceTree = SOURCE_ROOT; };
+		0065B723121FBD2BDC11B054 /* Prompt-SemiBold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "Prompt-SemiBold.ttf"; path = "../src/assets/fonts/Prompt-SemiBold.ttf"; sourceTree = SOURCE_ROOT; };
+		805F1103706601FA07CB2BAD /* Prompt-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "Prompt-Bold.ttf"; path = "../src/assets/fonts/Prompt-Bold.ttf"; sourceTree = SOURCE_ROOT; };
+		216CBCBE12C81F97B5B7EA59 /* Prompt-ExtraBold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "Prompt-ExtraBold.ttf"; path = "../src/assets/fonts/Prompt-ExtraBold.ttf"; sourceTree = SOURCE_ROOT; };
+		857B0EC350CE475557CDDFC7 /* Prompt-Black.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "Prompt-Black.ttf"; path = "../src/assets/fonts/Prompt-Black.ttf"; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -251,6 +269,16 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B27DB8B4610A76CA2136A015 /* Prompt-Thin.ttf in Resources */,
+				67E94070212BE3DE99922499 /* Prompt-ExtraLight.ttf in Resources */,
+				62E19F046148A339D24C7E4A /* Prompt-Light.ttf in Resources */,
+				426EE9EC889A3346129785CE /* Prompt-Regular.ttf in Resources */,
+				EE9565E69A9A15F3DD0A4256 /* Prompt-Medium.ttf in Resources */,
+				0EAF302EE00CDC5257B814DF /* Prompt-SemiBold.ttf in Resources */,
+				A24AB68EF558B2878C08CBDC /* Prompt-Bold.ttf in Resources */,
+				74408F83380CC07BCB26A090 /* Prompt-ExtraBold.ttf in Resources */,
+				050A8C32CA98F9284C9AAF1A /* Prompt-Black.ttf in Resources */,
+
 				81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
 				A6F5302B2D060B340078B001 /* GoogleService-Info.plist in Resources */,

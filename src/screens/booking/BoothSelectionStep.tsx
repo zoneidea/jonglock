@@ -1,3 +1,4 @@
+import {Text} from '../../components/AppText';
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {
   FlatList,
@@ -7,7 +8,6 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
-  Text,
   useWindowDimensions,
   View,
 } from 'react-native';

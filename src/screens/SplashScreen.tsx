@@ -1,3 +1,4 @@
+import {AnimatedText} from '../components/AppText';
 import React, {useEffect, useRef} from 'react';
 import {Animated, Easing, Image, StatusBar, StyleSheet} from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
@@ -58,10 +59,10 @@ function SplashScreen({onReady}: {onReady: () => void}) {
       <Animated.View style={[styles.logoMark, {opacity, transform: [{scale}]}]}>
         <Image source={appIcon} style={styles.logoIcon} />
       </Animated.View>
-      <Animated.Text style={[styles.brandName, {opacity}]}>JONGLOCK</Animated.Text>
-      <Animated.Text style={[styles.brandSubtitle, {opacity}]}>
+      <AnimatedText style={[styles.brandName, {opacity}]}>JONGLOCK</AnimatedText>
+      <AnimatedText style={[styles.brandSubtitle, {opacity}]}>
         Market Booking Platform
-      </Animated.Text>
+      </AnimatedText>
     </LinearGradient>
   );
 }

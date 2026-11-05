@@ -1,5 +1,6 @@
+import {Text} from './AppText';
 import React from 'react';
-import {Pressable, StyleSheet, Text, View} from 'react-native';
+import {Pressable, StyleSheet, View} from 'react-native';
 
 import {colors} from '../theme/colors';
 

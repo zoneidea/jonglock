@@ -1,5 +1,6 @@
+import {Text} from '../../components/AppText';
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
-import {FlatList, Pressable, RefreshControl, StyleSheet, Text, View} from 'react-native';
+import {FlatList, Pressable, RefreshControl, StyleSheet, View} from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import ApiLoadingState from '../../components/ApiLoadingState';

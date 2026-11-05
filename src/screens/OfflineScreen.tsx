@@ -1,6 +1,7 @@
+import {Text} from '../components/AppText';
 import NetInfo from '@react-native-community/netinfo';
 import React, {useState} from 'react';
-import {ActivityIndicator, Image, Platform, Pressable, StyleSheet, Text, View} from 'react-native';
+import {ActivityIndicator, Image, Platform, Pressable, StyleSheet, View} from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import {SafeAreaView} from 'react-native-safe-area-context';

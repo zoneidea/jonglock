@@ -1,6 +1,6 @@
+import {Text} from '../AppText';
 import React, {useCallback, useEffect, useRef, useState} from 'react';
-import {AccessibilityInfo, AppState, Image, Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
-import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import {AccessibilityInfo, AppState, Image, Pressable, ScrollView, StyleSheet, View} from 'react-native';
 import type {Announcement} from '../../services/announcements';
 import {colors} from '../../theme/colors';
 
@@ -8,7 +8,6 @@ export default function AnnouncementCarousel({items, onPress}: {items: Announcem
   const scroll = useRef<ScrollView>(null);
   const [width, setWidth] = useState(0);
   const [index, setIndex] = useState(0);
-  const [paused, setPaused] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [active, setActive] = useState(AppState.currentState !== 'background');
   const [reduceMotion, setReduceMotion] = useState(false);
@@ -28,10 +27,10 @@ export default function AnnouncementCarousel({items, onPress}: {items: Announcem
     setIndex(next);
   }, [width, reduceMotion]);
   useEffect(() => {
-    if (items.length < 2 || !width || !active || paused || dragging || reduceMotion) {return;}
+    if (items.length < 2 || !width || !active || dragging || reduceMotion) {return;}
     const timer = setTimeout(() => goTo((index + 1) % items.length), 5000);
     return () => clearTimeout(timer);
-  }, [items.length, width, active, paused, dragging, reduceMotion, index, goTo]);
+  }, [items.length, width, active, dragging, reduceMotion, index, goTo]);
   if (!items.length) {return null;}
   return <View onLayout={event => setWidth(event.nativeEvent.layout.width)} style={styles.wrapper}>
     <ScrollView ref={scroll} horizontal pagingEnabled showsHorizontalScrollIndicator={false}
@@ -53,9 +52,7 @@ export default function AnnouncementCarousel({items, onPress}: {items: Announcem
       <View style={styles.dots}>{items.map((item, position) => <Pressable key={item.id}
         accessibilityRole="button" accessibilityLabel={`แบนเนอร์ ${position + 1} จาก ${items.length}`} accessibilityState={{selected: index === position}}
         hitSlop={8} onPress={() => goTo(position)} style={[styles.dot, index === position && styles.dotActive]} />)}</View>
-      {!reduceMotion ? <Pressable accessibilityRole="button" accessibilityLabel={paused ? 'เริ่มเลื่อนแบนเนอร์อัตโนมัติ' : 'หยุดเลื่อนแบนเนอร์ชั่วคราว'} onPress={() => setPaused(value => !value)} hitSlop={8}>
-        <MaterialCommunityIcons name={paused ? 'play-circle-outline' : 'pause-circle-outline'} size={22} color={colors.tealDark} />
-      </Pressable> : null}
+
     </View> : null}
   </View>;
 }

@@ -1,10 +1,10 @@
+import {Text} from '../components/AppText';
 import React from 'react';
 import {
   Image,
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
   View,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';

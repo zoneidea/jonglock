@@ -1,5 +1,6 @@
+import {Text} from '../components/AppText';
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
-import {Alert, FlatList, Linking, RefreshControl, StyleSheet, Text, View} from 'react-native';
+import {Alert, FlatList, Linking, RefreshControl, StyleSheet, View} from 'react-native';
 
 import ApiLoadingState from '../components/ApiLoadingState';
 import PromoCard from '../components/PromoCard';

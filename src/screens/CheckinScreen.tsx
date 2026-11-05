@@ -1,5 +1,6 @@
+import {Text} from '../components/AppText';
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
-import {FlatList, InteractionManager, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View} from 'react-native';
+import {FlatList, InteractionManager, Pressable, RefreshControl, ScrollView, StyleSheet, View} from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import qrcode from 'qrcode-generator';
 
