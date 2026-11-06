@@ -1,4 +1,5 @@
 import {API_BASE_URL} from '../config/api';
+import {fetchPublicData} from './publicDataTransport';
 
 type ApiResponse<T> = {
   status: string;
@@ -51,7 +52,7 @@ function normalizeAnnouncement(item: Announcement): Announcement {
 }
 
 async function request<T>(path: string, params?: QueryParams): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}${buildQuery(params)}`);
+  const response = await fetchPublicData(`${API_BASE_URL}${path}${buildQuery(params)}`);
   if (!response.ok) {
     throw new Error(`Announcement API failed with status ${response.status}`);
   }

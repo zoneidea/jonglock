@@ -1,4 +1,5 @@
 import {API_BASE_URL} from '../config/api';
+import {fetchPublicData} from './publicDataTransport';
 
 type ApiResponse<T> = {
   status: string;
@@ -509,7 +510,8 @@ function normalizeCheckinBookingItem(item: CheckinBookingItem): CheckinBookingIt
 }
 
 async function request<T>(path: string, params?: QueryParams): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}${buildQuery(params)}`);
+  const url = `${API_BASE_URL}${path}${buildQuery(params)}`;
+  const response = path.startsWith('/public/markets') ? await fetchPublicData(url) : await fetch(url);
   if (!response.ok) {
     throw new Error(await readErrorMessage(response));
   }
