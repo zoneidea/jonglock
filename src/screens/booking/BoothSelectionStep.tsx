@@ -1,4 +1,4 @@
-import VisualPlanModal from '../../components/VisualPlanModal';
+import VisualPlanView from '../../components/VisualPlanView';
 import {Text} from '../../components/AppText';
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {
@@ -78,12 +78,12 @@ function BoothSelectionStep({
   const [floorPlanModalOpen, setFloorPlanModalOpen] = useState(false);
   const [planPreviewOpen, setPlanPreviewOpen] = useState(false);
   const [visualPlan, setVisualPlan] = useState<VisualPlan | null>(null);
-  const [visualPlanOpen, setVisualPlanOpen] = useState(false);
+  const [boothView, setBoothView] = useState<'grid' | 'map'>('grid');
   const [planRevision, setPlanRevision] = useState(0);
   useEffect(() => {
     let mounted = true;
     setVisualPlan(null);
-    setVisualPlanOpen(false);
+    setBoothView('grid');
     getPublishedVisualPlan(floorPlan.marketId, floorPlan.id)
       .then(plan => { if (mounted) { setVisualPlan(plan); } })
       .catch(() => { /* Keep the original booth list and image available on map failure. */ });
@@ -165,10 +165,10 @@ function BoothSelectionStep({
             {`${floorPlan.name} • ${formatSelectedDateSummary(selectedDates)}`}
           </Text>
         </View>
-        {visualPlan || floorPlan.planImageUrl ? (
-          <Pressable onPress={() => visualPlan ? setVisualPlanOpen(true) : setPlanPreviewOpen(true)} style={styles.headerPreviewButton}>
+        {floorPlan.planImageUrl ? (
+          <Pressable onPress={() => setPlanPreviewOpen(true)} style={styles.headerPreviewButton}>
             <MaterialCommunityIcons name="image-search-outline" size={18} color={colors.white} />
-            <Text style={styles.headerPreviewButtonText}>{visualPlan ? 'แผนผังเสมือน' : 'ดูแผนผัง'}</Text>
+            <Text style={styles.headerPreviewButtonText}>ดูแผนผัง</Text>
           </Pressable>
         ) : null}
       </View>
@@ -184,9 +184,18 @@ function BoothSelectionStep({
         <LegendDot color="#f5b93f" label="ว่างบางวัน" />
         <LegendDot color="#ef4444" label="ไม่ว่างเลย" />
       </View>
-
+      {visualPlan ? (
+        <View style={styles.viewToggle}>
+          {(['grid', 'map'] as const).map(mode => (
+            <Pressable key={mode} accessibilityRole="tab" accessibilityState={{selected: boothView === mode}}
+              onPress={() => setBoothView(mode)} style={[styles.viewTab, boothView === mode && styles.viewTabActive]}>
+              <Text style={[styles.viewTabText, boothView === mode && styles.viewTabTextActive]}>{mode === 'grid' ? 'บูธปกติ' : 'แผนผังเสมือน'}</Text>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
     </>
-  ), [floorPlan.name, floorPlan.planImageUrl, market.name, onBack, onChangeDates, selectedDates, visualPlan]);
+  ), [boothView, floorPlan.name, floorPlan.planImageUrl, market.name, onBack, onChangeDates, selectedDates, visualPlan]);
 
   const renderBoothEmpty = useCallback(() => (
     loading ? (
@@ -231,14 +240,16 @@ function BoothSelectionStep({
     <View style={styles.flex}>
       <FlatList
         key={`booth-grid-${columns}`}
-        data={effectiveBooths}
+        data={boothView === 'map' && visualPlan ? [] : effectiveBooths}
         keyExtractor={(item) => String(item.id)}
         renderItem={renderBoothTile}
         numColumns={columns}
         contentContainerStyle={styles.screenScroll}
         columnWrapperStyle={styles.boothGridRow}
         ListHeaderComponent={renderBoothHeader}
-        ListEmptyComponent={renderBoothEmpty}
+        ListEmptyComponent={boothView === 'map' && visualPlan ? (
+          <VisualPlanView key={visualPlan.id} layout={visualPlan} booths={effectiveBooths} onSelectBooth={handleBoothPress} />
+        ) : renderBoothEmpty}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.teal} />}
         keyboardShouldPersistTaps="handled"
         removeClippedSubviews
@@ -254,9 +265,6 @@ function BoothSelectionStep({
         onClose={closeSelectedBooth}
         onBook={handleReserveBooth}
       />
-      <VisualPlanModal open={visualPlanOpen} layout={visualPlan} booths={effectiveBooths}
-        onClose={() => setVisualPlanOpen(false)}
-        onSelectBooth={(booth) => { setVisualPlanOpen(false); handleBoothPress(booth); }} />
       <FloorPlanLightbox
         open={planPreviewOpen}
         imageUrl={floorPlan.planImageUrl}
@@ -805,6 +813,11 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '900',
   },
+  viewToggle: {flexDirection: 'row', padding: 4, gap: 4, borderRadius: 16, backgroundColor: '#E5F2EF', marginTop: 12},
+  viewTab: {flex: 1, minHeight: 42, alignItems: 'center', justifyContent: 'center', borderRadius: 12},
+  viewTabActive: {backgroundColor: colors.teal},
+  viewTabText: {fontSize: 13, color: colors.tealDark},
+  viewTabTextActive: {color: colors.white, fontWeight: '700'},
   boothGridRow: {
     marginTop: 14,
     justifyContent: 'center',
