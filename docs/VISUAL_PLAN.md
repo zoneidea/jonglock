@@ -1,5 +1,10 @@
 # Visual Plan in booth selection
 
+Temporarily disabled in the customer app: `FEATURES.visualPlan=false` in
+`src/config/features.ts`. Only regular booths are displayed; the visual-plan
+request and view toggle are disabled. Map code and backend layouts are retained.
+The following behavior applies when the flag is enabled again.
+
 The "บูธปกติ / แผนผังเสมือน" tabs appear when an active published layout references
 the selected booth plan. Both views occupy the same area below the date shortcuts
 and status legend. The default remains the regular booth grid. The inline map is

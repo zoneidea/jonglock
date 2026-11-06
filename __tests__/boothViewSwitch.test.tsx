@@ -3,7 +3,15 @@ import renderer, {act} from 'react-test-renderer';
 import {FlatList, Modal, Pressable} from 'react-native';
 import BoothSelectionStep from '../src/screens/booking/BoothSelectionStep';
 import VisualPlanView from '../src/components/VisualPlanView';
+import {FEATURES} from '../src/config/features';
 import {getPublishedVisualPlan, type Market, type FloorPlan} from '../src/services/markets';
+
+jest.mock('../src/config/features', () => ({FEATURES: {visualPlan: true}}));
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  FEATURES.visualPlan = true;
+});
 
 jest.mock('../src/theme/theme', () => ({useTheme: () => ({palette: {text:'#07111f', muted:'#607086', background:'#fff', surface:'#fff', border:'#dbe7ef', accent:'#14a997'}})}));
 
@@ -55,5 +63,17 @@ test('keeps the regular grid when no published visual plan exists', async () => 
   await act(async () => {screen = renderer.create(<BoothSelectionStep {...props} />);});
   expect(screen.root.findAllByType(Pressable).filter(node => node.props.accessibilityRole === 'tab')).toHaveLength(0);
   expect(screen.root.findAllByType(FlatList)[0].props.data).toHaveLength(1);
+  act(() => screen.unmount());
+});
+
+test('disabled feature shows only regular booths without requesting a visual plan', async () => {
+  FEATURES.visualPlan = false;
+  (getPublishedVisualPlan as jest.Mock).mockResolvedValue(plan);
+  let screen!: renderer.ReactTestRenderer;
+  await act(async () => {screen = renderer.create(<BoothSelectionStep {...props} />);});
+  expect(getPublishedVisualPlan).not.toHaveBeenCalled();
+  expect(screen.root.findAllByType(VisualPlanView)).toHaveLength(0);
+  expect(screen.root.findAllByType(Pressable).filter(node => node.props.accessibilityRole === 'tab')).toHaveLength(0);
+  expect(screen.root.findAllByType(FlatList)[0].props.data[0].id).toBe(10);
   act(() => screen.unmount());
 });

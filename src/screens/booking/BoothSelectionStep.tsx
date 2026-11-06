@@ -15,6 +15,7 @@ import {
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import ApiLoadingState from '../../components/ApiLoadingState';
+import {FEATURES} from '../../config/features';
 import {useNotice} from '../../notice/NoticeProvider';
 import {
   clearBoothAvailabilityCache,
@@ -84,6 +85,7 @@ function BoothSelectionStep({
     let mounted = true;
     setVisualPlan(null);
     setBoothView('grid');
+    if (!FEATURES.visualPlan) {return;}
     getPublishedVisualPlan(floorPlan.marketId, floorPlan.id)
       .then(plan => { if (mounted) { setVisualPlan(plan); } })
       .catch(() => { /* Keep the original booth list and image available on map failure. */ });
@@ -184,7 +186,7 @@ function BoothSelectionStep({
         <LegendDot color="#f5b93f" label="ว่างบางวัน" />
         <LegendDot color="#ef4444" label="ไม่ว่างเลย" />
       </View>
-      {visualPlan ? (
+      {FEATURES.visualPlan && visualPlan ? (
         <View style={styles.viewToggle}>
           {(['grid', 'map'] as const).map(mode => (
             <Pressable key={mode} accessibilityRole="tab" accessibilityState={{selected: boothView === mode}}
@@ -240,14 +242,14 @@ function BoothSelectionStep({
     <View style={styles.flex}>
       <FlatList
         key={`booth-grid-${columns}`}
-        data={boothView === 'map' && visualPlan ? [] : effectiveBooths}
+        data={FEATURES.visualPlan && boothView === 'map' && visualPlan ? [] : effectiveBooths}
         keyExtractor={(item) => String(item.id)}
         renderItem={renderBoothTile}
         numColumns={columns}
         contentContainerStyle={styles.screenScroll}
         columnWrapperStyle={styles.boothGridRow}
         ListHeaderComponent={renderBoothHeader}
-        ListEmptyComponent={boothView === 'map' && visualPlan ? (
+        ListEmptyComponent={FEATURES.visualPlan && boothView === 'map' && visualPlan ? (
           <VisualPlanView key={visualPlan.id} layout={visualPlan} booths={effectiveBooths} onSelectBooth={handleBoothPress} />
         ) : renderBoothEmpty}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.teal} />}
