@@ -1,3 +1,4 @@
+import VisualPlanModal from '../../components/VisualPlanModal';
 import {Text} from '../../components/AppText';
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {
@@ -18,6 +19,8 @@ import {useNotice} from '../../notice/NoticeProvider';
 import {
   clearBoothAvailabilityCache,
   getFloorPlanBoothAvailability,
+  getPublishedVisualPlan,
+  type VisualPlan,
   holdBoothDates,
   type Booth,
   type BoothHoldResult,
@@ -74,6 +77,18 @@ function BoothSelectionStep({
   const [marketModalOpen, setMarketModalOpen] = useState(false);
   const [floorPlanModalOpen, setFloorPlanModalOpen] = useState(false);
   const [planPreviewOpen, setPlanPreviewOpen] = useState(false);
+  const [visualPlan, setVisualPlan] = useState<VisualPlan | null>(null);
+  const [visualPlanOpen, setVisualPlanOpen] = useState(false);
+  const [planRevision, setPlanRevision] = useState(0);
+  useEffect(() => {
+    let mounted = true;
+    setVisualPlan(null);
+    setVisualPlanOpen(false);
+    getPublishedVisualPlan(floorPlan.marketId, floorPlan.id)
+      .then(plan => { if (mounted) { setVisualPlan(plan); } })
+      .catch(() => { /* Keep the original booth list and image available on map failure. */ });
+    return () => { mounted = false; };
+  }, [floorPlan.marketId, floorPlan.id, planRevision]);
   const ownerId = user?.email || user?.name || 'anonymous-mobile-user';
   const marketItems = useMemo(() => markets.map(marketToSelectionItem), [markets]);
   const floorPlanItems = useMemo(() => floorPlans.map(floorPlanToSelectionItem), [floorPlans]);
@@ -97,6 +112,7 @@ function BoothSelectionStep({
     setRefreshing(true);
     try {
       await loadBooths();
+      setPlanRevision(value => value + 1);
     } finally {
       setRefreshing(false);
     }
@@ -149,10 +165,10 @@ function BoothSelectionStep({
             {`${floorPlan.name} • ${formatSelectedDateSummary(selectedDates)}`}
           </Text>
         </View>
-        {floorPlan.planImageUrl ? (
-          <Pressable onPress={() => setPlanPreviewOpen(true)} style={styles.headerPreviewButton}>
+        {visualPlan || floorPlan.planImageUrl ? (
+          <Pressable onPress={() => visualPlan ? setVisualPlanOpen(true) : setPlanPreviewOpen(true)} style={styles.headerPreviewButton}>
             <MaterialCommunityIcons name="image-search-outline" size={18} color={colors.white} />
-            <Text style={styles.headerPreviewButtonText}>ดูแผนผัง</Text>
+            <Text style={styles.headerPreviewButtonText}>{visualPlan ? 'แผนผังเสมือน' : 'ดูแผนผัง'}</Text>
           </Pressable>
         ) : null}
       </View>
@@ -170,7 +186,7 @@ function BoothSelectionStep({
       </View>
 
     </>
-  ), [floorPlan.name, floorPlan.planImageUrl, market.name, onBack, onChangeDates, selectedDates]);
+  ), [floorPlan.name, floorPlan.planImageUrl, market.name, onBack, onChangeDates, selectedDates, visualPlan]);
 
   const renderBoothEmpty = useCallback(() => (
     loading ? (
@@ -238,6 +254,9 @@ function BoothSelectionStep({
         onClose={closeSelectedBooth}
         onBook={handleReserveBooth}
       />
+      <VisualPlanModal open={visualPlanOpen} layout={visualPlan} booths={effectiveBooths}
+        onClose={() => setVisualPlanOpen(false)}
+        onSelectBooth={(booth) => { setVisualPlanOpen(false); handleBoothPress(booth); }} />
       <FloorPlanLightbox
         open={planPreviewOpen}
         imageUrl={floorPlan.planImageUrl}

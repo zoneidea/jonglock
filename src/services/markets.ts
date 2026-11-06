@@ -32,6 +32,31 @@ export type Market = {
   galleryImages: string[];
 };
 
+export type VisualPlanItem = {
+  id: string;
+  type: string;
+  label: string;
+  row: number;
+  col: number;
+  rowSpan: number;
+  colSpan: number;
+  boothId?: number;
+};
+export type VisualPlan = {
+  id: number;
+  marketId: number;
+  floorPlanId: number;
+  name: string;
+  rowsCount: number;
+  columnsCount: number;
+  updatedAt: string;
+  items: VisualPlanItem[];
+};
+
+export async function getPublishedVisualPlan(marketId: number, floorPlanId: number) {
+  return request<VisualPlan | null>(`/public/markets/${marketId}/floor-plans/${floorPlanId}/visual-plan`);
+}
+
 export type MarketHoliday = {
   id: number;
   organizationId: number;
