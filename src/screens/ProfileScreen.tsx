@@ -25,6 +25,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import ApiLoadingState from '../components/ApiLoadingState';
+import AccountDeletionButton from '../components/AccountDeletionButton';
 import GoogleIcon from '../components/GoogleIcon';
 import LabeledInput from '../components/LabeledInput';
 import {useNotice} from '../notice/NoticeProvider';
@@ -143,13 +144,7 @@ function ProfileScreen({
   const [refreshing, setRefreshing] = useState(false);
   const {showSuccess, showWarning, showError} = useNotice();
   const {themeMode, setThemeMode, palette, resolvedTheme} = useTheme();
-  const deleteButtonTone = useMemo(
-    () => ({
-      borderColor: resolvedTheme === 'dark' ? '#6b3040' : '#f3b9c6',
-      backgroundColor: resolvedTheme === 'dark' ? '#2f1820' : '#fff5f7',
-    }),
-    [resolvedTheme],
-  );
+
 
   const initials = useMemo(() => {
     const source = user?.name || user?.email || 'J';
@@ -783,14 +778,7 @@ function ProfileScreen({
             {savingPassword ? 'กำลังบันทึก...' : 'บันทึกข้อมูลบัญชี'}
           </Text>
         </Pressable>
-        <Pressable
-          style={[
-            styles.deleteButton,
-            deleteButtonTone,
-          ]}>
-          <MaterialCommunityIcons name="trash-can-outline" size={18} color={palette.danger} />
-          <Text style={[styles.deleteButtonText, {color: palette.danger}]}>ลบบัญชี</Text>
-        </Pressable>
+        <AccountDeletionButton email={user?.email || ''} onDeleted={onLogout} />
       </View>
     );
   }

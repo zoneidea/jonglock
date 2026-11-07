@@ -20,7 +20,6 @@ import {
 import {SafeAreaView} from 'react-native-safe-area-context';
 
 import GoogleIcon from '../components/GoogleIcon';
-import LabeledInput from '../components/LabeledInput';
 import {STORAGE_USER_KEY} from '../constants/storage';
 import {useNotice} from '../notice/NoticeProvider';
 import {colors, shadow} from '../theme/colors';
@@ -30,8 +29,6 @@ const POWERED_BY_TEXT = 'Powered by zone-idea innovation co.,ltd.';
 
 function AuthScreen({onAuthenticated}: {onAuthenticated: (user: MobileUser) => void}) {
   const [mode, setMode] = useState<'login' | 'signup'>('login');
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const {showWarning, showError} = useNotice();
 
@@ -80,19 +77,6 @@ function AuthScreen({onAuthenticated}: {onAuthenticated: (user: MobileUser) => v
     } finally {
       setLoading(false);
     }
-  }
-
-  async function continueWithEmail() {
-    const trimmedEmail = email.trim().toLowerCase();
-    if (!trimmedEmail.includes('@')) {
-      showWarning('กรุณากรอกอีเมลให้ถูกต้อง');
-      return;
-    }
-    await persistUser({
-      name: name.trim() || trimmedEmail.split('@')[0],
-      email: trimmedEmail,
-      provider: 'local',
-    });
   }
 
   return (
@@ -147,34 +131,6 @@ function AuthScreen({onAuthenticated}: {onAuthenticated: (user: MobileUser) => v
               </Text>
             </Pressable>
 
-            <View style={styles.dividerRow}>
-              <View style={styles.divider} />
-              <Text style={styles.dividerText}>หรือทดสอบด้วยอีเมล</Text>
-              <View style={styles.divider} />
-            </View>
-
-            {mode === 'signup' && (
-              <LabeledInput
-                label="ชื่อผู้ค้า"
-                value={name}
-                onChangeText={setName}
-                placeholder="เช่น รุ่งมณี ร้านน้ำผลไม้"
-              />
-            )}
-            <LabeledInput
-              label="อีเมล"
-              value={email}
-              onChangeText={setEmail}
-              placeholder="merchant@example.com"
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-
-            <Pressable onPress={continueWithEmail} style={styles.primaryButton}>
-              <Text style={styles.primaryButtonText}>
-                {mode === 'login' ? 'เข้าใช้งาน' : 'สมัครและเข้าใช้งาน'}
-              </Text>
-            </Pressable>
           </View>
           <Text style={styles.poweredByText}>{POWERED_BY_TEXT}</Text>
         </ScrollView>
